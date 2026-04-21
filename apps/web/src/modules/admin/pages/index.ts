@@ -1,0 +1,12 @@
+export { AuditLogsPage } from "./AuditLogsPage";
+export { CallsPage } from "./CallsPage";
+export { ContentPage } from "./ContentPage";
+export { DashboardPage } from "./DashboardPage";
+export { IncidentsPage } from "./IncidentsPage";
+export { OrdersPage } from "./OrdersPage";
+export { PaymentsPage } from "./PaymentsPage";
+export { QRsPage } from "./QRsPage";
+export { SettingsPage } from "./SettingsPage";
+export { ShipmentsPage } from "./ShipmentsPage";
+export { UsersPage } from "./UsersPage";
+export { VehiclesPage } from "./VehiclesPage";
