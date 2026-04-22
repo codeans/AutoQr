@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     env_file:
-      - ./.env.production
+      - ./.env
     environment:
       NODE_ENV: production
       TRUST_PROXY: "true"
