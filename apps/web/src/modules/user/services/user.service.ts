@@ -1,11 +1,9 @@
 import { api } from "../../../lib/api";
-import { UserCall, UserIncident, UserNotification, UserOrder, UserProfile, UserSummary, UserVehicle } from "../types/user.types";
+import { UserCall, UserCar, UserIncident, UserNotification, UserOrder, UserProfile, UserSummary } from "../types/user.types";
 
 export const userService = {
   getDashboard: async () => (await api.get<{ summary: UserSummary; incidents: UserIncident[]; calls: UserCall[]; orders: UserOrder[] }>("/owner/dashboard")).data,
-  getVehicles: async () => (await api.get<{ vehicles: UserVehicle[] }>("/owner/vehicle")).data,
-  createVehicle: async (payload: FormData) =>
-    (await api.post("/owner/vehicle", payload, { headers: { "Content-Type": "multipart/form-data" } })).data,
+  getCars: async () => (await api.get<{ cars: UserCar[] }>("/owner/cars")).data,
   getIncidents: async () => (await api.get<{ incidents: UserIncident[] }>("/owner/incidents")).data,
   getIncidentDetail: async (id: string) => (await api.get<{ incident: UserIncident; calls: UserCall[] }>(`/owner/incidents/${id}`)).data,
   getCalls: async () => (await api.get<{ calls: UserCall[] }>("/owner/calls")).data,

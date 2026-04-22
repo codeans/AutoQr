@@ -12,7 +12,7 @@ export const useUserOrders = () => {
     mutationFn: (orderId: string) => userService.createCheckout(orderId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["user-orders"] });
-      await queryClient.invalidateQueries({ queryKey: ["user-vehicles"] });
+      await queryClient.invalidateQueries({ queryKey: ["user-cars"] });
     }
   });
 

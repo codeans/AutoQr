@@ -2,29 +2,31 @@ import type { Request, Response } from "express";
 import { AdminAuditLogModel } from "../../models/AdminAuditLog.js";
 import { AppSettingModel } from "../../models/AppSetting.js";
 import { CallSessionModel } from "../../models/CallSession.js";
+import { CarModel } from "../../models/Car.js";
 import { CmsContentModel } from "../../models/CmsContent.js";
 import { IncidentModel } from "../../models/Incident.js";
 import { OrderModel } from "../../models/Order.js";
 import { PaymentModel } from "../../models/Payment.js";
-import { QRCodeModel } from "../../models/QRCode.js";
+import { TagModel } from "../../models/Tag.js";
 import { UserModel } from "../../models/User.js";
-import { VehicleOrItemModel } from "../../models/VehicleOrItem.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
 import { fulfillPaidOrder } from "../payments/payment.service.js";
-import { resolveStoredUploadPath } from "../../utils/uploads.js";
 import { z } from "zod";
 
 const userStatusSchema = z.object({
   status: z.enum(["active", "inactive", "flagged"])
 });
 
-const vehicleStatusSchema = z.object({
-  status: z.enum(["pending_payment", "paid", "qr_generated", "printing", "packed", "dispatched", "delivered", "activated"])
-});
-
-const qrStatusSchema = z.object({
-  status: z.enum(["generated", "printed", "packed", "dispatched", "delivered", "activated", "disabled"])
+const carUpdateSchema = z.object({
+  registrationNumber: z.string().min(1).max(40).optional(),
+  make: z.string().max(120).optional(),
+  model: z.string().max(120).optional(),
+  color: z.string().max(120).optional(),
+  year: z.number().optional(),
+  nickname: z.string().max(120).optional(),
+  displayMessage: z.string().max(500).optional(),
+  activationStatus: z.enum(["pending", "activated", "deactivated"]).optional()
 });
 
 const incidentUpdateSchema = z.object({
@@ -56,20 +58,20 @@ const audit = async (adminId: string, action: string, targetType: string, target
   AdminAuditLogModel.create({ adminId, action, targetType, targetId, metadata });
 
 export const dashboard = asyncHandler(async (_req: Request, res: Response) => {
-  const [users, paidOrders, qrs, activeItems, incidents, calls, revenueRows, pendingShipments, recentActivity] = await Promise.all([
+  const [users, paidOrders, activeCars, activatedTags, incidents, calls, revenueRows, pendingShipments, recentActivity] = await Promise.all([
     UserModel.countDocuments(),
     OrderModel.countDocuments({ paymentStatus: "success" }),
-    QRCodeModel.countDocuments(),
-    VehicleOrItemModel.countDocuments({ status: { $in: ["qr_generated", "printing", "packed", "dispatched", "delivered", "activated"] } }),
+    CarModel.countDocuments({ activationStatus: "activated" }),
+    TagModel.countDocuments({ status: "activated" }),
     IncidentModel.countDocuments(),
     CallSessionModel.countDocuments(),
     PaymentModel.find({ status: "success" }),
-    QRCodeModel.countDocuments({ status: { $in: ["generated", "printed", "packed", "dispatched"] } }),
+    TagModel.countDocuments({ status: { $in: ["assigned_to_order", "shipped"] } }),
     AdminAuditLogModel.find().sort({ createdAt: -1 }).limit(12)
   ]);
   const revenue = revenueRows.reduce((acc, p) => acc + p.amount, 0);
   res.json({
-    totals: { users, paidOrders, qrs, activeItems, incidents, calls, revenue, pendingShipments },
+    totals: { users, paidOrders, activeCars, activatedTags, incidents, calls, revenue, pendingShipments },
     recentActivity
   });
 });
@@ -89,25 +91,25 @@ export const updateUserStatus = asyncHandler(async (req: Request, res: Response)
   res.json({ user });
 });
 
-export const listVehicles = asyncHandler(async (_req: Request, res: Response) => {
-  const vehicles = await VehicleOrItemModel.find().populate("userId", "name email phone").sort({ createdAt: -1 });
-  res.json({ vehicles });
+export const listCars = asyncHandler(async (_req: Request, res: Response) => {
+  const cars = await CarModel.find().populate("userId", "name email phone").sort({ createdAt: -1 });
+  res.json({ cars });
 });
 
-export const updateVehicleStatus = asyncHandler(async (req: Request, res: Response) => {
-  const payload = vehicleStatusSchema.parse(req.body);
-  const vehicle = await VehicleOrItemModel.findByIdAndUpdate(
+export const updateCarStatus = asyncHandler(async (req: Request, res: Response) => {
+  const payload = carUpdateSchema.parse(req.body);
+  const car = await CarModel.findByIdAndUpdate(
     req.params.id,
-    { $set: { status: payload.status } },
+    { $set: payload },
     { new: true, runValidators: true }
   );
-  if (!vehicle) throw new ApiError(404, "Vehicle/item not found");
-  await audit(req.auth!.userId, "vehicle_status_updated", "vehicle", vehicle.id, { status: payload.status });
-  res.json({ vehicle });
+  if (!car) throw new ApiError(404, "Car not found");
+  await audit(req.auth!.userId, "car_updated", "car", car.id, payload);
+  res.json({ car });
 });
 
 export const listOrders = asyncHandler(async (_req: Request, res: Response) => {
-  const orders = await OrderModel.find().populate("userId", "name email").populate("vehicleOrItemId").sort({ createdAt: -1 });
+  const orders = await OrderModel.find().populate("userId", "name email").populate("carId").sort({ createdAt: -1 });
   res.json({ orders });
 });
 
@@ -118,7 +120,7 @@ export const markOrderComplete = asyncHandler(async (req: Request, res: Response
   const transactionId = `admin-manual-${order.id}`;
   await fulfillPaidOrder(order.id, transactionId, { source: "admin_manual_complete", adminId: req.auth!.userId });
 
-  const updatedOrder = await OrderModel.findById(order.id).populate("userId", "name email").populate("vehicleOrItemId");
+  const updatedOrder = await OrderModel.findById(order.id).populate("userId", "name email").populate("carId");
   await audit(req.auth!.userId, "order_marked_complete", "order", order.id, { transactionId });
   res.json({ order: updatedOrder });
 });
@@ -128,51 +130,8 @@ export const listPayments = asyncHandler(async (_req: Request, res: Response) =>
   res.json({ payments });
 });
 
-export const listQrs = asyncHandler(async (_req: Request, res: Response) => {
-  const qrs = await QRCodeModel.find().populate("userId", "name email").populate("vehicleOrItemId").sort({ createdAt: -1 });
-  res.json({ qrs });
-});
-
-export const updateQrStatus = asyncHandler(async (req: Request, res: Response) => {
-  const payload = qrStatusSchema.parse(req.body);
-  const updates: Record<string, unknown> = { status: payload.status };
-  if (payload.status === "printed") updates.printedAt = new Date();
-  if (payload.status === "packed") updates.packedAt = new Date();
-  if (payload.status === "dispatched") updates.shippedAt = new Date();
-  if (payload.status === "delivered") updates.deliveredAt = new Date();
-  const statusToVehicleStatus: Record<string, string> = {
-    generated: "qr_generated",
-    printed: "printing",
-    packed: "packed",
-    dispatched: "dispatched",
-    delivered: "delivered",
-    activated: "activated"
-  };
-  const qr = await QRCodeModel.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true, runValidators: true });
-  if (!qr) throw new ApiError(404, "QR not found");
-  if (statusToVehicleStatus[payload.status]) {
-    await VehicleOrItemModel.updateOne({ _id: qr.vehicleOrItemId }, { $set: { status: statusToVehicleStatus[payload.status] } });
-  }
-  await audit(req.auth!.userId, "qr_status_updated", "qr", qr.id, updates);
-  res.json({ qr });
-});
-
-export const downloadQr = asyncHandler(async (req: Request, res: Response) => {
-  const qr = await QRCodeModel.findById(req.params.id);
-  if (!qr) throw new ApiError(404, "QR not found");
-  const resolvedPath = resolveStoredUploadPath(qr.qrImage);
-  res.download(resolvedPath, `${qr.internalCode}.png`);
-});
-
-export const previewQr = asyncHandler(async (req: Request, res: Response) => {
-  const qr = await QRCodeModel.findById(req.params.id);
-  if (!qr) throw new ApiError(404, "QR not found");
-  const resolvedPath = resolveStoredUploadPath(qr.qrImage);
-  res.sendFile(resolvedPath);
-});
-
 export const listIncidents = asyncHandler(async (_req: Request, res: Response) => {
-  const incidents = await IncidentModel.find().populate("userId", "name email").populate("vehicleOrItemId").sort({ createdAt: -1 });
+  const incidents = await IncidentModel.find().populate("userId", "name email").populate("carId").sort({ createdAt: -1 });
   res.json({ incidents });
 });
 
@@ -194,40 +153,57 @@ export const listCalls = asyncHandler(async (_req: Request, res: Response) => {
 });
 
 export const shipments = asyncHandler(async (_req: Request, res: Response) => {
-  const qrs = await QRCodeModel.find({ status: { $in: ["generated", "printed", "packed", "dispatched", "delivered"] } })
-    .populate("userId", "name address phone")
-    .populate("vehicleOrItemId", "registrationNumber type")
-    .sort({ createdAt: -1 });
-  res.json({ shipments: qrs });
+  const tags = await TagModel.find({ status: { $in: ["assigned_to_order", "shipped", "delivered"] } })
+    .populate("ownerUserId", "name address phone email")
+    .populate("orderId")
+    .sort({ updatedAt: -1 });
+  res.json({ shipments: tags });
 });
 
 export const updateShipment = asyncHandler(async (req: Request, res: Response) => {
   const payload = shipmentUpdateSchema.parse(req.body);
   const status = payload.status;
-  const updates: Record<string, unknown> = {
-    status,
-    shipmentMeta: { courier: payload.courier ?? "", trackingNumber: payload.trackingNumber ?? "", notes: payload.notes ?? "" }
+  const tagStatusMap: Record<string, string> = {
+    packed: "assigned_to_order",
+    dispatched: "shipped",
+    delivered: "delivered"
   };
-  if (status === "packed") updates.packedAt = new Date();
+  const updates: Record<string, unknown> = {
+    status: tagStatusMap[status] ?? "assigned_to_order"
+  };
   if (status === "dispatched") updates.shippedAt = new Date();
   if (status === "delivered") updates.deliveredAt = new Date();
 
-  const qr = await QRCodeModel.findByIdAndUpdate(
+  const tag = await TagModel.findByIdAndUpdate(
     req.params.id,
     { $set: updates },
     { new: true, runValidators: true }
   );
-  if (!qr) throw new ApiError(404, "QR not found");
-  const statusToVehicleStatus: Record<string, string> = {
-    packed: "packed",
-    dispatched: "dispatched",
-    delivered: "delivered"
-  };
-  if (statusToVehicleStatus[status]) {
-    await VehicleOrItemModel.updateOne({ _id: qr.vehicleOrItemId }, { $set: { status: statusToVehicleStatus[status] } });
+  if (!tag) throw new ApiError(404, "Tag not found");
+
+  if (tag.orderId) {
+    const orderStatusMap: Record<string, string> = {
+      packed: "fulfillment_in_progress",
+      dispatched: "fulfillment_in_progress",
+      delivered: "delivered"
+    };
+    await OrderModel.updateOne(
+      { _id: tag.orderId },
+      {
+        $set: {
+          orderStatus: orderStatusMap[status] ?? "fulfillment_in_progress",
+          "fulfillment.courier": payload.courier ?? "",
+          "fulfillment.trackingNumber": payload.trackingNumber ?? "",
+          "fulfillment.notes": payload.notes ?? "",
+          ...(status === "dispatched" ? { "fulfillment.shippedAt": new Date() } : {}),
+          ...(status === "delivered" ? { "fulfillment.deliveredAt": new Date() } : {})
+        }
+      }
+    );
   }
-  await audit(req.auth!.userId, "shipment_updated", "qr", qr.id, payload);
-  res.json({ qr });
+
+  await audit(req.auth!.userId, "shipment_updated", "tag", tag.id, payload);
+  res.json({ tag });
 });
 
 export const content = asyncHandler(async (_req: Request, res: Response) => {

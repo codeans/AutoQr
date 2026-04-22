@@ -3,12 +3,14 @@ import { app } from "./app.js";
 import { connectDatabase, disconnectDatabase } from "./config/db.js";
 import { env } from "./config/env.js";
 import { closeSocketServer, createSocketServer } from "./realtime/socket.js";
+import { ensureSeedPlans } from "./modules/plans/plan.service.js";
 import { logger } from "./utils/logger.js";
 
 let shuttingDown = false;
 
 const bootstrap = async () => {
   await connectDatabase();
+  await ensureSeedPlans().catch((err) => logger.warn("seed.plans.failed", { error: err?.message }));
   const server = http.createServer(app);
   createSocketServer(server);
   server.listen(env.PORT, () => {

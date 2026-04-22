@@ -1,6 +1,4 @@
 import { BellRing, CarFront, CreditCard, PhoneCall, ShieldCheck, TriangleAlert } from "lucide-react";
-import { useAuth } from "../../../context/AuthContext";
-import { OwnerIncomingCallWidget } from "../../../features/calls/OwnerIncomingCallWidget";
 import { EmptyState } from "../components/EmptyState";
 import { IncidentCard } from "../components/IncidentCard";
 import { LoadingState } from "../components/LoadingState";
@@ -13,7 +11,6 @@ import { useUserDashboard } from "../hooks/useUserDashboard";
 import { useUserNotifications } from "../hooks/useUserNotifications";
 
 export const DashboardScreen = () => {
-  const { token } = useAuth();
   const { data, isLoading } = useUserDashboard();
   const { data: notificationsData } = useUserNotifications();
 
@@ -24,32 +21,30 @@ export const DashboardScreen = () => {
 
   return (
     <div className="space-y-6">
-      <OwnerIncomingCallWidget token={token} />
-
       <section className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-xl">
-        <p className="text-sm text-slate-300">Welcome back to AutoQr</p>
-        <h2 className="mt-1 text-2xl font-bold">Your ownership workspace is live and protected.</h2>
+        <p className="text-sm text-slate-300">Welcome back to AutoQR</p>
+        <h2 className="mt-1 text-2xl font-bold">Your car owner workspace is live and protected.</h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-300">
-          Monitor your registered item, resolve incidents quickly, and track order and shipment progress from one premium control panel.
+          Manage your cars, respond to scan alerts, and track car QR tag orders and shipments from one premium control panel for car owners.
         </p>
       </section>
 
       <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <SummaryCard title="Registered Items" value={summary?.vehicleCount ?? 0} icon={CarFront} />
-        <SummaryCard title="Active QR" value={summary?.activeQrCount ?? 0} icon={ShieldCheck} />
-        <SummaryCard title="Recent Incidents" value={summary?.incidents ?? 0} icon={TriangleAlert} />
-        <SummaryCard title="Recent Calls" value={summary?.calls ?? 0} icon={PhoneCall} />
-        <SummaryCard title="Paid Orders" value={summary?.paidOrders ?? 0} icon={CreditCard} />
-        <SummaryCard title="Account Status" value={summary?.accountStatus ?? "active"} icon={BellRing} />
+        <SummaryCard title="Registered cars" value={summary?.carCount ?? 0} icon={CarFront} />
+        <SummaryCard title="Active car tags" value={summary?.activeTagCount ?? 0} icon={ShieldCheck} />
+        <SummaryCard title="Recent car incidents" value={summary?.incidents ?? 0} icon={TriangleAlert} />
+        <SummaryCard title="Recent calls" value={summary?.calls ?? 0} icon={PhoneCall} />
+        <SummaryCard title="Paid orders" value={summary?.paidOrders ?? 0} icon={CreditCard} />
+        <SummaryCard title="Account status" value={summary?.accountStatus ?? "active"} icon={BellRing} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <SectionCard title="Recent incidents" subtitle="Latest reports linked to your registered vehicle/item.">
+        <SectionCard title="Recent car incidents" subtitle="Latest reports submitted by people who scanned your car tag.">
           <div className="space-y-3">
-            {data?.incidents?.length ? data.incidents.slice(0, 3).map((incident) => <IncidentCard key={incident._id} incident={incident} />) : <EmptyState title="No incidents yet" message="New incident reports will appear here." />}
+            {data?.incidents?.length ? data.incidents.slice(0, 3).map((incident) => <IncidentCard key={incident._id} incident={incident} />) : <EmptyState title="No car incidents yet" message="New incident reports from scans will appear here." />}
           </div>
         </SectionCard>
-        <SectionCard title="Order & shipment status" subtitle="One-time purchase progress and QR lifecycle timeline.">
+        <SectionCard title="Order & shipment status" subtitle="Your car QR tag order progress and delivery timeline.">
           {firstOrder ? (
             <div className="space-y-4">
               <OrderCard order={firstOrder} />
@@ -62,12 +57,12 @@ export const DashboardScreen = () => {
               />
             </div>
           ) : (
-            <EmptyState title="No order found" message="Your first AutoQr order will appear after vehicle registration." />
+            <EmptyState title="No order found" message="Your first car QR tag order will appear here after checkout." />
           )}
         </SectionCard>
       </div>
 
-      <SectionCard title="Notification preview" subtitle="Recent alerts for incidents, calls, shipment, and payment updates.">
+      <SectionCard title="Notification preview" subtitle="Recent scan alerts, call requests, and order updates for your cars.">
         {notificationsData?.notifications?.length ? (
           <NotificationList notifications={notificationsData.notifications.slice(0, 4)} />
         ) : (

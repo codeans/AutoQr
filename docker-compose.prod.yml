@@ -4,17 +4,20 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     env_file:
-      - ./apps/api/.env.production
+      - ./.env.production
     environment:
       NODE_ENV: production
       TRUST_PROXY: "true"
       PORT: "4000"
       UPLOAD_DIR: /app/uploads
+      # External MongoDB only (no mongodb container in this stack)
+      MONGODB_URI: ${MONGODB_URI:?MONGODB_URI is required}
     restart: unless-stopped
     volumes:
       - autoqr_uploads:/app/uploads
-    expose:
-      - "4000"
+    ports:
+      # Dedicated backend port — isolated from any other services on the host.
+      - "${AUTOQR_BACKEND_PORT:-8181}:4000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health/ready').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s
@@ -31,27 +34,12 @@ services:
         VITE_SOCKET_URL: ${VITE_SOCKET_URL}
         VITE_WEBRTC_ICE_SERVERS: ${VITE_WEBRTC_ICE_SERVERS}
     restart: unless-stopped
-    expose:
-      - "80"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/health >/dev/null 2>&1 || exit 1"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  nginx:
-    image: nginx:1.27-alpine
     depends_on:
       backend:
         condition: service_healthy
-      frontend:
-        condition: service_healthy
     ports:
-      - "80:80"
-    volumes:
-      - ./infra/nginx/autoqr.conf:/etc/nginx/conf.d/default.conf:ro
-    restart: unless-stopped
+      # Dedicated frontend port — isolated from any other services on the host.
+      - "${AUTOQR_FRONTEND_PORT:-8180}:80"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost/health >/dev/null 2>&1 || exit 1"]
       interval: 20s

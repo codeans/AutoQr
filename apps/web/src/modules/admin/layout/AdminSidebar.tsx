@@ -1,12 +1,18 @@
 import {
+  BarChart3,
+  CheckCircle2,
   CreditCard,
   FileClock,
   FileText,
   LayoutDashboard,
+  Layers,
+  LayoutList,
   LifeBuoy,
   LogOut,
   Package,
   QrCode,
+  ScanLine,
+  ScrollText,
   Settings,
   ShieldCheck,
   ShoppingCart,
@@ -39,29 +45,42 @@ interface AdminNavGroup {
 export const adminNavGroups: AdminNavGroup[] = [
   {
     title: "Overview",
-    items: [{ path: "/admin", label: "Dashboard", icon: LayoutDashboard }]
+    items: [
+      { path: "/admin", label: "Dashboard", icon: LayoutDashboard },
+      { path: "/admin/analytics", label: "Analytics", icon: BarChart3 }
+    ]
   },
   {
     title: "Workspace",
     items: [
-      { path: "/admin/users", label: "Users", icon: Users },
-      { path: "/admin/vehicles", label: "Vehicles", icon: Truck },
-      { path: "/admin/incidents", label: "Incidents", icon: LifeBuoy },
-      { path: "/admin/calls", label: "Calls", icon: Bell }
+      { path: "/admin/users", label: "Users (car owners)", icon: Users },
+      { path: "/admin/cars", label: "Cars", icon: Truck },
+      { path: "/admin/incidents", label: "Car incidents", icon: LifeBuoy },
+      { path: "/admin/calls", label: "Contact calls", icon: Bell },
+      { path: "/admin/scan-alerts", label: "Car scan alerts", icon: ScanLine }
+    ]
+  },
+  {
+    title: "QR inventory & fulfilment",
+    items: [
+      { path: "/admin/tag-batches", label: "QR batches", icon: Layers },
+      { path: "/admin/tags", label: "QR inventory", icon: QrCode },
+      { path: "/admin/activations", label: "Activation records", icon: CheckCircle2 },
+      { path: "/admin/shipments", label: "Dispatch & shipments", icon: Package }
     ]
   },
   {
     title: "Commerce",
     items: [
+      { path: "/admin/plans", label: "Plans", icon: LayoutList },
       { path: "/admin/orders", label: "Orders", icon: ShoppingCart },
-      { path: "/admin/payments", label: "Payments", icon: CreditCard },
-      { path: "/admin/qrs", label: "QRs", icon: QrCode },
-      { path: "/admin/shipments", label: "Shipments", icon: Package }
+      { path: "/admin/payments", label: "Payments", icon: CreditCard }
     ]
   },
   {
-    title: "System",
+    title: "Governance",
     items: [
+      { path: "/admin/consent", label: "Consent records", icon: ScrollText },
       { path: "/admin/content", label: "Content", icon: FileText },
       { path: "/admin/audit-logs", label: "Audit Logs", icon: FileClock }
     ]
@@ -79,8 +98,8 @@ export const AdminSidebar = ({ collapsed, mobile = false, onCloseMobile }: Admin
           </div>
           {(!collapsed || mobile) && (
             <div>
-              <p className="text-sm font-semibold text-slate-900">AutoQr</p>
-              <p className="text-xs text-slate-500">Admin Console</p>
+              <p className="text-sm font-semibold text-slate-900">AutoQR</p>
+              <p className="text-xs text-slate-500">Car Admin Console</p>
             </div>
           )}
         </Link>

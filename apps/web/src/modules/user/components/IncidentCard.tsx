@@ -13,8 +13,8 @@ export const IncidentCard = ({ incident, onOpenDetail }: IncidentCardProps) => (
   <Card className="space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h3 className="text-sm font-semibold text-slate-900">{incident.reporterName || "Anonymous Reporter"}</h3>
-        <p className="text-xs text-slate-500">{incident.reporterPhone}</p>
+        <h3 className="text-sm font-semibold text-slate-900">Private reporter</h3>
+        <p className="text-xs text-slate-500">{incident.reporterPhoneMasked || "Number masked"}</p>
       </div>
       <StatusBadge status={incident.status} />
     </div>

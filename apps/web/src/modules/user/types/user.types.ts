@@ -3,40 +3,37 @@ export type UserBadgeTone = "neutral" | "success" | "warning" | "danger" | "info
 export type UserStatus = "open" | "resolved" | "pending" | "active" | "inactive" | "completed" | "missed" | "rejected" | string;
 
 export type UserSummary = {
-  vehicleCount: number;
-  activeQrCount: number;
+  carCount: number;
+  activeTagCount: number;
   incidents: number;
   calls: number;
   paidOrders: number;
   accountStatus: string;
 };
 
-export type UserVehicle = {
+export type UserCar = {
   _id: string;
-  type: string;
   registrationNumber: string;
-  details?: string;
-  frontImage?: string;
-  status: string;
-  qrStatus: string;
-  shipmentMeta?: {
-    carrier?: string;
-    trackingNumber?: string;
-    eta?: string;
-  } | null;
-  order?: UserOrder | null;
-  trackingTimeline?: Array<{ status: string; reached: boolean }>;
+  make?: string;
+  model?: string;
+  color?: string;
+  year?: number;
+  nickname?: string;
+  plateImage?: string;
+  displayMessage?: string;
+  activationStatus?: string;
+  isPrimary?: boolean;
+  activeTagId?: string;
   createdAt?: string;
 };
 
 export type UserIncident = {
   _id: string;
-  reporterName?: string;
-  reporterPhone: string;
+  reporterPhoneMasked?: string;
   message: string;
   images?: string[];
   status: string;
-  vehicleOrItemId?: string;
+  carId?: string;
   createdAt: string;
 };
 

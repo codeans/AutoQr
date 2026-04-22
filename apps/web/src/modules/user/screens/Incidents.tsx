@@ -27,8 +27,7 @@ export const IncidentsScreen = () => {
         const query = search.toLowerCase();
         const matchesSearch =
           incident.message.toLowerCase().includes(query) ||
-          (incident.reporterName ?? "").toLowerCase().includes(query) ||
-          incident.reporterPhone.toLowerCase().includes(query);
+          (incident.reporterPhoneMasked ?? "").toLowerCase().includes(query);
         const matchesStatus = status === "all" || incident.status === status;
         return matchesSearch && matchesStatus;
       }),
@@ -45,9 +44,9 @@ export const IncidentsScreen = () => {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Incident management" subtitle="Monitor incident reports, caller details, and resolution progress.">
+      <SectionCard title="Car incident management" subtitle="Monitor incident reports from people who scanned your car tag, caller details, and resolution progress.">
         <FilterBar>
-          <SearchInput placeholder="Search by reporter, phone, message..." value={search} onChange={(event) => setSearch(event.target.value)} />
+          <SearchInput placeholder="Search by message or masked number..." value={search} onChange={(event) => setSearch(event.target.value)} />
           <Select value={status} onChange={(event) => setStatus(event.target.value)} className="md:max-w-[220px]">
             <option value="all">All statuses</option>
             <option value="open">Open</option>
@@ -64,17 +63,17 @@ export const IncidentsScreen = () => {
           ))}
         </div>
       ) : (
-        <EmptyState title="No incidents found" message="Try adjusting your filters or wait for new reports." />
+        <EmptyState title="No car incidents found" message="Try adjusting your filters or wait for new reports from car scans." />
       )}
 
-      <SectionCard title="Incident table" subtitle="Quickly scan reporter details, call status, and resolution state.">
+      <SectionCard title="Car incident table" subtitle="Reporter identities are masked — only their call, not their number, reaches you.">
         <DataTable
           columns={["Date", "Reporter", "Message", "Images", "Status", "Action"]}
           rows={filteredIncidents.map((incident) => [
             formatDateTime(incident.createdAt),
             <div key={incident._id}>
-              <p className="font-medium text-slate-900">{incident.reporterName || "Anonymous"}</p>
-              <p className="text-xs text-slate-500">{incident.reporterPhone}</p>
+              <p className="font-medium text-slate-900">Private reporter</p>
+              <p className="text-xs text-slate-500">{incident.reporterPhoneMasked || "Number masked"}</p>
             </div>,
             <p className="max-w-xs truncate">{incident.message}</p>,
             `${incident.images?.length ?? 0} image(s)`,
@@ -96,8 +95,8 @@ export const IncidentsScreen = () => {
         ) : incidentDetailData?.incident ? (
           <div className="space-y-4">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-900">{incidentDetailData.incident.reporterName || "Anonymous reporter"}</p>
-              <p className="text-xs text-slate-500">{incidentDetailData.incident.reporterPhone}</p>
+              <p className="text-sm font-semibold text-slate-900">Private reporter</p>
+              <p className="text-xs text-slate-500">{incidentDetailData.incident.reporterPhoneMasked || "Number masked for privacy"}</p>
               <p className="mt-2 text-sm text-slate-700">{incidentDetailData.incident.message}</p>
             </div>
             <div>

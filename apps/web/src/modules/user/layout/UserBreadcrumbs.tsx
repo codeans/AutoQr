@@ -2,9 +2,13 @@ import { Link, useLocation } from "react-router-dom";
 
 const labelMap: Record<string, string> = {
   dashboard: "Dashboard",
-  vehicles: "Vehicles",
-  incidents: "Incidents",
-  calls: "Calls",
+  cars: "My cars",
+  activate: "Activate a car tag",
+  tags: "My car tags",
+  alerts: "Car scan alerts",
+  emergency: "Emergency contacts",
+  incidents: "Car incidents",
+  calls: "Contact calls",
   orders: "Orders",
   notifications: "Notifications",
   profile: "Profile",

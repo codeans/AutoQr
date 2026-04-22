@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button, DetailPanel } from "../../../components/ui";
+import { Button, DetailPanel, SecondaryButton } from "../../../components/ui";
 import { ActionMenu } from "../components/ActionMenu";
 import { DataTable } from "../components/DataTable";
 import { DetailDrawer } from "../components/DetailDrawer";
@@ -29,8 +29,8 @@ export const IncidentsPage = () => {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Incidents" subtitle="Evidence-first review flow with status updates and quick-view panel." />
-      <SectionCard title="Incident list">
+      <PageHeader title="Car incidents" subtitle="Evidence-first review flow for car scan incidents with status updates and quick-view panel." />
+      <SectionCard title="Car incident list">
         <DataTable
           columns={["Date", "Reporter", "Message", "Status", "Images", "Actions"]}
           rows={(data?.incidents ?? []).map((incident: AdminIncident) => [
@@ -56,15 +56,15 @@ export const IncidentsPage = () => {
               {!incident.images?.length && <span className="text-xs text-slate-500">No images</span>}
             </div>,
             <div className="flex items-center gap-2">
-              <Button
-                className="bg-white px-3 py-1.5 text-xs text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+              <SecondaryButton
+                className="px-3 py-1.5 text-xs"
                 onClick={() => {
                   setSelected(incident);
                   setDrawer(true);
                 }}
               >
                 Quick View
-              </Button>
+              </SecondaryButton>
               <ActionMenu
                 actions={[
                   { label: "Resolve", onClick: () => updateIncident(incident._id, { status: "resolved" }) },
@@ -89,10 +89,12 @@ export const IncidentsPage = () => {
             </DetailPanel>
             <DetailPanel title="Linked entities">
               <p>
-                <strong>Owner:</strong> {selected.ownerUserId?.email || "-"}
+                <strong>Car owner:</strong> {selected.ownerUserId?.email || "-"}
               </p>
               <p>
-                <strong>Item:</strong> {selected.vehicleOrItemId?.registrationNumber || "-"}
+                <strong>Car:</strong>{" "}
+                {selected.carId?.registrationNumber || "-"}
+                {selected.carId?.make ? ` · ${selected.carId.make} ${selected.carId.model ?? ""}` : ""}
               </p>
             </DetailPanel>
             <DetailPanel title="Message">{selected.message || "-"}</DetailPanel>

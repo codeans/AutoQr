@@ -60,9 +60,9 @@ export const ProfileScreen = () => {
         </div>
       </SectionCard>
 
-      <SectionCard title="Ownership verification" subtitle="Uploaded ownership metadata and linked vehicle records are used for incident trust flow.">
+      <SectionCard title="Car ownership verification" subtitle="Uploaded ownership metadata and linked car records are used for the incident trust flow.">
         <p className="text-sm text-slate-600">
-          Ownership verification data is linked automatically with your registered vehicles/items and order details to support secure communication during incidents.
+          Car ownership verification data is linked automatically with your registered cars and order details to support secure, masked communication during incidents.
         </p>
       </SectionCard>
     </div>

@@ -1,4 +1,4 @@
-import { Modal, Button } from "../../../components/ui";
+import { Modal, Button, SecondaryButton } from "../../../components/ui";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -23,9 +23,7 @@ export const ConfirmDialog = ({
     <div className="space-y-4">
       <p className="text-sm text-slate-600">{message}</p>
       <div className="flex justify-end gap-2">
-        <Button className="bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100" onClick={onCancel}>
-          {cancelLabel}
-        </Button>
+        <SecondaryButton onClick={onCancel}>{cancelLabel}</SecondaryButton>
         <Button onClick={onConfirm}>{confirmLabel}</Button>
       </div>
     </div>

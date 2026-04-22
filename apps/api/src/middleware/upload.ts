@@ -38,5 +38,5 @@ const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
 
 const limits = { fileSize: env.UPLOAD_MAX_MB * 1024 * 1024 };
 
-export const vehicleImageUpload = multer({ storage: createStorage("vehicles"), fileFilter, limits });
+export const carImageUpload = multer({ storage: createStorage("cars"), fileFilter, limits });
 export const incidentImageUpload = multer({ storage: createStorage("incidents"), fileFilter, limits });

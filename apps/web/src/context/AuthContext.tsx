@@ -1,16 +1,41 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, registerAccessTokenListener, setAccessToken } from "../lib/api";
 
-type User = { _id: string; name: string; email: string; role: "admin" | "owner" } | null;
+type User = {
+  _id: string;
+  name: string;
+  email: string;
+  role: "admin" | "owner" | "support";
+  phone?: string;
+  phoneVerified?: boolean;
+} | null;
+
+export type OtpVerifyPayload = {
+  phone: string;
+  code: string;
+  purpose?: "login" | "signup" | "phone_verify" | "activation";
+  signup?: { name: string; email: string; address: string };
+};
+
 type AuthContextShape = {
   user: User;
   token: string;
   isBootstrapping: boolean;
   login: (email: string, password: string) => Promise<void>;
+  requestOtp: (phone: string, purpose?: OtpVerifyPayload["purpose"]) => Promise<{ devCode?: string; expiresInSeconds: number }>;
+  verifyOtp: (payload: OtpVerifyPayload) => Promise<User>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextShape | null>(null);
+
+const persist = (user: User, token: string) => {
+  if (user) localStorage.setItem("autoqr_user", JSON.stringify(user));
+  else localStorage.removeItem("autoqr_user");
+  if (token) localStorage.setItem("autoqr_access", token);
+  else localStorage.removeItem("autoqr_access");
+};
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User>(() => {
@@ -27,12 +52,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     registerAccessTokenListener((nextToken) => {
       setToken(nextToken);
-      if (nextToken) {
-        localStorage.setItem("autoqr_access", nextToken);
-      } else {
+      if (!nextToken) {
         setUser(null);
-        localStorage.removeItem("autoqr_access");
-        localStorage.removeItem("autoqr_user");
+        persist(null, "");
+      } else {
+        localStorage.setItem("autoqr_access", nextToken);
       }
     });
   }, []);
@@ -51,8 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setToken("");
         setAccessToken("");
         setUser(null);
-        localStorage.removeItem("autoqr_access");
-        localStorage.removeItem("autoqr_user");
+        persist(null, "");
       } finally {
         setIsBootstrapping(false);
       }
@@ -65,20 +88,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setToken(data.accessToken);
     setAccessToken(data.accessToken);
     setUser(data.user);
-    localStorage.setItem("autoqr_access", data.accessToken);
-    localStorage.setItem("autoqr_user", JSON.stringify(data.user));
+    persist(data.user, data.accessToken);
   };
 
+  const requestOtp = useCallback(async (phone: string, purpose: OtpVerifyPayload["purpose"] = "login") => {
+    const { data } = await api.post("/auth/otp/request", { phone, purpose });
+    return { devCode: data.devCode, expiresInSeconds: data.expiresInSeconds };
+  }, []);
+
+  const verifyOtp = useCallback(async (payload: OtpVerifyPayload) => {
+    const { data } = await api.post("/auth/otp/verify", payload);
+    setToken(data.accessToken);
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+    persist(data.user, data.accessToken);
+    return data.user as User;
+  }, []);
+
   const logout = async () => {
-    await api.post("/auth/logout");
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      /* ignore */
+    }
     setToken("");
     setAccessToken("");
     setUser(null);
-    localStorage.removeItem("autoqr_access");
-    localStorage.removeItem("autoqr_user");
+    persist(null, "");
   };
 
-  const value = useMemo(() => ({ user, token, isBootstrapping, login, logout }), [user, token, isBootstrapping]);
+  const refreshUser = useCallback(async () => {
+    if (!token) return;
+    try {
+      const { data } = await api.get("/auth/me");
+      setUser(data.user);
+      persist(data.user, token);
+    } catch {
+      /* ignore */
+    }
+  }, [token]);
+
+  const value = useMemo(
+    () => ({ user, token, isBootstrapping, login, logout, requestOtp, verifyOtp, refreshUser }),
+    [user, token, isBootstrapping, requestOtp, verifyOtp, refreshUser]
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 

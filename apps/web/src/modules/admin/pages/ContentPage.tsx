@@ -17,10 +17,10 @@ export const ContentPage = () => {
   const [form, setForm] = useState({
     slug: "home",
     title: "Homepage",
-    heroHeading: "Protect what matters",
-    heroSubheading: "Premium QR identity for vehicles and valuables.",
-    faqTitle: "Frequently asked questions",
-    pricingTitle: "Simple one-time price"
+    heroHeading: "Contact any car owner without exposing a phone number",
+    heroSubheading: "AutoQR is a privacy-first QR contact platform made only for cars — wrong parking, headlights on, towing, emergencies, and more.",
+    faqTitle: "Frequently asked questions from car owners",
+    pricingTitle: "Simple one-time price for every car"
   });
 
   const save = async (e: FormEvent) => {
@@ -41,7 +41,7 @@ export const ContentPage = () => {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Content" subtitle="CMS-style editing panels for homepage blocks, FAQ, and pricing sections." />
+      <PageHeader title="Car-owner content" subtitle="CMS-style editing panels for the car-owner marketing site — homepage, FAQ, and pricing." />
       <SectionCard title="Structured content editor">
         <form onSubmit={save} className="space-y-3">
           <div className="grid gap-3 md:grid-cols-2">

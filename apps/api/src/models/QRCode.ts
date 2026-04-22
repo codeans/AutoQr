@@ -3,7 +3,7 @@ import mongoose, { Schema } from "mongoose";
 const qrCodeSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    vehicleOrItemId: { type: Schema.Types.ObjectId, ref: "VehicleOrItem", required: true, unique: true },
+    carId: { type: Schema.Types.ObjectId, ref: "Car", index: true },
     internalCode: { type: String, required: true, unique: true },
     qrUrlToken: { type: String, required: true, unique: true },
     qrImage: { type: String, required: true },

@@ -9,13 +9,19 @@ export interface AdminUser {
   status?: string;
 }
 
-export interface AdminVehicle {
+export interface AdminCar {
   _id: string;
   registrationNumber?: string;
-  type?: string;
-  status?: string;
-  frontImage?: string;
+  make?: string;
+  model?: string;
+  color?: string;
+  year?: number;
+  nickname?: string;
+  plateImage?: string;
+  activationStatus?: string;
+  isPrimary?: boolean;
   userId?: AdminUser;
+  createdAt?: string;
 }
 
 export interface AdminOrder {
@@ -26,7 +32,7 @@ export interface AdminOrder {
   orderStatus?: string;
   createdAt: string;
   userId?: AdminUser;
-  vehicleOrItemId?: AdminVehicle;
+  carId?: AdminCar;
 }
 
 export interface AdminPayment {
@@ -44,7 +50,7 @@ export interface AdminQr {
   internalCode?: string;
   status?: string;
   userId?: AdminUser;
-  vehicleOrItemId?: AdminVehicle;
+  carId?: AdminCar;
   shipmentMeta?: {
     courier?: string;
     trackingNumber?: string;
@@ -61,7 +67,7 @@ export interface AdminIncident {
   status?: string;
   images?: string[];
   ownerUserId?: AdminUser;
-  vehicleOrItemId?: AdminVehicle;
+  carId?: AdminCar;
 }
 
 export interface AdminCall {
@@ -103,8 +109,8 @@ export interface AdminDashboardData {
   totals?: {
     users?: number;
     paidOrders?: number;
-    qrs?: number;
-    activeItems?: number;
+    activeCars?: number;
+    activatedTags?: number;
     incidents?: number;
     calls?: number;
     revenue?: number;
