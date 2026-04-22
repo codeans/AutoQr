@@ -8,14 +8,32 @@ import { logger } from "./utils/logger.js";
 
 let shuttingDown = false;
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const initializeDatabase = async () => {
+  while (!shuttingDown) {
+    try {
+      await connectDatabase();
+      if (shuttingDown) return;
+      await ensureSeedPlans().catch((err) => logger.warn("seed.plans.failed", { error: err?.message }));
+      return;
+    } catch (error) {
+      logger.error("api_database_initialization_failed", {
+        error: error instanceof Error ? error.message : String(error),
+        retryDelayMs: env.DB_RETRY_DELAY_MS
+      });
+      await delay(env.DB_RETRY_DELAY_MS);
+    }
+  }
+};
+
 const bootstrap = async () => {
-  await connectDatabase();
-  await ensureSeedPlans().catch((err) => logger.warn("seed.plans.failed", { error: err?.message }));
   const server = http.createServer(app);
   createSocketServer(server);
   server.listen(env.PORT, () => {
     logger.info("api_listening", { port: env.PORT, nodeEnv: env.NODE_ENV });
   });
+  void initializeDatabase();
 
   const shutdown = async (signal: NodeJS.Signals) => {
     if (shuttingDown) return;

@@ -27,6 +27,13 @@ apiRouter.get("/health/ready", (_req, res) => {
 });
 apiRouter.get("/docs/openapi", (_req, res) => res.json(openApiSpec));
 
+apiRouter.use((_req, res, next) => {
+  if (!isDatabaseReady()) {
+    return res.status(503).json({ message: "Service is starting", status: "degraded", db: "disconnected" });
+  }
+  return next();
+});
+
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/auth/otp", otpRouter);
 
