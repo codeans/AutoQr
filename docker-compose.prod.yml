@@ -11,11 +11,12 @@ services:
       PORT: "4000"
       UPLOAD_DIR: /app/uploads
       # External MongoDB only (no mongodb container in this stack)
-      MONGODB_URI: ${MONGODB_URI:?MONGODB_URI is required}
-      CLIENT_URL: ${CLIENT_URL:?CLIENT_URL is required}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?PUBLIC_BASE_URL is required}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      MONGODB_URI: 'mongodb://root:C0d3%40n%24%402026@45.132.241.96:32768/autoqr?authSource=admin'
+      CLIENT_URL: 'http://45.132.241.96:8180'
+      PUBLIC_BASE_URL: 'http://45.132.241.96:8180'
+      CORS_ORIGINS: 'http://45.132.241.96:8180,http://45.132.241.96'
+      JWT_ACCESS_SECRET: '3IFV5bycExZ2eeo54mFh813K0MZMLKynOBnFGLzVxDA='
+      JWT_REFRESH_SECRET: 'jtdQs/nxXe0hTOpMf07kp4H5XnvJdOj8jmbTy9G3dZY='
     restart: unless-stopped
     volumes:
       - autoqr_uploads:/app/uploads
@@ -33,9 +34,9 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required}
-        VITE_SOCKET_URL: ${VITE_SOCKET_URL:?VITE_SOCKET_URL is required}
-        VITE_WEBRTC_ICE_SERVERS: ${VITE_WEBRTC_ICE_SERVERS:?VITE_WEBRTC_ICE_SERVERS is required}
+        VITE_API_URL: 'http://45.132.241.96:8180/api'
+        VITE_SOCKET_URL: 'http://45.132.241.96:8180'
+        VITE_WEBRTC_ICE_SERVERS: '[{"urls":"stun:stun.l.google.com:19302"}]'
     restart: unless-stopped
     expose:
       - "80"
@@ -56,7 +57,7 @@ services:
         condition: service_healthy
     ports:
       # Single edge port — nginx proxies /, /api, /socket.io, /uploads
-      - "${AUTOQR_HTTP_PORT:-8180}:80"
+      - "8180:80"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost/health >/dev/null || exit 1"]
