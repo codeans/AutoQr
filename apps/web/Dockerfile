@@ -17,6 +17,7 @@ RUN npm ci
 
 COPY apps/web apps/web
 COPY packages/shared packages/shared
+RUN npm run build --workspace @autoqr/shared
 RUN npx --workspace @autoqr/web vite build
 
 FROM nginx:1.27-alpine AS runner
