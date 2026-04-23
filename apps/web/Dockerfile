@@ -22,6 +22,8 @@ RUN npx --workspace @autoqr/web vite build
 
 FROM nginx:1.27-alpine AS runner
 
+RUN apk add --no-cache curl
+
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 

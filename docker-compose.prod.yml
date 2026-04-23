@@ -40,7 +40,7 @@ services:
     expose:
       - "80"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/health >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost/health >/dev/null || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -59,7 +59,7 @@ services:
       - "${AUTOQR_HTTP_PORT:-8180}:80"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/health >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost/health >/dev/null || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
