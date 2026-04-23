@@ -7,6 +7,7 @@ ARG VITE_WEBRTC_ICE_SERVERS
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_SOCKET_URL=$VITE_SOCKET_URL
 ENV VITE_WEBRTC_ICE_SERVERS=$VITE_WEBRTC_ICE_SERVERS
+ENV NODE_OPTIONS=--max-old-space-size=4096
 
 COPY package.json package-lock.json ./
 COPY tsconfig.base.json ./
@@ -16,7 +17,7 @@ RUN npm ci
 
 COPY apps/web apps/web
 COPY packages/shared packages/shared
-RUN npm run build --workspace @autoqr/web
+RUN npx --workspace @autoqr/web vite build
 
 FROM nginx:1.27-alpine AS runner
 
