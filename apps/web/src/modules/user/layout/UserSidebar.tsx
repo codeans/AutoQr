@@ -1,12 +1,32 @@
-import { Bell, CarFront, LayoutDashboard, LogOut, PhoneCall, ReceiptText, Settings, ShieldCheck, TriangleAlert, UserCircle2, X } from "lucide-react";
+import {
+  Bell,
+  BadgeCheck,
+  CarFront,
+  FileWarning,
+  LayoutDashboard,
+  LogOut,
+  PhoneCall,
+  QrCode,
+  ReceiptText,
+  Settings,
+  ShieldCheck,
+  Siren,
+  TriangleAlert,
+  UserCircle2,
+  X
+} from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 
 const navItems = [
-  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/dashboard/vehicles", label: "Vehicles", icon: CarFront },
-  { path: "/dashboard/incidents", label: "Incidents", icon: TriangleAlert },
-  { path: "/dashboard/calls", label: "Calls", icon: PhoneCall },
+  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { path: "/dashboard/activate", label: "Activate a car tag", icon: BadgeCheck },
+  { path: "/dashboard/tags", label: "My car tags", icon: QrCode },
+  { path: "/dashboard/cars", label: "My cars", icon: CarFront },
+  { path: "/dashboard/emergency", label: "Emergency contacts", icon: Siren },
+  { path: "/dashboard/alerts", label: "Car scan alerts", icon: TriangleAlert },
+  { path: "/dashboard/incidents", label: "Incidents", icon: FileWarning },
+  { path: "/dashboard/calls", label: "Contact calls", icon: PhoneCall },
   { path: "/dashboard/orders", label: "Orders", icon: ReceiptText },
   { path: "/dashboard/notifications", label: "Notifications", icon: Bell },
   { path: "/dashboard/profile", label: "Profile", icon: UserCircle2 },
@@ -31,8 +51,8 @@ export const UserSidebar = ({ collapsed, mobile = false, onCloseMobile }: UserSi
           </div>
           {(!collapsed || mobile) && (
             <div>
-              <p className="text-sm font-semibold text-slate-900">AutoQr</p>
-              <p className="text-xs text-slate-500">Owner Panel</p>
+              <p className="text-sm font-semibold text-slate-900">AutoQR</p>
+              <p className="text-xs text-slate-500">Owner Portal</p>
             </div>
           )}
         </Link>
@@ -55,6 +75,7 @@ export const UserSidebar = ({ collapsed, mobile = false, onCloseMobile }: UserSi
             <NavLink
               key={item.path}
               to={item.path}
+              end={item.end}
               onClick={mobile ? onCloseMobile : undefined}
               className={({ isActive }) =>
                 `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${

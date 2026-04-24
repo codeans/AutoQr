@@ -1,26 +1,34 @@
 import { connectDatabase } from "../config/db.js";
 import { UserModel } from "../models/User.js";
-import { VehicleOrItemModel } from "../models/VehicleOrItem.js";
+import { CarModel } from "../models/Car.js";
 import { OrderModel } from "../models/Order.js";
 import { PaymentModel } from "../models/Payment.js";
-import { QRCodeModel } from "../models/QRCode.js";
 import { IncidentModel } from "../models/Incident.js";
 import { CallSessionModel } from "../models/CallSession.js";
 import { NotificationModel } from "../models/Notification.js";
 import { AdminAuditLogModel } from "../models/AdminAuditLog.js";
+import { TagModel } from "../models/Tag.js";
+import { TagBatchModel } from "../models/TagBatch.js";
+import {
+  ActivationAttemptModel,
+  ActivationRecordModel
+} from "../models/ActivationRecord.js";
 import { hashPassword } from "../utils/crypto.js";
 
 const syncAllIndexes = async () => {
   const models = [
     UserModel,
-    VehicleOrItemModel,
+    CarModel,
     OrderModel,
     PaymentModel,
-    QRCodeModel,
     IncidentModel,
     CallSessionModel,
     NotificationModel,
-    AdminAuditLogModel
+    AdminAuditLogModel,
+    TagModel,
+    TagBatchModel,
+    ActivationRecordModel,
+    ActivationAttemptModel
   ];
 
   for (const model of models) {

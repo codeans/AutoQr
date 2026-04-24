@@ -9,6 +9,7 @@ RUN npm ci
 
 COPY apps/api apps/api
 COPY packages/shared packages/shared
+RUN npm run build --workspace @autoqr/shared
 RUN npm run build --workspace @autoqr/api
 
 FROM node:20-alpine AS prod-deps
@@ -27,6 +28,8 @@ RUN addgroup -S nodejs && adduser -S autoqr -G nodejs
 
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
 COPY apps/api/package.json ./apps/api/package.json
 RUN mkdir -p /app/uploads && chown -R autoqr:nodejs /app
 

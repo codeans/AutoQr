@@ -12,9 +12,13 @@ type UserTopbarProps = {
 
 const titleMap: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/dashboard/vehicles": "Vehicles",
-  "/dashboard/incidents": "Incidents",
-  "/dashboard/calls": "Calls",
+  "/dashboard/cars": "My cars",
+  "/dashboard/activate": "Activate a car tag",
+  "/dashboard/tags": "My car tags",
+  "/dashboard/alerts": "Car scan alerts",
+  "/dashboard/emergency": "Emergency contacts",
+  "/dashboard/incidents": "Car incidents",
+  "/dashboard/calls": "Contact calls",
   "/dashboard/orders": "Orders",
   "/dashboard/notifications": "Notifications",
   "/dashboard/profile": "Profile",

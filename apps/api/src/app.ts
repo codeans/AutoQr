@@ -5,6 +5,7 @@ import helmet from "helmet";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { requestLogger } from "./middleware/requestLogger.js";
+import { localeMiddleware } from "./middleware/locale.js";
 import { apiRouter } from "./routes/index.js";
 import { stripeWebhook } from "./modules/payments/payment.controller.js";
 
@@ -29,6 +30,7 @@ app.use(requestLogger);
 app.post("/api/payments/stripe-webhook", express.raw({ type: "application/json" }), stripeWebhook);
 app.use(express.json({ limit: `${env.BODY_LIMIT_MB}mb` }));
 app.use(cookieParser());
+app.use(localeMiddleware);
 app.use("/uploads", express.static(env.UPLOAD_DIR_ABSOLUTE));
 app.use("/api", apiRouter);
 app.use(notFoundHandler);

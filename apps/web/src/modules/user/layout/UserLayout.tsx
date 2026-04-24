@@ -29,7 +29,7 @@ export const UserLayout = () => {
 
       <div className={`min-h-screen transition-all ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
         <UserTopbar onOpenDrawer={() => setDrawerOpen(true)} onToggleSidebar={() => setSidebarCollapsed((value) => !value)} />
-        <main className="space-y-6 p-4 sm:p-6">
+        <main className="space-y-6 p-3 sm:p-6">
           <Outlet />
         </main>
       </div>

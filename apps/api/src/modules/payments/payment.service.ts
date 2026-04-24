@@ -2,10 +2,8 @@ import { env } from "../../config/env.js";
 import { ensureStripe } from "../../infrastructure/payment/stripe.client.js";
 import { OrderModel } from "../../models/Order.js";
 import { PaymentModel } from "../../models/Payment.js";
-import { QRCodeModel } from "../../models/QRCode.js";
-import { VehicleOrItemModel } from "../../models/VehicleOrItem.js";
+import { TagModel } from "../../models/Tag.js";
 import { ApiError } from "../../utils/apiError.js";
-import { generateQrAsset } from "../../infrastructure/qr/qr.service.js";
 
 export const createCheckoutSession = async (orderId: string, userId: string) => {
   const order = await OrderModel.findOne({ _id: orderId, userId });
@@ -18,7 +16,7 @@ export const createCheckoutSession = async (orderId: string, userId: string) => 
       {
         price_data: {
           currency: "eur",
-          product_data: { name: "AutoQr One-Time Sticker/Tag" },
+          product_data: { name: "AutoQR Car QR Sticker/Tag" },
           unit_amount: env.STRIPE_PRICE_EUR_CENTS
         },
         quantity: 1
@@ -73,18 +71,13 @@ export const fulfillPaidOrder = async (orderId: string, transactionId: string, r
     }
   }
 
-  const existingQR = await QRCodeModel.findOne({ vehicleOrItemId: order.vehicleOrItemId });
-  if (!existingQR) {
-    const qr = await generateQrAsset();
-    await QRCodeModel.create({
-      userId: order.userId,
-      vehicleOrItemId: order.vehicleOrItemId,
-      internalCode: qr.internalCode,
-      qrUrlToken: qr.qrUrlToken,
-      qrImage: qr.qrImage,
-      status: "generated"
-    });
+  const tagQuantity = (order as any).tagQuantity ?? 1;
+  const available = await TagModel.find({ status: "in_stock" }).limit(tagQuantity);
+  if (available.length > 0) {
+    const ids = available.map((t: any) => t._id);
+    await TagModel.updateMany(
+      { _id: { $in: ids } },
+      { $set: { status: "assigned_to_order", orderId: order.id, ownerUserId: order.userId } }
+    );
   }
-
-  await VehicleOrItemModel.updateOne({ _id: order.vehicleOrItemId }, { $set: { status: "qr_generated" } });
 };

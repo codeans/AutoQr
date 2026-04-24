@@ -4,24 +4,20 @@ import {
   auditLogs,
   content,
   dashboard,
-  downloadQr,
-  previewQr,
   listCalls,
+  listCars,
   listIncidents,
   listOrders,
   listPayments,
   markOrderComplete,
-  listQrs,
   listUsers,
-  listVehicles,
   settingsGet,
   settingsUpsert,
   shipments,
+  updateCarStatus,
   updateIncident,
-  updateQrStatus,
   updateShipment,
   updateUserStatus,
-  updateVehicleStatus,
   upsertContent
 } from "./admin.controller.js";
 
@@ -31,15 +27,11 @@ adminRouter.use(requireAuth, requireRole("admin"));
 adminRouter.get("/dashboard", dashboard);
 adminRouter.get("/users", listUsers);
 adminRouter.patch("/users/:id/status", updateUserStatus);
-adminRouter.get("/vehicles", listVehicles);
-adminRouter.patch("/vehicles/:id/status", updateVehicleStatus);
+adminRouter.get("/cars", listCars);
+adminRouter.patch("/cars/:id", updateCarStatus);
 adminRouter.get("/orders", listOrders);
 adminRouter.post("/orders/:id/complete", markOrderComplete);
 adminRouter.get("/payments", listPayments);
-adminRouter.get("/qrs", listQrs);
-adminRouter.patch("/qrs/:id/status", updateQrStatus);
-adminRouter.get("/qrs/:id/preview", previewQr);
-adminRouter.get("/qrs/:id/download", downloadQr);
 adminRouter.get("/incidents", listIncidents);
 adminRouter.patch("/incidents/:id", updateIncident);
 adminRouter.get("/calls", listCalls);

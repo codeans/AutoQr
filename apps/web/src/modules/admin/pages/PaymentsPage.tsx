@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Button, DetailPanel, Modal } from "../../../components/ui";
+import { DetailPanel, Modal, SecondaryButton } from "../../../components/ui";
 import { DataTable } from "../components/DataTable";
 import { LoadingState } from "../components/LoadingState";
 import { PageHeader } from "../components/PageHeader";
@@ -38,15 +38,15 @@ export const PaymentsPage = () => {
             <StatusBadge label={payment.status || "pending"} tone={statusTone(payment.status || "pending")} />,
             payment.provider || "-",
             new Date(payment.createdAt).toLocaleString(),
-            <Button
-              className="bg-white px-3 py-1.5 text-xs text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+            <SecondaryButton
+              className="px-3 py-1.5 text-xs"
               onClick={() => {
                 setSelected(payment);
                 setModal(true);
               }}
             >
               Details
-            </Button>
+            </SecondaryButton>
           ])}
         />
       </SectionCard>

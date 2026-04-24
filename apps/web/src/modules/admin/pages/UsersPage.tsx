@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, DetailPanel, Select } from "../../../components/ui";
+import { Button, DetailPanel, SecondaryButton, Select } from "../../../components/ui";
 import { ActionMenu } from "../components/ActionMenu";
 import { DataTable } from "../components/DataTable";
 import { DetailDrawer } from "../components/DetailDrawer";
@@ -61,15 +61,15 @@ export const UsersPage = () => {
             <StatusBadge label={user.role || "owner"} tone="info" />,
             <StatusBadge label={user.status || "pending"} tone={statusTone(user.status || "pending")} />,
             <div className="flex items-center gap-2">
-              <Button
-                className="bg-white px-3 py-1.5 text-xs text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+              <SecondaryButton
+                className="px-3 py-1.5 text-xs"
                 onClick={() => {
                   setSelected(user);
                   setDrawer(true);
                 }}
               >
                 View
-              </Button>
+              </SecondaryButton>
               <ActionMenu
                 actions={[
                   { label: "Activate", onClick: () => setStatus(user._id, "active") },

@@ -2,7 +2,7 @@ import { io, type Socket } from "socket.io-client";
 import { socketBaseUrl } from "./runtimeConfig";
 
 const baseOptions = {
-  autoConnect: true,
+  autoConnect: false,
   reconnection: true,
   reconnectionAttempts: 8,
   reconnectionDelay: 1000,

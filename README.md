@@ -32,34 +32,27 @@ Production-ready MERN monorepo starter for `autoqr.de` with:
    - `npm install`
    - `npm run dev`
 
-## Production deployment (Docker + external MongoDB)
+## Production deployment (Docker + GitHub Actions + Hetzner VPS)
 
-Use the production compose stack:
+The production stack now uses:
 
+- `docker-compose.yml`
 - `docker-compose.prod.yml`
 - `apps/api/Dockerfile`
 - `apps/web/Dockerfile`
+- `.github/workflows/deploy.yml`
 - `infra/nginx/autoqr.conf`
 
-Production deployment guide:
+Deployment guide:
 
+- [`README_DEPLOYMENT.md`](README_DEPLOYMENT.md)
 - [`docs/deployment/production.md`](docs/deployment/production.md)
-
-Quick start:
-
-1. Configure env files:
-   - `cp apps/api/.env.production.example apps/api/.env.production`
-   - `cp .env.production.example .env.production`
-2. Update secrets and URLs (external `MONGODB_URI`, JWT secrets, Stripe keys, frontend URLs).
-3. Build and run:
-   - `docker compose --env-file .env.production -f docker-compose.prod.yml build`
-   - `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`
 
 ## Environment variable references
 
-- Backend template: `apps/api/.env.example` and `apps/api/.env.production.example`
-- Frontend template: `apps/web/.env.example` and `apps/web/.env.production.example`
-- Compose/frontend build template: `.env.production.example`
+- Backend template: `apps/api/.env.example`
+- Frontend template: `apps/web/.env.example`
+- VPS deployment template: `.env.example`
 
 ## Key business rules implemented
 

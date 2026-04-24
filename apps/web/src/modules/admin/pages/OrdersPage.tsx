@@ -19,7 +19,7 @@ export const OrdersPage = () => {
   if (isLoading) return <LoadingState rows={8} />;
 
   const orders = (data?.orders ?? []).filter((order: AdminOrder) =>
-    [order.userId?.name, order.vehicleOrItemId?.registrationNumber, order.paymentStatus, order.orderStatus]
+    [order.userId?.name, order.carId?.registrationNumber, order.paymentStatus, order.orderStatus]
       .join(" ")
       .toLowerCase()
       .includes(query.toLowerCase())
@@ -37,16 +37,16 @@ export const OrdersPage = () => {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Orders" subtitle="Professional order board with payment chips, amounts, and timeline hints." />
+      <PageHeader title="Car tag orders" subtitle="Professional order board for car QR tag purchases with payment chips, amounts, and timeline hints." />
       <FilterBar>
-        <SearchInput className="flex-1" placeholder="Search owner, item, status..." value={query} onChange={(e) => setQuery(e.target.value)} />
+        <SearchInput className="flex-1" placeholder="Search car owner, registration, status..." value={query} onChange={(e) => setQuery(e.target.value)} />
       </FilterBar>
       <SectionCard title="Order records">
         <DataTable
-          columns={["Owner", "Item", "Amount", "Payment", "Order", "Timeline", "Created", "Actions"]}
+          columns={["Car owner", "Car", "Amount", "Payment", "Order", "Timeline", "Created", "Actions"]}
           rows={orders.map((order: AdminOrder) => [
             order.userId?.name ?? "-",
-            order.vehicleOrItemId?.registrationNumber ?? "-",
+            order.carId?.registrationNumber ?? "-",
             `${order.amount} ${order.currency}`,
             <StatusBadge label={order.paymentStatus || "pending"} tone={statusTone(order.paymentStatus || "pending")} />,
             <StatusBadge label={order.orderStatus || "pending"} tone={statusTone(order.orderStatus || "pending")} />,

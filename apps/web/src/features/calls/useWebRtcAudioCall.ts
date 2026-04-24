@@ -2,6 +2,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
 import { webRtcIceServers } from "../../lib/runtimeConfig";
 
+export type WebRtcCallStatus =
+  | "idle"
+  | "permission_requested"
+  | "permission_denied"
+  | "connecting"
+  | "ringing"
+  | "incoming"
+  | "accepted"
+  | "connected"
+  | "rejected"
+  | "missed"
+  | "ended"
+  | "failed";
+
 const rtcConfig: RTCConfiguration = {
   iceServers: webRtcIceServers
 };
@@ -11,27 +25,39 @@ export const useWebRtcAudioCall = (socket: Socket | null) => {
   const streamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-  const [status, setStatus] = useState<"idle" | "ringing" | "connected" | "ended" | "rejected" | "missed" | "error">("idle");
+  const [status, setStatus] = useState<WebRtcCallStatus>("idle");
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState("");
+  const [muted, setMuted] = useState(false);
 
   useEffect(() => {
     if (status !== "connected") return;
+    setSeconds(0);
     const timer = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer);
   }, [status]);
 
+  const ensureMicrophone = useCallback(async () => {
+    if (streamRef.current) return streamRef.current;
+    try {
+      setStatus((s) => (s === "idle" ? "permission_requested" : s));
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      return stream;
+    } catch (err) {
+      setStatus("permission_denied");
+      setError(
+        err instanceof Error && err.name === "NotAllowedError"
+          ? "Microphone permission denied. Please allow mic access and try again."
+          : "Microphone unavailable. Please check your device and retry."
+      );
+      throw err;
+    }
+  }, []);
+
   const createPeer = useCallback(
     async (targetSocketId: string, callId: string) => {
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
-        setStatus("error");
-        setError("Microphone permission denied or unavailable.");
-        throw new Error("Mic permission denied");
-      }
-      streamRef.current = stream;
+      const stream = await ensureMicrophone();
       const peer = new RTCPeerConnection(rtcConfig);
       remoteStreamRef.current = new MediaStream();
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
@@ -47,10 +73,16 @@ export const useWebRtcAudioCall = (socket: Socket | null) => {
           socket.emit("webrtc_ice_candidate", { targetSocketId, candidate: event.candidate, callId });
         }
       };
+      peer.onconnectionstatechange = () => {
+        if (peer.connectionState === "failed") {
+          setStatus("failed");
+          setError("Call connection failed — please try again.");
+        }
+      };
       peerRef.current = peer;
       return peer;
     },
-    [socket]
+    [ensureMicrophone, socket]
   );
 
   const createOffer = useCallback(
@@ -59,7 +91,6 @@ export const useWebRtcAudioCall = (socket: Socket | null) => {
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
       socket?.emit("webrtc_offer", { targetSocketId, offer, callId });
-      setStatus("ringing");
     },
     [createPeer, socket]
   );
@@ -82,8 +113,21 @@ export const useWebRtcAudioCall = (socket: Socket | null) => {
   }, []);
 
   const addIce = useCallback(async (candidate: RTCIceCandidateInit) => {
-    await peerRef.current?.addIceCandidate(candidate);
+    try {
+      await peerRef.current?.addIceCandidate(candidate);
+    } catch {
+      /* candidate may arrive before remote description — safe to ignore */
+    }
   }, []);
+
+  const toggleMute = useCallback(() => {
+    if (!streamRef.current) return;
+    const next = !muted;
+    streamRef.current.getAudioTracks().forEach((track) => {
+      track.enabled = !next;
+    });
+    setMuted(next);
+  }, [muted]);
 
   const teardown = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -94,8 +138,18 @@ export const useWebRtcAudioCall = (socket: Socket | null) => {
     }
     peerRef.current?.close();
     peerRef.current = null;
-    setStatus("ended");
+    setMuted(false);
+    setStatus((prev) =>
+      prev === "rejected" || prev === "missed" || prev === "permission_denied" || prev === "failed" ? prev : "ended"
+    );
   }, []);
+
+  const reset = useCallback(() => {
+    teardown();
+    setStatus("idle");
+    setSeconds(0);
+    setError("");
+  }, [teardown]);
 
   useEffect(() => {
     return () => {
@@ -103,5 +157,21 @@ export const useWebRtcAudioCall = (socket: Socket | null) => {
     };
   }, [teardown]);
 
-  return { status, seconds, error, remoteAudioRef, setStatus, createOffer, acceptOffer, applyAnswer, addIce, teardown };
+  return {
+    status,
+    setStatus,
+    seconds,
+    error,
+    setError,
+    muted,
+    toggleMute,
+    remoteAudioRef,
+    ensureMicrophone,
+    createOffer,
+    acceptOffer,
+    applyAnswer,
+    addIce,
+    teardown,
+    reset
+  };
 };
