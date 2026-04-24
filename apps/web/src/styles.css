@@ -5,7 +5,18 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: #111827;
+  }
 }
 
 html {
@@ -17,31 +28,29 @@ html {
 
 body {
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background-color: #07070A;
-  color: #EDEDEE;
+  background-color: #FFFFFF;
+  color: #111827;
   font-feature-settings: "ss01", "cv11", "salt";
 }
 
-/* Premium selection */
 ::selection {
-  background: rgba(233, 199, 154, 0.25);
-  color: #ffffff;
+  background: rgba(29, 78, 216, 0.18);
+  color: #1D4ED8;
 }
 
-/* Thin scrollbar in dark theme */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #0B0B0F;
+  background: #F8FAFC;
 }
 ::-webkit-scrollbar-thumb {
-  background: #24242E;
+  background: #E5E7EB;
   border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3D3D44;
+  background: #CBD5E1;
 }
 
 @layer utilities {
@@ -57,13 +66,7 @@ body {
   }
 
   .hairline {
-    border-color: rgba(255, 255, 255, 0.08);
-  }
-
-  .bg-noise {
-    background-image:
-      radial-gradient(ellipse at top, rgba(233, 199, 154, 0.06), transparent 55%),
-      radial-gradient(ellipse at bottom right, rgba(100, 120, 180, 0.04), transparent 60%);
+    border-color: rgba(17, 24, 39, 0.08);
   }
 
   .mask-fade-b {
@@ -72,9 +75,8 @@ body {
   }
 }
 
-/* Accessible focus rings */
 :where(button, a, input, textarea, select):focus-visible {
-  outline: 2px solid rgba(233, 199, 154, 0.55);
+  outline: 2px solid rgba(29, 78, 216, 0.55);
   outline-offset: 2px;
   border-radius: 6px;
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ScanReason } from "../services/scan.service";
 
 type Props = {
@@ -21,22 +22,25 @@ const severityBadgeStyles: Record<string, string> = {
   emergency: "bg-red-500/20 text-red-200"
 };
 
-export const ReasonOption = ({ reason: _reason, label, description, severity, selected, onSelect }: Props) => (
-  <button
-    type="button"
-    onClick={onSelect}
-    className={`text-left w-full rounded-2xl border p-5 transition ${severityStyles[severity]} ${
-      selected ? "ring-2 ring-accent/40 border-accent/40" : "hover:border-white/20"
-    }`}
-  >
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <h3 className="font-display text-lg text-fog-50">{label}</h3>
-        <p className="mt-1 text-[13px] text-fog-300">{description}</p>
+export const ReasonOption = ({ reason: _reason, label, description, severity, selected, onSelect }: Props) => {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`text-left w-full rounded-2xl border p-5 transition ${severityStyles[severity]} ${
+        selected ? "ring-2 ring-accent/40 border-accent/40" : "hover:border-white/20"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-display text-lg text-fog-50">{label}</h3>
+          <p className="mt-1 text-[13px] text-fog-300">{description}</p>
+        </div>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${severityBadgeStyles[severity]}`}>
+          {t(`scan.severity.${severity}`)}
+        </span>
       </div>
-      <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${severityBadgeStyles[severity]}`}>
-        {severity}
-      </span>
-    </div>
-  </button>
-);
+    </button>
+  );
+};

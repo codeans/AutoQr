@@ -1,22 +1,23 @@
 import clsx from "clsx";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { forwardRef } from "react";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
 import { Link } from "react-router-dom";
+import { localizePath } from "../../../i18n/routing";
 
 type Variant = "primary" | "secondary" | "ghost";
 type Size = "sm" | "md" | "lg";
 
 const base =
-  "group relative inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-tight transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950 disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap";
+  "group relative inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-tight transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-fog-50 text-ink-950 hover:bg-white hover:-translate-y-[1px] shadow-[0_8px_30px_-10px_rgba(255,255,255,0.25)]",
+    "bg-brand-700 text-white hover:bg-brand-800 hover:-translate-y-[1px] shadow-[0_8px_24px_-8px_rgba(29,78,216,0.5)]",
   secondary:
-    "border border-white/12 bg-white/[0.03] text-fog-100 hover:bg-white/[0.06] hover:border-white/20",
+    "border border-surface-border bg-white text-content hover:border-brand-200 hover:bg-brand-50",
   ghost:
-    "text-fog-200 hover:text-white hover:bg-white/[0.04]"
+    "text-content-muted hover:text-content hover:bg-surface-sunken"
 };
 
 const sizes: Record<Size, string> = {
@@ -40,7 +41,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     >
       {children}
       {showArrow && (
-        <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
       )}
     </button>
   )
@@ -72,7 +73,7 @@ export const LinkButton = ({
     <>
       {children}
       {showArrow && (
-        <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
       )}
     </>
   );
@@ -84,7 +85,7 @@ export const LinkButton = ({
     );
   }
   return (
-    <Link to={to} className={classes}>
+    <Link to={localizePath(to)} className={classes}>
       {content}
     </Link>
   );

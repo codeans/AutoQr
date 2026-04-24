@@ -1,5 +1,6 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Button } from "../../../components/marketing/shared/Button";
 import { Container } from "../../../components/marketing/shared/Container";
 import { FieldGroup, FieldLabel, TextArea, TextField } from "../../../components/marketing/shared/Field";
@@ -8,63 +9,25 @@ import { fetchLanding, requestOwnerCall, submitAlert } from "../services/scan.se
 import type { ScanLanding as LandingType, ScanReason } from "../services/scan.service";
 import { ReasonOption } from "../components/ReasonOption";
 
-const REASONS: Array<{
+type ReasonConfig = {
   reason: ScanReason;
-  label: string;
-  description: string;
+  key: string;
   severity: "info" | "urgent" | "emergency";
-}> = [
-  {
-    reason: "wrong_parking",
-    label: "Wrongly parked car",
-    description: "Blocking a driveway, parked in a restricted zone, or in your spot.",
-    severity: "info"
-  },
-  {
-    reason: "headlights_on",
-    label: "Headlights left on",
-    description: "Lights or hazards on — the car battery will drain.",
-    severity: "urgent"
-  },
-  {
-    reason: "flat_tyre",
-    label: "Flat tyre",
-    description: "One of the car's tyres looks flat or deflated.",
-    severity: "urgent"
-  },
-  {
-    reason: "towing",
-    label: "Car being towed",
-    description: "A towing service is about to tow this car.",
-    severity: "urgent"
-  },
-  {
-    reason: "door_or_window_open",
-    label: "Door or window open",
-    description: "A car door, boot, or window appears to be open.",
-    severity: "urgent"
-  },
-  {
-    reason: "car_damaged",
-    label: "Car damaged",
-    description: "The car looks scratched, dented, or otherwise damaged.",
-    severity: "urgent"
-  },
-  {
-    reason: "accident",
-    label: "Accident / emergency",
-    description: "An accident, fire, or medical emergency involving this car.",
-    severity: "emergency"
-  },
-  {
-    reason: "other",
-    label: "Something else",
-    description: "Leave a private note for the car owner.",
-    severity: "info"
-  }
+};
+
+const REASONS: ReasonConfig[] = [
+  { reason: "wrong_parking", key: "wrongParking", severity: "info" },
+  { reason: "headlights_on", key: "headlightsOn", severity: "urgent" },
+  { reason: "flat_tyre", key: "flatTyre", severity: "urgent" },
+  { reason: "towing", key: "towing", severity: "urgent" },
+  { reason: "door_or_window_open", key: "doorOrWindowOpen", severity: "urgent" },
+  { reason: "car_damaged", key: "carDamaged", severity: "urgent" },
+  { reason: "accident", key: "accident", severity: "emergency" },
+  { reason: "other", key: "other", severity: "info" }
 ];
 
 export const ScanLandingScreen = () => {
+  const { t } = useTranslation();
   const { token } = useParams();
   const navigate = useNavigate();
   const [landing, setLanding] = useState<LandingType | null>(null);
@@ -78,12 +41,23 @@ export const ScanLandingScreen = () => {
   const [submitted, setSubmitted] = useState<{ severity: string; ownerMaskedDisplay: string } | null>(null);
   const [callInfo, setCallInfo] = useState<string | null>(null);
 
+  const reasonOptions = useMemo(
+    () =>
+      REASONS.map((r) => ({
+        reason: r.reason,
+        severity: r.severity,
+        label: t(`scan.reasons.${r.key}.label`),
+        description: t(`scan.reasons.${r.key}.description`)
+      })),
+    [t]
+  );
+
   useEffect(() => {
     if (!token) return;
     fetchLanding(token)
       .then(setLanding)
-      .catch(() => setError("We couldn't find this car tag."));
-  }, [token]);
+      .catch(() => setError(t("scan.tagNotFoundMessage")));
+  }, [token, t]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -103,7 +77,7 @@ export const ScanLandingScreen = () => {
         ownerMaskedDisplay: result.ownerMaskedDisplay
       });
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? "Could not send the alert.");
+      setError(err?.response?.data?.message ?? t("scan.couldNotSendAlert"));
     } finally {
       setPending(false);
     }
@@ -111,7 +85,7 @@ export const ScanLandingScreen = () => {
 
   const callOwner = async () => {
     if (!token || !reporterPhone) {
-      setCallInfo("Please enter your phone number first so we can set up a masked call with the car owner.");
+      setCallInfo(t("scan.phoneRequiredForCall"));
       return;
     }
     try {
@@ -130,30 +104,29 @@ export const ScanLandingScreen = () => {
       });
       navigate(`/call/reporter?${params.toString()}`);
     } catch (err: any) {
-      setCallInfo(err?.response?.data?.message ?? "Could not start the call.");
+      setCallInfo(err?.response?.data?.message ?? t("scan.couldNotStartCall"));
     }
   };
 
   if (error) {
     return (
       <div className="mx-auto max-w-lg px-6 py-16">
-        <h1 className="font-display text-3xl text-fog-50">Car tag not found</h1>
+        <h1 className="font-display text-3xl text-fog-50">{t("scan.tagNotFoundTitle")}</h1>
         <p className="mt-3 text-fog-300">{error}</p>
       </div>
     );
   }
 
   if (!landing) {
-    return <div className="mx-auto max-w-lg px-6 py-16 text-fog-300">Loading…</div>;
+    return <div className="mx-auto max-w-lg px-6 py-16 text-fog-300">{t("scan.loading")}</div>;
   }
 
   if (!landing.activated) {
     return (
       <div className="mx-auto max-w-lg px-6 py-16">
-        <h1 className="font-display text-3xl text-fog-50">This car tag is not active yet</h1>
+        <h1 className="font-display text-3xl text-fog-50">{t("scan.notActiveTitle")}</h1>
         <p className="mt-3 text-fog-300">
-          {landing.message ??
-            "The car owner hasn't activated this tag yet. Please try again later or contact AutoQR support."}
+          {landing.message ?? t("scan.notActiveMessage")}
         </p>
       </div>
     );
@@ -169,12 +142,12 @@ export const ScanLandingScreen = () => {
               <h1 className="mt-6 font-display text-3xl text-fog-50">{submitted.ownerMaskedDisplay}</h1>
               <p className="mt-3 text-[15px] text-fog-300">
                 {submitted.severity === "emergency"
-                  ? "Emergency contacts have also been notified."
-                  : "Thanks for caring — the car owner will respond as soon as possible."}
+                  ? t("scan.emergencyContactsNotified")
+                  : t("scan.thankYouResponseSoon")}
               </p>
               <div className="mt-8">
                 <Button variant="secondary" onClick={callOwner} size="lg" className="w-full">
-                  Connect a private call
+                  {t("scan.connectPrivateCall")}
                 </Button>
                 {callInfo && <p className="mt-4 text-[13px] text-fog-300">{callInfo}</p>}
               </div>
@@ -192,36 +165,35 @@ export const ScanLandingScreen = () => {
       <Container size="narrow">
         <Reveal>
           <div className="mx-auto max-w-2xl">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-fog-400">AutoQR · Car owner privacy bridge</div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-fog-400">{t("scan.privacyBridge")}</div>
             <h1 className="mt-4 font-display text-4xl text-fog-50 sm:text-5xl">
-              {car?.nickname || "This car"} needs a heads-up.
+              {car?.nickname || t("scan.landingTitleFallback")} {t("scan.landingTitleSuffix")}
             </h1>
             <p className="mt-4 text-[15px] text-fog-300">
-              {car?.displayMessage ||
-                "The car owner's number is never shown. Pick a reason and we'll alert them instantly."}
+              {car?.displayMessage || t("scan.landingSubtitle")}
             </p>
             <dl className="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 text-[13.5px]">
               {car?.make && (
                 <div>
-                  <dt className="text-fog-400">Make</dt>
+                  <dt className="text-fog-400">{t("scan.carDetails.make")}</dt>
                   <dd className="text-fog-100">{car.make}</dd>
                 </div>
               )}
               {car?.model && (
                 <div>
-                  <dt className="text-fog-400">Model</dt>
+                  <dt className="text-fog-400">{t("scan.carDetails.model")}</dt>
                   <dd className="text-fog-100">{car.model}</dd>
                 </div>
               )}
               {car?.color && (
                 <div>
-                  <dt className="text-fog-400">Colour</dt>
+                  <dt className="text-fog-400">{t("scan.carDetails.color")}</dt>
                   <dd className="text-fog-100">{car.color}</dd>
                 </div>
               )}
               {car?.maskedRegistration && (
                 <div>
-                  <dt className="text-fog-400">Plate</dt>
+                  <dt className="text-fog-400">{t("scan.carDetails.plate")}</dt>
                   <dd className="font-mono text-fog-100">{car.maskedRegistration}</dd>
                 </div>
               )}
@@ -229,9 +201,9 @@ export const ScanLandingScreen = () => {
 
             <form onSubmit={submit} className="mt-10 space-y-6">
               <div>
-                <h2 className="text-[12px] uppercase tracking-[0.2em] text-fog-400">Why are you reaching out about this car?</h2>
+                <h2 className="text-[12px] uppercase tracking-[0.2em] text-fog-400">{t("scan.whyLabel")}</h2>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {REASONS.map((r) => (
+                  {reasonOptions.map((r) => (
                     <ReasonOption
                       key={r.reason}
                       reason={r.reason}
@@ -248,11 +220,11 @@ export const ScanLandingScreen = () => {
               {reason && (
                 <div className="grid gap-5 sm:grid-cols-2">
                   <FieldGroup>
-                    <FieldLabel htmlFor="name">Your name (optional)</FieldLabel>
+                    <FieldLabel htmlFor="name">{t("scan.yourNameOptional")}</FieldLabel>
                     <TextField id="name" value={reporterName} onChange={(e) => setReporterName(e.target.value)} />
                   </FieldGroup>
                   <FieldGroup>
-                    <FieldLabel htmlFor="phone">Your phone (needed for a private call with the car owner)</FieldLabel>
+                    <FieldLabel htmlFor="phone">{t("scan.yourPhoneLabel")}</FieldLabel>
                     <TextField
                       id="phone"
                       type="tel"
@@ -261,12 +233,12 @@ export const ScanLandingScreen = () => {
                     />
                   </FieldGroup>
                   <FieldGroup>
-                    <FieldLabel htmlFor="message">Private note (optional)</FieldLabel>
+                    <FieldLabel htmlFor="message">{t("scan.privateNoteLabel")}</FieldLabel>
                     <TextArea
                       id="message"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Example: Your car is blocking my driveway near the main entrance."
+                      placeholder={t("scan.privateNotePlaceholder")}
                     />
                   </FieldGroup>
                 </div>
@@ -281,10 +253,7 @@ export const ScanLandingScreen = () => {
                     required
                     className="mt-1"
                   />
-                  <span>
-                    I understand this alert will be shared with the car owner. My phone number will be masked if I request a
-                    call.
-                  </span>
+                  <span>{t("scan.consentLabel")}</span>
                 </label>
               )}
 
@@ -294,7 +263,7 @@ export const ScanLandingScreen = () => {
 
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button type="submit" size="lg" className="w-full" disabled={!reason || pending}>
-                  {pending ? "Sending…" : "Alert the car owner"}
+                  {pending ? t("scan.sending") : t("scan.alertOwner")}
                 </Button>
                 <Button
                   type="button"
@@ -304,7 +273,7 @@ export const ScanLandingScreen = () => {
                   onClick={callOwner}
                   disabled={!reporterPhone}
                 >
-                  Request masked call
+                  {t("scan.requestMaskedCall")}
                 </Button>
               </div>
               {callInfo && <p className="text-[13px] text-fog-300">{callInfo}</p>}

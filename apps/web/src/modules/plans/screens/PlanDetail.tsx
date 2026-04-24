@@ -26,7 +26,7 @@ export const PlanDetailScreen = () => {
       <SectionWrapper>
         <Container>
           <p className="text-red-300">{error}</p>
-          <Link to="/plans" className="mt-4 text-fog-100 underline">
+          <Link to="/plans" className="mt-4 text-content underline">
             Back to plans
           </Link>
         </Container>
@@ -42,33 +42,33 @@ export const PlanDetailScreen = () => {
   return (
     <SectionWrapper spacing="default">
       <Container>
-        <Link to="/plans" className="text-[13px] text-fog-400 hover:text-fog-100">
+        <Link to="/plans" className="text-[13px] text-content-subtle hover:text-content">
           ← Back to plans
         </Link>
         <Reveal>
           <div className="mt-8 grid gap-10 lg:grid-cols-[1.2fr_1fr]">
-            <div className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-10">
-              <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-fog-400">
+            <div className="rounded-3xl border border-surface-border bg-surface-soft p-10">
+              <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-content-subtle">
                 <span className="h-px w-6 bg-fog-400/40" /> {plan.tier}
               </div>
-              <h1 className="mt-5 font-display text-4xl text-fog-50 sm:text-5xl">{plan.name}</h1>
-              <p className="mt-3 max-w-xl text-[15.5px] leading-relaxed text-fog-300">{plan.description}</p>
+              <h1 className="mt-5 font-display text-4xl text-content sm:text-5xl">{plan.name}</h1>
+              <p className="mt-3 max-w-xl text-[15.5px] leading-relaxed text-content-muted">{plan.description}</p>
 
               <div className="mt-10 grid gap-8 sm:grid-cols-2">
                 <div>
-                  <h3 className="text-[11px] font-medium uppercase tracking-[0.2em] text-fog-400">Highlights</h3>
-                  <ul className="mt-4 space-y-2.5 text-[14px] text-fog-200">
+                  <h3 className="text-[11px] font-medium uppercase tracking-[0.2em] text-content-subtle">Highlights</h3>
+                  <ul className="mt-4 space-y-2.5 text-[14px] text-content">
                     {plan.highlights.map((h) => (
                       <li key={h} className="flex items-start gap-2.5">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />
                         <span>{h}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div>
-                  <h3 className="text-[11px] font-medium uppercase tracking-[0.2em] text-fog-400">What's in the box</h3>
-                  <ul className="mt-4 space-y-2.5 text-[14px] text-fog-200">
+                  <h3 className="text-[11px] font-medium uppercase tracking-[0.2em] text-content-subtle">What's in the box</h3>
+                  <ul className="mt-4 space-y-2.5 text-[14px] text-content">
                     {plan.includes.map((h) => (
                       <li key={h} className="flex items-start gap-2.5">
                         <span className="mt-2 h-1 w-1 rounded-full bg-accent/70" />
@@ -79,46 +79,46 @@ export const PlanDetailScreen = () => {
                 </div>
               </div>
 
-              <dl className="mt-10 grid grid-cols-2 gap-3 rounded-2xl border border-white/[0.06] bg-ink-900/50 p-5 text-[13.5px] sm:grid-cols-4">
+              <dl className="mt-10 grid grid-cols-2 gap-3 rounded-2xl border border-surface-border bg-surface-soft0 p-5 text-[13.5px] sm:grid-cols-4">
                 <div>
-                  <dt className="text-fog-400">Tags</dt>
-                  <dd className="mt-1 font-display text-lg text-fog-50">{plan.tagsIncluded}</dd>
+                  <dt className="text-content-subtle">Tags</dt>
+                  <dd className="mt-1 font-display text-lg text-content">{plan.tagsIncluded}</dd>
                 </div>
                 <div>
-                  <dt className="text-fog-400">Vehicles</dt>
-                  <dd className="mt-1 font-display text-lg text-fog-50">{plan.vehicleLimit}</dd>
+                  <dt className="text-content-subtle">Vehicles</dt>
+                  <dd className="mt-1 font-display text-lg text-content">{plan.vehicleLimit}</dd>
                 </div>
                 <div>
-                  <dt className="text-fog-400">Emergency contacts</dt>
-                  <dd className="mt-1 font-display text-lg text-fog-50">{plan.emergencyContactLimit}</dd>
+                  <dt className="text-content-subtle">Emergency contacts</dt>
+                  <dd className="mt-1 font-display text-lg text-content">{plan.emergencyContactLimit}</dd>
                 </div>
                 <div>
-                  <dt className="text-fog-400">Support</dt>
-                  <dd className="mt-1 font-display text-lg text-fog-50 capitalize">{plan.supportTier}</dd>
+                  <dt className="text-content-subtle">Support</dt>
+                  <dd className="mt-1 font-display text-lg text-content capitalize">{plan.supportTier}</dd>
                 </div>
               </dl>
             </div>
 
-            <aside className="rounded-3xl border border-white/[0.06] bg-ink-900/60 p-8">
-              <span className="text-[11px] uppercase tracking-[0.2em] text-fog-400">You pay</span>
+            <aside className="rounded-3xl border border-surface-border bg-white/60 p-8">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-content-subtle">You pay</span>
               <div className="mt-2 flex items-baseline gap-3">
-                <span className="font-display text-4xl text-fog-50">
+                <span className="font-display text-4xl text-content">
                   {formatCurrency(plan.priceCents, plan.currency)}
                 </span>
                 {plan.compareAtCents > plan.priceCents && (
-                  <span className="text-[14px] text-fog-500 line-through">
+                  <span className="text-[14px] text-content0 line-through">
                     {formatCurrency(plan.compareAtCents, plan.currency)}
                   </span>
                 )}
               </div>
-              <p className="mt-2 text-[13px] text-fog-500">
+              <p className="mt-2 text-[13px] text-content0">
                 {plan.billingCycle === "one_time" ? "One-time payment · no subscription" : "Billed yearly"}
               </p>
 
               <LinkButton to={`/onboard/${plan.slug}`} size="lg" className="mt-8 w-full" showArrow>
                 Start onboarding
               </LinkButton>
-              <p className="mt-4 text-[12px] text-fog-500 text-center">
+              <p className="mt-4 text-[12px] text-content0 text-center">
                 14-day return · Secured by Stripe · Privacy-first relay
               </p>
             </aside>

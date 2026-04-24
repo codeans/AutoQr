@@ -11,5 +11,7 @@ export const userService = {
   createCheckout: async (orderId: string) => (await api.post<{ url?: string }>("/payments/checkout", { orderId })).data,
   getNotifications: async () => (await api.get<{ notifications: UserNotification[] }>("/owner/notifications")).data,
   getProfile: async () => (await api.get<{ user: UserProfile }>("/owner/profile")).data,
-  updateProfile: async (payload: Partial<UserProfile>) => (await api.put<{ user: UserProfile }>("/owner/profile", payload)).data
+  updateProfile: async (payload: Partial<UserProfile>) => (await api.put<{ user: UserProfile }>("/owner/profile", payload)).data,
+  updateLanguage: async (preferredLanguage: "de" | "en") =>
+    (await api.put<{ user: UserProfile }>("/owner/language", { preferredLanguage })).data
 };

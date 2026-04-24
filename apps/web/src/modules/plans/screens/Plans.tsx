@@ -37,16 +37,16 @@ export const PlansScreen = () => {
           />
           <Reveal>
             <div className="mt-14 grid gap-6 lg:grid-cols-3">
-              {loading && <p className="text-fog-300">Loading…</p>}
-              {error && <p className="text-red-300">{error}</p>}
+              {loading && <p className="text-content-muted">Loading…</p>}
+              {error && <p className="text-red-600">{error}</p>}
               {plans.map((p) => (
                 <PlanCard key={p._id} plan={p} />
               ))}
             </div>
           </Reveal>
           <Reveal>
-            <p className="mt-10 text-center text-[12.5px] text-fog-500">
-              Need more than Business? <a href="/partner" className="text-fog-200 underline-offset-4 hover:underline">Talk to sales</a> for volume pricing.
+            <p className="mt-10 text-center text-[12.5px] text-content-subtle">
+              Need more than Business? <a href="/partner" className="text-brand-700 underline-offset-4 hover:underline">Talk to sales</a> for volume pricing.
             </p>
           </Reveal>
         </Container>

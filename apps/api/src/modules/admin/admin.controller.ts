@@ -49,8 +49,18 @@ const settingsUpsertSchema = z.object({
 
 const contentUpsertSchema = z.object({
   slug: z.string().min(1).max(150),
-  title: z.string().min(1).max(250),
+  title: z.string().max(250).optional(),
+  title_de: z.string().max(250).optional(),
+  title_en: z.string().max(250).optional(),
   sections: z.array(z.unknown()).optional(),
+  sections_de: z.array(z.unknown()).optional(),
+  sections_en: z.array(z.unknown()).optional(),
+  body: z
+    .object({
+      de: z.string().optional(),
+      en: z.string().optional()
+    })
+    .optional(),
   published: z.boolean().optional()
 });
 
@@ -148,8 +158,32 @@ export const updateIncident = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const listCalls = asyncHandler(async (_req: Request, res: Response) => {
-  const calls = await CallSessionModel.find().populate("incidentId").populate("ownerUserId", "name email").sort({ createdAt: -1 });
-  res.json({ calls });
+  const calls = await CallSessionModel.find()
+    .populate({ path: "incidentId", select: "carId reporterPhone images message status createdAt", populate: { path: "carId", select: "make model registrationNumber nickname" } })
+    .populate("ownerUserId", "name email phone pushTokens")
+    .sort({ createdAt: -1 });
+
+  // Expose a lightweight push-delivery summary per call so admins can see whether the owner
+  // had an active device at the time, without shipping the raw token list.
+  const result = calls.map((call: any) => {
+    const owner = call.ownerUserId;
+    const pushTokens = Array.isArray(owner?.pushTokens) ? owner.pushTokens : [];
+    const safeOwner = owner
+      ? {
+          _id: owner._id,
+          name: owner.name,
+          email: owner.email,
+          phone: owner.phone,
+          deviceCount: pushTokens.length,
+          platforms: Array.from(new Set(pushTokens.map((t: any) => t?.platform).filter(Boolean)))
+        }
+      : null;
+    return {
+      ...(call.toObject?.() ?? call),
+      ownerUserId: safeOwner
+    };
+  });
+  res.json({ calls: result });
 });
 
 export const shipments = asyncHandler(async (_req: Request, res: Response) => {
@@ -224,13 +258,25 @@ export const settingsUpsert = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const upsertContent = asyncHandler(async (req: Request, res: Response) => {
-  const { slug, title, sections, published } = contentUpsertSchema.parse(req.body);
+  const payload = contentUpsertSchema.parse(req.body);
+  const update: Record<string, unknown> = {
+    published: payload.published ?? true
+  };
+  if (payload.title !== undefined) update.title = payload.title;
+  if (payload.title_de !== undefined) update.title_de = payload.title_de;
+  if (payload.title_en !== undefined) update.title_en = payload.title_en;
+  if (payload.sections !== undefined) update.sections = payload.sections ?? [];
+  if (payload.sections_de !== undefined) update.sections_de = payload.sections_de ?? [];
+  if (payload.sections_en !== undefined) update.sections_en = payload.sections_en ?? [];
+  if (payload.body !== undefined) {
+    update.body = { de: payload.body.de ?? "", en: payload.body.en ?? "" };
+  }
   const doc = await CmsContentModel.findOneAndUpdate(
-    { slug },
-    { $set: { title, sections: sections ?? [], published: published ?? true } },
+    { slug: payload.slug },
+    { $set: update },
     { new: true, upsert: true, runValidators: true }
   );
-  await audit(req.auth!.userId, "content_updated", "content", doc.id, { slug });
+  await audit(req.auth!.userId, "content_updated", "content", doc.id, { slug: payload.slug });
   res.json({ content: doc });
 });
 

@@ -1,114 +1,88 @@
 import { Car, ShieldCheck, Timer, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { CTASection } from "../components/marketing/home/CTASection";
 import { LinkButton } from "../components/marketing/shared/Button";
 import { Container } from "../components/marketing/shared/Container";
-import { HeadingBlock } from "../components/marketing/shared/HeadingBlock";
 import { PageHero } from "../components/marketing/shared/PageHero";
-import { Reveal, Stagger, StaggerItem } from "../components/marketing/shared/Reveal";
-import { SectionWrapper } from "../components/marketing/shared/SectionWrapper";
 
-const points = [
-  {
-    icon: ShieldCheck,
-    title: "Your mobile number is never on the windshield.",
-    body: "The tag is a signed identifier only. No printed phone number means no cold calls, no spam, no stalkers."
-  },
-  {
-    icon: Zap,
-    title: "Reporters reach you in under two minutes.",
-    body: "A scan → submission → signed push lands on your device with full context and evidence already attached."
-  },
-  {
-    icon: Timer,
-    title: "You decide whether to take the call.",
-    body: "Accept a secure in-browser WebRTC call, or reply later. Either way, the incident stays logged and trackable."
-  }
-];
+const POINT_ICONS = [ShieldCheck, Zap, Timer];
 
-export const ForCarOwnersPage = () => (
-  <>
-    <PageHero
-      eyebrow="For vehicle owners"
-      title={
-        <>
-          Your car, your privacy.<br className="hidden sm:block" />{" "}
-          <span className="text-fog-400">Still reachable when it matters.</span>
-        </>
-      }
-      subtitle="Leave parking-note anxiety behind. Every incident — a bump, a blocked driveway, a witness call — lands in a private, auditable channel instead of on a sticker."
-    >
-      <div className="flex flex-wrap gap-3">
-        <LinkButton to="/order" size="lg" showArrow>
-          Order for my car
-        </LinkButton>
-        <LinkButton to="/how-it-works" variant="secondary" size="lg">
-          See the flow
-        </LinkButton>
-      </div>
-    </PageHero>
+export const ForCarOwnersPage = () => {
+  const { t } = useTranslation();
+  const points = t("forCarOwnersPageExtra.points", { returnObjects: true }) as Array<{
+    title: string;
+    body: string;
+  }>;
 
-    <SectionWrapper spacing="tight" divider>
-      <Container>
-        <HeadingBlock
-          eyebrow="Why vehicle owners pick AutoQr"
-          title={
-            <>
-              Stop leaking your number<br className="hidden sm:block" />{" "}
-              <span className="text-fog-400">to every stranger with a phone.</span>
-            </>
-          }
-        />
-        <Stagger className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/5 lg:grid-cols-3">
-          {points.map((p) => {
-            const Icon = p.icon;
-            return (
-              <StaggerItem key={p.title}>
-                <div className="h-full bg-ink-900 p-8">
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-ink-950 text-accent">
-                    <Icon className="h-5 w-5" strokeWidth={1.6} />
+  return (
+    <>
+      <PageHero
+        eyebrow={t("forCarOwnersPageExtra.eyebrow")}
+        title={
+          <>
+            {t("forCarOwnersPageExtra.heroTitle1")}{" "}
+            <span className="text-brand-700">{t("forCarOwnersPageExtra.heroTitleBrand")}</span>
+          </>
+        }
+        subtitle={t("forCarOwnersPageExtra.heroSubtitle")}
+      >
+        <div className="flex flex-wrap gap-3">
+          <LinkButton to="/order" size="lg" showArrow>
+            {t("forCarOwnersPageExtra.ctaOrder")}
+          </LinkButton>
+          <LinkButton to="/how-it-works" variant="secondary" size="lg">
+            {t("forCarOwnersPageExtra.ctaFlow")}
+          </LinkButton>
+        </div>
+      </PageHero>
+
+      <section className="bg-white py-24 sm:py-32">
+        <Container>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {points.map((p, idx) => {
+              const Icon = POINT_ICONS[idx] ?? ShieldCheck;
+              return (
+                <div
+                  key={p.title}
+                  className="rounded-2xl border border-surface-border bg-surface-soft p-8 transition hover:border-brand-200 hover:bg-white hover:shadow-card"
+                >
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand-700">
+                    <Icon className="h-5 w-5" strokeWidth={1.8} />
                   </span>
-                  <h3 className="mt-8 font-display text-xl font-medium tracking-tight text-fog-50 sm:text-[22px]">
+                  <h3 className="mt-6 text-lg font-semibold tracking-tight text-content">
                     {p.title}
                   </h3>
-                  <p className="mt-3 text-[14.5px] leading-relaxed text-fog-300">
-                    {p.body}
-                  </p>
+                  <p className="mt-3 text-sm leading-relaxed text-content-muted">{p.body}</p>
                 </div>
-              </StaggerItem>
-            );
-          })}
-        </Stagger>
-      </Container>
-    </SectionWrapper>
+              );
+            })}
+          </div>
 
-    <SectionWrapper spacing="tight" divider>
-      <Container>
-        <Reveal>
-          <div className="grid gap-10 rounded-2xl border border-white/10 bg-ink-900 p-10 lg:grid-cols-[auto_1fr] lg:items-center lg:gap-16 lg:p-14">
-            <Car className="h-16 w-16 text-accent" strokeWidth={1.3} />
+          <div className="mt-16 grid gap-10 rounded-3xl border border-surface-border bg-surface-soft p-10 shadow-soft lg:grid-cols-[auto_1fr] lg:items-center lg:gap-16 lg:p-14">
+            <span className="grid h-20 w-20 place-items-center rounded-2xl bg-brand-700 text-white">
+              <Car className="h-10 w-10" strokeWidth={1.6} />
+            </span>
             <div>
-              <h2 className="font-display text-3xl font-medium tracking-tight text-fog-50 sm:text-4xl">
-                One tag per vehicle. Registered, activated, private.
+              <h2 className="font-display text-3xl font-semibold tracking-tight text-content sm:text-4xl">
+                {t("forCarOwnersPageExtra.featureTitle")}
               </h2>
-              <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-fog-300">
-                Add your vehicle details, pay once, and we dispatch a premium
-                sticker to your door. Activation is gated by your account, so
-                the tag only becomes live when you confirm receipt.
+              <p className="mt-5 max-w-2xl text-base leading-relaxed text-content-muted">
+                {t("forCarOwnersPageExtra.featureBody")}
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <LinkButton to="/order" size="md" showArrow>
-                  Order a tag
+                  {t("forCarOwnersPageExtra.ctaOrderShort")}
                 </LinkButton>
                 <LinkButton to="/pricing" variant="secondary" size="md">
-                  See pricing
+                  {t("forCarOwnersPageExtra.ctaPricingShort")}
                 </LinkButton>
               </div>
             </div>
           </div>
-        </Reveal>
-      </Container>
-    </SectionWrapper>
+        </Container>
+      </section>
 
-    <CTASection />
-  </>
-);
+      <CTASection />
+    </>
+  );
+};

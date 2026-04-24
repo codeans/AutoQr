@@ -182,6 +182,29 @@ export const createSocketServer = (server: HttpServer) => {
       socket.emit("call_requested", { callId: call.id, status: "ringing", ownerOnline });
       if (ownerOnline) {
         ioInstance?.to(`user:${ownerUserId}`).emit("call_ringing", ringingPayload);
+        // Still deliver a high-priority push so Android owners hear the call if the app
+        // is backgrounded — the owner app de-dupes on callId.
+        try {
+          const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
+          await publishNotification({
+            userId: ownerUserId,
+            type: "INCOMING_CALL",
+            title: ringingPayload.carLabel ? `Incoming call · ${ringingPayload.carLabel}` : "Incoming call",
+            body: ringingPayload.message || "Someone scanned your AutoQr tag and is calling you now.",
+            data: {
+              callId: String(call._id),
+              incidentId,
+              reporterSocketId: socket.id,
+              type: "INCOMING_CALL"
+            },
+            forcePush: true,
+            skipPersist: true,
+            channelId: "calls",
+            priority: "high"
+          });
+        } catch (err) {
+          logger.warn("call.incoming.push_failed", { err: (err as Error)?.message });
+        }
       } else {
         // Owner offline — mark as missed immediately and notify reporter
         call.status = "missed";
@@ -189,12 +212,16 @@ export const createSocketServer = (server: HttpServer) => {
         call.endReason = "owner_offline";
         await call.save();
         try {
-          await NotificationModel.create({
+          const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
+          await publishNotification({
             userId: ownerUserId,
-            type: "call_missed",
+            type: "MISSED_CALL",
             title: "Missed incident call",
-            message: `Missed call from ${maskGermanPhone(incident.reporterPhone || "")}`,
-            relatedEntityId: incidentId
+            body: `Missed call from ${maskGermanPhone(incident.reporterPhone || "")}`,
+            relatedEntityId: incidentId,
+            data: { callId: String(call._id), incidentId, type: "MISSED_CALL" },
+            channelId: "calls",
+            forcePush: true
           });
         } catch (err) {
           logger.warn("call.offline.notification_failed", { err: (err as Error)?.message });
@@ -319,7 +346,8 @@ export const createSocketServer = (server: HttpServer) => {
       try {
         const openCalls = await CallSessionModel.find({ reporterSessionId: socket.id, status: { $in: ["ringing", "accepted", "connected"] } });
         for (const call of openCalls) {
-          if (call.status === "ringing") {
+          const wasRinging = call.status === "ringing";
+          if (wasRinging) {
             call.status = "missed";
             call.endReason = "disconnect";
           } else {
@@ -331,8 +359,32 @@ export const createSocketServer = (server: HttpServer) => {
           }
           call.endedAt = new Date();
           await call.save();
-          if (getOnlineUserSockets(String(call.ownerUserId)).size > 0) {
-            ioInstance?.to(`user:${call.ownerUserId}`).emit("call_ended", { callId: call.id, duration: call.duration, reason: call.endReason });
+          const ownerUserId = String(call.ownerUserId);
+          if (getOnlineUserSockets(ownerUserId).size > 0) {
+            if (wasRinging) {
+              ioInstance?.to(`user:${ownerUserId}`).emit("call_missed", {
+                callId: call.id,
+                reason: "reporter_disconnected"
+              });
+            } else {
+              ioInstance?.to(`user:${ownerUserId}`).emit("call_ended", { callId: call.id, duration: call.duration, reason: call.endReason });
+            }
+          }
+          if (wasRinging) {
+            try {
+              const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
+              await publishNotification({
+                userId: ownerUserId,
+                type: "MISSED_CALL",
+                title: "Missed incident call",
+                body: "A caller hung up before you could answer.",
+                relatedEntityId: String(call.incidentId),
+                data: { callId: call.id, incidentId: String(call.incidentId), type: "MISSED_CALL" },
+                channelId: "calls"
+              });
+            } catch (err) {
+              logger.warn("call.missed.push_failed", { err: (err as Error)?.message });
+            }
           }
         }
       } catch (err) {
@@ -350,14 +402,41 @@ export const createSocketServer = (server: HttpServer) => {
 };
 
 export const emitIncidentCreated = async (userId: string, data: { incidentId: string; title: string; message: string }) => {
-  await NotificationModel.create({
-    userId,
-    type: "incident_created",
-    title: data.title,
-    message: data.message,
-    relatedEntityId: data.incidentId
-  });
+  // Persist + push via the realtime notifications helper so mobile devices receive a push when offline.
+  try {
+    const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
+    await publishNotification({
+      userId,
+      type: "INCIDENT_CREATED",
+      title: data.title,
+      body: data.message,
+      relatedEntityId: data.incidentId,
+      data: { incidentId: data.incidentId, type: "INCIDENT_CREATED" }
+    });
+  } catch (err) {
+    logger.warn("incident.notification_failed", { err: (err as Error)?.message });
+    try {
+      await NotificationModel.create({
+        userId,
+        type: "incident_created",
+        title: data.title,
+        message: data.message,
+        body: data.message,
+        relatedEntityId: data.incidentId
+      });
+    } catch {
+      /* ignore secondary failure */
+    }
+  }
   ioInstance?.to(`user:${userId}`).emit("incident_created", data);
+};
+
+export const emitToUser = (userId: string, event: string, payload: unknown) => {
+  ioInstance?.to(`user:${userId}`).emit(event, payload);
+};
+
+export const emitToSocket = (socketId: string, event: string, payload: unknown) => {
+  ioInstance?.to(socketId).emit(event, payload);
 };
 
 export const isUserOnline = (userId: string) => getOnlineUserSockets(userId).size > 0;

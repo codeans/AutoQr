@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, registerAccessTokenListener, setAccessToken } from "../lib/api";
+import { isLocale, type Locale } from "@autoqr/shared";
+import { setLocale, LOCALE_STORAGE_KEY } from "../i18n";
 
 type User = {
   _id: string;
@@ -8,7 +10,20 @@ type User = {
   role: "admin" | "owner" | "support";
   phone?: string;
   phoneVerified?: boolean;
+  preferredLanguage?: Locale;
 } | null;
+
+const syncLocaleFromUser = (user: User) => {
+  if (!user) return;
+  const pref = user.preferredLanguage;
+  if (!pref || !isLocale(pref)) return;
+  try {
+    const stored = typeof localStorage !== "undefined" ? localStorage.getItem(LOCALE_STORAGE_KEY) : null;
+    if (!stored) setLocale(pref);
+  } catch {
+    /* noop */
+  }
+};
 
 export type OtpVerifyPayload = {
   phone: string;
@@ -70,6 +85,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const { data } = await api.get("/auth/me");
         setUser(data.user);
+        syncLocaleFromUser(data.user);
         localStorage.setItem("autoqr_user", JSON.stringify(data.user));
       } catch {
         setToken("");
@@ -88,6 +104,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setToken(data.accessToken);
     setAccessToken(data.accessToken);
     setUser(data.user);
+    syncLocaleFromUser(data.user);
     persist(data.user, data.accessToken);
   };
 
@@ -101,6 +118,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setToken(data.accessToken);
     setAccessToken(data.accessToken);
     setUser(data.user);
+    syncLocaleFromUser(data.user);
     persist(data.user, data.accessToken);
     return data.user as User;
   }, []);

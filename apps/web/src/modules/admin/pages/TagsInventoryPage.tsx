@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Button,
   Card,
   DataTable,
   EmptyState,
   FilterBar,
   LoadingState,
+  Modal,
   PageHeader,
   SecondaryButton,
   Select,
@@ -13,6 +15,7 @@ import {
   Input
 } from "../../../components/ui";
 import { adminPlatformService } from "../services/platform.service";
+import { assetBaseUrl } from "../../../lib/runtimeConfig";
 
 const tone: Record<string, "neutral" | "success" | "warning" | "danger" | "info"> = {
   in_stock: "neutral",
@@ -30,6 +33,7 @@ type TagRow = {
   publicToken: string;
   activationCode: string;
   status: string;
+  qrImage?: string;
   scanCount?: number;
   activatedAt?: string;
   createdAt?: string;
@@ -61,6 +65,62 @@ export const TagsInventoryPage = () => {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
+  const [previewTag, setPreviewTag] = useState<TagRow | null>(null);
+
+  const resolveQrSrc = (qrImage?: string) => {
+    if (!qrImage) return "";
+    if (/^https?:\/\//i.test(qrImage)) return qrImage;
+    return `${assetBaseUrl}${qrImage.startsWith("/") ? "" : "/"}${qrImage}`;
+  };
+
+  const downloadQr = async (tag: TagRow) => {
+    const src = resolveQrSrc(tag.qrImage);
+    if (!src) return;
+    try {
+      const res = await fetch(src, { credentials: "include" });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${tag.serial || "qr"}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.open(src, "_blank");
+    }
+  };
+
+  const printQr = (tag: TagRow) => {
+    const src = resolveQrSrc(tag.qrImage);
+    if (!src) return;
+    const win = window.open("", "_blank", "width=600,height=700");
+    if (!win) return;
+    const safeSerial = (tag.serial ?? "").replace(/[<>&"']/g, "");
+    const safeCode = (tag.activationCode ?? "").replace(/[<>&"']/g, "");
+    win.document.write(`<!doctype html><html><head><title>QR ${safeSerial}</title>
+<style>
+  body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  .sheet { text-align:center; padding:24px; }
+  .sheet img { width:320px; height:320px; }
+  .meta { margin-top:16px; font-size:14px; color:#111; }
+  .code { font-family: ui-monospace, monospace; letter-spacing: 1px; font-size: 13px; color:#333; }
+  @media print { @page { margin: 12mm; } }
+</style></head><body>
+  <div class="sheet">
+    <img src="${src}" alt="QR" />
+    <div class="meta"><strong>${safeSerial}</strong></div>
+    <div class="code">Activation: ${safeCode}</div>
+  </div>
+  <script>
+    const img = document.querySelector('img');
+    const go = () => { window.focus(); window.print(); };
+    if (img.complete) go(); else img.addEventListener('load', go);
+  </script>
+</body></html>`);
+    win.document.close();
+  };
 
   const refresh = () =>
     adminPlatformService.listTags({ status: status || undefined, search: search || undefined } as any).then(setTags);
@@ -142,23 +202,88 @@ export const TagsInventoryPage = () => {
               carLabel(t.carId),
               t.scanCount ?? 0,
               t.activatedAt ? new Date(t.activatedAt).toLocaleString() : "—",
-              <SecondaryButton
-                key="a"
-                type="button"
-                onClick={async () => {
-                  if (!confirm("Disable this QR? The public scan page will stop responding.")) return;
-                  await adminPlatformService.disableTag(t._id);
-                  await refresh();
-                }}
-                className="text-red-600"
-                disabled={t.status === "disabled"}
-              >
-                Disable
-              </SecondaryButton>
+              <div key="a" className="flex flex-wrap gap-2">
+                <SecondaryButton
+                  type="button"
+                  onClick={() => setPreviewTag(t)}
+                  disabled={!t.qrImage}
+                >
+                  Preview
+                </SecondaryButton>
+                <SecondaryButton
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm("Disable this QR? The public scan page will stop responding.")) return;
+                    await adminPlatformService.disableTag(t._id);
+                    await refresh();
+                  }}
+                  className="text-red-600"
+                  disabled={t.status === "disabled"}
+                >
+                  Disable
+                </SecondaryButton>
+              </div>
             ])}
           />
         </Card>
       )}
+
+      <Modal
+        open={!!previewTag}
+        title={previewTag ? `QR preview · ${previewTag.serial}` : "QR preview"}
+        onClose={() => setPreviewTag(null)}
+      >
+        {previewTag && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-6">
+              {previewTag.qrImage ? (
+                <img
+                  src={resolveQrSrc(previewTag.qrImage)}
+                  alt={`QR ${previewTag.serial}`}
+                  className="h-64 w-64 object-contain"
+                />
+              ) : (
+                <p className="text-sm text-slate-500">No QR image available for this tag.</p>
+              )}
+            </div>
+
+            <dl className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <dt className="text-slate-500">Serial</dt>
+                <dd className="font-mono text-slate-900">{previewTag.serial}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Activation code</dt>
+                <dd className="font-mono text-slate-900">{previewTag.activationCode}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-slate-500">Public token</dt>
+                <dd className="font-mono break-all text-slate-900">{previewTag.publicToken}</dd>
+              </div>
+            </dl>
+
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
+              <SecondaryButton type="button" onClick={() => setPreviewTag(null)}>
+                Close
+              </SecondaryButton>
+              <SecondaryButton
+                type="button"
+                onClick={() => printQr(previewTag)}
+                disabled={!previewTag.qrImage}
+              >
+                Print
+              </SecondaryButton>
+              <Button
+                type="button"
+                onClick={() => downloadQr(previewTag)}
+                disabled={!previewTag.qrImage}
+              >
+                Download
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

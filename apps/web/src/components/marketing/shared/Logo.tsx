@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { Link } from "react-router-dom";
+import { localizePath } from "../../../i18n/routing";
 
 type LogoProps = {
   className?: string;
@@ -8,15 +9,14 @@ type LogoProps = {
 
 export const Logo = ({ className, to = "/" }: LogoProps) => (
   <Link
-    to={to}
+    to={localizePath(to)}
     className={clsx(
-      "group inline-flex items-center gap-2.5 text-fog-50",
+      "group inline-flex items-center gap-2.5 text-content",
       className
     )}
     aria-label="AutoQr home"
   >
-    <span className="relative grid h-8 w-8 place-items-center overflow-hidden rounded-md border border-white/15 bg-ink-800">
-      <span className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(233,199,154,0.25),transparent_60%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+    <span className="relative grid h-8 w-8 place-items-center overflow-hidden rounded-lg border border-brand-100 bg-brand-50 text-brand-700 shadow-soft">
       <svg viewBox="0 0 24 24" className="relative h-4 w-4" aria-hidden fill="none">
         <rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.6" />
         <rect x="15" y="3" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.6" />
@@ -27,8 +27,8 @@ export const Logo = ({ className, to = "/" }: LogoProps) => (
         <rect x="18" y="18" width="3" height="3" fill="currentColor" />
       </svg>
     </span>
-    <span className="text-[15px] font-semibold tracking-[-0.015em] text-fog-50">
-      autoqr<span className="text-accent">.</span>
+    <span className="text-[15px] font-semibold tracking-[-0.015em] text-content">
+      autoqr<span className="text-brand-700">.</span>
     </span>
   </Link>
 );

@@ -18,6 +18,16 @@ export const listCars = async (userId: string) => {
   }));
 };
 
+export const getCar = async (userId: string, id: string) => {
+  const car = await CarModel.findOne({ _id: id, userId }).lean();
+  if (!car) throw new ApiError(404, "Car not found");
+  const tags = await TagModel.find({ carId: id }).lean();
+  return {
+    ...car,
+    tags
+  };
+};
+
 export const createCar = async (userId: string, payload: any) => {
   const existing = await CarModel.findOne({ userId, registrationNumber: payload.registrationNumber });
   if (existing) throw new ApiError(409, "A car with this registration is already on your account");

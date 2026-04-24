@@ -13,7 +13,7 @@ const sizeMap = {
 };
 
 export const Container = ({ children, className, size = "default" }: ContainerProps) => (
-  <div className={clsx("mx-auto w-full px-6 sm:px-8 lg:px-10", sizeMap[size], className)}>
+  <div className={clsx("relative mx-auto w-full px-6 sm:px-8 lg:px-10", sizeMap[size], className)}>
     {children}
   </div>
 );

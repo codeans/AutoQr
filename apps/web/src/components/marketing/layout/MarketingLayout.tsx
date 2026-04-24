@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Footer } from "./Footer";
 import { Navbar } from "./Navbar";
+import { SEO } from "../../SEO";
 
 export const MarketingLayout = () => {
   const { pathname } = useLocation();
@@ -11,11 +12,8 @@ export const MarketingLayout = () => {
   }, [pathname]);
 
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-ink-950 text-fog-100">
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 bg-noise"
-      />
+    <div className="relative min-h-screen overflow-x-clip bg-white text-content">
+      <SEO />
       <Navbar />
       <main className="relative pt-16 sm:pt-[72px]">
         <Outlet />

@@ -17,7 +17,17 @@ export const adminService = {
   updateShipment: async (id: string, payload: { status: string; courier: string; trackingNumber: string; notes: string }) =>
     (await api.patch(`/admin/shipments/${id}`, payload)).data,
   getContent: async () => (await api.get("/admin/content")).data,
-  saveContent: async (payload: { slug: string; title: string; sections: Array<Record<string, unknown>> }) => (await api.put("/admin/content", payload)).data,
+  saveContent: async (payload: {
+    slug: string;
+    title?: string;
+    title_de?: string;
+    title_en?: string;
+    sections?: Array<Record<string, unknown>>;
+    sections_de?: Array<Record<string, unknown>>;
+    sections_en?: Array<Record<string, unknown>>;
+    body?: { de?: string; en?: string };
+    published?: boolean;
+  }) => (await api.put("/admin/content", payload)).data,
   getSettings: async () => (await api.get("/admin/settings")).data,
   saveSetting: async (payload: { key: string; value: string }) => (await api.put("/admin/settings", payload)).data,
   getAuditLogs: async () => (await api.get("/admin/audit-logs")).data

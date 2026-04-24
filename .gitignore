@@ -5,3 +5,7 @@ uploads
 coverage
 *.log
 pnpm-lock.yaml
+.env
+apps/api/.env
+apps/web/.env
+mobile-app/.env

@@ -8,6 +8,7 @@ import {
   listNotifications,
   ordersList,
   profile,
+  updateLanguage,
   updateProfile
 } from "./owner.controller.js";
 
@@ -21,4 +22,5 @@ ownerRouter.get("/calls", callsList);
 ownerRouter.get("/orders", ordersList);
 ownerRouter.get("/profile", profile);
 ownerRouter.put("/profile", updateProfile);
+ownerRouter.put("/language", updateLanguage);
 ownerRouter.get("/notifications", listNotifications);

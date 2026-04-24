@@ -1,18 +1,29 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Button, Input } from "../../../components/ui";
+import { LanguageSwitcher } from "../../../components/marketing/shared/LanguageSwitcher";
 import { SectionCard } from "../components/SectionCard";
 import { userService } from "../services/user.service";
 
 export const SettingsScreen = () => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data } = useQuery({
     queryKey: ["user-profile"],
     queryFn: userService.getProfile
   });
 
-  const [notificationPrefs, setNotificationPrefs] = useState({ incidents: true, calls: true, orders: true });
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    incidents: true,
+    calls: true,
+    orders: true
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
 
   useEffect(() => {
     const prefs = data?.user?.notificationPreferences;
@@ -32,51 +43,97 @@ export const SettingsScreen = () => {
     }
   });
 
+  const saveLanguageMutation = useMutation({
+    mutationFn: (locale: "de" | "en") => userService.updateLanguage(locale),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+    }
+  });
+
   return (
     <div className="space-y-6">
-      <SectionCard title="Password change" subtitle="Keep your AutoQr owner account secure with a strong password.">
+      <SectionCard
+        title={t("settings.languageSection") as string}
+        subtitle={t("settings.languageHelp") as string}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="max-w-2xl text-sm text-slate-600">
+            {t("settings.languageHelp")}
+          </p>
+          <LanguageSwitcher
+            variant="inline"
+            onChange={(locale) => saveLanguageMutation.mutate(locale)}
+          />
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title={t("settings.passwordChangeTitle") as string}
+        subtitle={t("settings.passwordChangeSubtitle") as string}
+      >
         <div className="grid gap-3 md:grid-cols-2">
           <label className="text-sm font-medium text-slate-700">
-            Current password
+            {t("settings.currentPassword")}
             <Input
               type="password"
               value={passwordForm.currentPassword}
-              onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+              onChange={(event) =>
+                setPasswordForm((current) => ({
+                  ...current,
+                  currentPassword: event.target.value
+                }))
+              }
               className="mt-1"
             />
           </label>
           <label className="text-sm font-medium text-slate-700">
-            New password
+            {t("settings.newPassword")}
             <Input
               type="password"
               value={passwordForm.newPassword}
-              onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+              onChange={(event) =>
+                setPasswordForm((current) => ({
+                  ...current,
+                  newPassword: event.target.value
+                }))
+              }
               className="mt-1"
             />
           </label>
           <label className="text-sm font-medium text-slate-700 md:col-span-2">
-            Confirm password
+            {t("settings.confirmPassword")}
             <Input
               type="password"
               value={passwordForm.confirmPassword}
-              onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+              onChange={(event) =>
+                setPasswordForm((current) => ({
+                  ...current,
+                  confirmPassword: event.target.value
+                }))
+              }
               className="mt-1"
             />
           </label>
           <Button disabled className="md:w-fit">
-            Password update coming soon
+            {t("settings.passwordUpdateSoon")}
           </Button>
         </div>
       </SectionCard>
 
-      <SectionCard title="Notification preferences" subtitle="Choose which owner updates should trigger panel notifications.">
+      <SectionCard
+        title={t("settings.notificationsTitle") as string}
+        subtitle={t("settings.notificationsSubtitle") as string}
+      >
         <div className="space-y-3">
           {[
-            ["incidents", "Incident alerts"],
-            ["calls", "Call request alerts"],
-            ["orders", "Payment and shipment updates"]
+            ["incidents", t("settings.prefIncidents")],
+            ["calls", t("settings.prefCalls")],
+            ["orders", t("settings.prefOrders")]
           ].map(([key, label]) => (
-            <label key={key} className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <label
+              key={key}
+              className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+            >
               <span className="text-sm font-medium text-slate-700">{label}</span>
               <input
                 type="checkbox"
@@ -93,16 +150,22 @@ export const SettingsScreen = () => {
           ))}
         </div>
         <div className="mt-4 flex gap-2">
-          <Button onClick={() => savePrefsMutation.mutate()} disabled={savePrefsMutation.isPending}>
-            {savePrefsMutation.isPending ? "Saving..." : "Save preferences"}
+          <Button
+            onClick={() => savePrefsMutation.mutate()}
+            disabled={savePrefsMutation.isPending}
+          >
+            {savePrefsMutation.isPending
+              ? (t("settings.saving") as string)
+              : (t("settings.savePreferences") as string)}
           </Button>
         </div>
       </SectionCard>
 
-      <SectionCard title="Privacy and account controls" subtitle="Manage visibility and account controls for owner communication.">
-        <p className="text-sm text-slate-600">
-          Your contact details are only shared with reporters during approved incident communication. You can request account export or deactivation by contacting support.
-        </p>
+      <SectionCard
+        title={t("settings.privacyTitle") as string}
+        subtitle={t("settings.privacySubtitle") as string}
+      >
+        <p className="text-sm text-slate-600">{t("settings.privacyBody")}</p>
       </SectionCard>
     </div>
   );

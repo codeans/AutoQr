@@ -1,141 +1,113 @@
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowUpRight, ShieldCheck } from "lucide-react";
+import { KeyRound, ShieldCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { LinkButton } from "../shared/Button";
 import { Container } from "../shared/Container";
-import { GridBackdrop } from "../shared/GridBackdrop";
-import { Reveal } from "../shared/Reveal";
-
-const stats = [
-  { label: "Identity protected", value: "100%" },
-  { label: "Setup to dispatch", value: "<24h" },
-  { label: "Owner payment", value: "One-time" },
-  { label: "Incidents audited", value: "Every scan" }
-];
+import { useMarketingContent } from "../content/useMarketingContent";
 
 export const Hero = () => {
+  const { t } = useTranslation();
   const reduce = useReducedMotion();
+  const { hero } = useMarketingContent();
+
   return (
-    <section className="relative overflow-hidden pb-24 pt-20 sm:pb-32 sm:pt-28 lg:pb-40 lg:pt-32">
-      <GridBackdrop />
+    <section className="relative overflow-hidden pb-20 pt-16 sm:pb-28 sm:pt-24 lg:pb-32 lg:pt-28">
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-brand-soft" />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[600px] bg-[radial-gradient(ellipse_at_top,rgba(233,199,154,0.08),transparent_60%)]"
+        className="pointer-events-none absolute -top-40 left-1/2 h-[640px] w-[1200px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(59,124,246,0.18),transparent_60%)] blur-2xl"
       />
 
       <Container>
-        <Reveal>
-          <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.02] px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-fog-300">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            </span>
-            Now shipping in Germany
-          </div>
-        </Reveal>
+        <div className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-white px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-brand-700 shadow-soft">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-500 opacity-60" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-500" />
+          </span>
+          {hero.eyebrow}
+        </div>
 
-        <div className="mt-10 grid gap-12 lg:grid-cols-12 lg:gap-8">
-          <div className="lg:col-span-8">
-            <Reveal delay={0.05}>
-              <h1
-                className="font-display text-[48px] font-medium leading-[0.95] tracking-[-0.04em] text-fog-50 sm:text-[72px] lg:text-[96px] xl:text-[112px]"
-                style={{ textWrap: "balance" }}
-              >
-                Your car. Contactable.
-                <br />
-                <span className="text-fog-400">Your number, still private.</span>
-              </h1>
-            </Reveal>
-
-            <Reveal delay={0.15}>
-              <p className="mt-8 max-w-xl text-base leading-relaxed text-fog-300 sm:text-lg">
-                AutoQR is a privacy-first QR contact platform built only for cars.
-                Anyone who needs to reach you — wrong parking, headlights on,
-                towing, emergency — can alert you instantly, without ever seeing
-                your phone number.
-              </p>
-            </Reveal>
-
-            <Reveal delay={0.22}>
-              <div className="mt-10 flex flex-wrap items-center gap-3">
-                <LinkButton to="/plans" size="lg" showArrow>
-                  Choose a plan
-                </LinkButton>
-                <LinkButton to="/how-it-works" variant="secondary" size="lg">
-                  See how it works
-                </LinkButton>
-              </div>
-            </Reveal>
-
-            <Reveal delay={0.3}>
-              <div className="mt-10 flex items-center gap-3 text-xs text-fog-400">
-                <ShieldCheck className="h-4 w-4 text-accent" />
-                <span>
-                  GDPR-aligned. Owner contact details never exposed publicly.
-                </span>
-              </div>
-            </Reveal>
-          </div>
-
-          <div className="relative lg:col-span-4">
-            <motion.div
-              initial={reduce ? undefined : { opacity: 0, scale: 0.96 }}
-              animate={reduce ? undefined : { opacity: 1, scale: 1 }}
-              transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="relative mx-auto aspect-square w-full max-w-[420px] lg:ml-auto"
+        <div className="mt-10 grid gap-14 lg:grid-cols-12 lg:gap-10">
+          <div className="lg:col-span-7">
+            <h1
+              className="font-display text-[44px] font-semibold leading-[1.02] tracking-[-0.035em] text-content sm:text-[64px] lg:text-[80px]"
+              style={{ textWrap: "balance" }}
             >
-              <HeroVisual />
+              {hero.headline}{" "}
+              <span className="text-brand-700">{hero.highlight}</span>
+            </h1>
+
+            <p className="mt-8 max-w-xl text-base leading-relaxed text-content-muted sm:text-lg">
+              {hero.description}
+            </p>
+
+            <div className="mt-10 flex flex-wrap items-center gap-3">
+              <LinkButton to={hero.primaryCta.to} size="lg" showArrow>
+                {hero.primaryCta.label}
+              </LinkButton>
+              <LinkButton to={hero.secondaryCta.to} variant="secondary" size="lg">
+                {hero.secondaryCta.label}
+              </LinkButton>
+            </div>
+
+            <div className="mt-10 flex items-center gap-3 text-sm text-content-subtle">
+              <ShieldCheck className="h-4 w-4 text-brand-700" />
+              <span>{hero.trustLine || t("home.heroVisual.fallbackTrustLine")}</span>
+            </div>
+          </div>
+
+          <div className="relative lg:col-span-5">
+            <motion.div
+              initial={reduce ? undefined : { opacity: 0, y: 16 }}
+              animate={reduce ? undefined : { opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              className="relative mx-auto w-full max-w-[440px] lg:ml-auto"
+            >
+              <HeroVisual t={t} />
             </motion.div>
           </div>
         </div>
-
-        <Reveal delay={0.4}>
-          <div className="mt-20 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/[0.05] sm:mt-28 sm:grid-cols-4">
-            {stats.map((stat) => (
-              <div key={stat.label} className="bg-ink-900 px-5 py-6 sm:px-7 sm:py-8">
-                <div className="font-display text-3xl font-medium tracking-tight text-fog-50 sm:text-4xl">
-                  {stat.value}
-                </div>
-                <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.18em] text-fog-400">
-                  {stat.label}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Reveal>
       </Container>
     </section>
   );
 };
 
-const HeroVisual = () => (
-  <div className="relative h-full w-full">
-    <div className="absolute inset-0 rounded-[28px] border border-white/10 bg-gradient-to-br from-ink-800 via-ink-900 to-ink-950 p-6 shadow-elevate">
-      <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-[0.2em] text-fog-400">
-        <span>AQR-003-DE</span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          Active
+type HeroVisualProps = { t: (key: string) => string };
+
+const HeroVisual = ({ t }: HeroVisualProps) => (
+  <div className="relative">
+    <div className="relative rounded-[28px] border border-surface-border bg-white p-6 shadow-card">
+      <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-[0.2em] text-content-subtle">
+        <span>AQR · DE-003</span>
+        <span className="flex items-center gap-1.5 text-emerald-600">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          {t("home.heroVisual.active")}
         </span>
       </div>
-      <div className="mt-5 grid aspect-square w-full place-items-center rounded-2xl border border-white/10 bg-ink-950 p-6">
+      <div className="mt-5 grid aspect-square w-full place-items-center rounded-2xl border border-surface-border bg-surface-soft p-6">
         <QrArt />
       </div>
-      <div className="mt-5 space-y-2">
-        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-fog-400">
-          Private identity
+      <div className="mt-5 space-y-1.5">
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-content-subtle">
+          {t("home.heroVisual.secureCallBridge")}
         </p>
-        <p className="font-mono text-sm tracking-tight text-fog-100">
-          scan → secure bridge → owner
+        <p className="font-mono text-sm tracking-tight text-content">
+          {t("home.heroVisual.bridgeFlow")}
         </p>
       </div>
     </div>
-    <motion.div
-      aria-hidden
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.6 }}
-      className="pointer-events-none absolute -inset-10 -z-10 rounded-[36px] bg-[radial-gradient(ellipse_at_top,rgba(233,199,154,0.22),transparent_60%)] blur-2xl"
-    />
+
+    <div className="pointer-events-none absolute -bottom-6 -right-4 flex items-center gap-3 rounded-2xl border border-surface-border bg-white px-4 py-3 shadow-card sm:-bottom-8 sm:-right-8">
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-700">
+        <KeyRound className="h-5 w-5" />
+      </span>
+      <div>
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-content-subtle">
+          {t("home.heroVisual.worksFor")}
+        </p>
+        <p className="text-sm font-semibold text-content">{t("home.heroVisual.carsAndKeys")}</p>
+      </div>
+    </div>
   </div>
 );
 
@@ -168,7 +140,7 @@ const QrArt = () => {
         return (
           <div
             key={i}
-            className={filled ? "bg-fog-50" : "bg-transparent"}
+            className={filled ? "bg-content" : "bg-transparent"}
             style={{ borderRadius: 2 }}
           />
         );

@@ -26,7 +26,7 @@ export const SectionWrapper = ({
     className={clsx(
       "relative",
       spacingMap[spacing],
-      divider && "border-t border-white/[0.06]",
+      divider && "border-t border-surface-border",
       className
     )}
   >

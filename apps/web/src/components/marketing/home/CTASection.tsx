@@ -1,56 +1,51 @@
 import { LinkButton } from "../shared/Button";
 import { Container } from "../shared/Container";
-import { GridBackdrop } from "../shared/GridBackdrop";
-import { Reveal } from "../shared/Reveal";
-import { SectionWrapper } from "../shared/SectionWrapper";
+import { useMarketingContent } from "../content/useMarketingContent";
 
-export const CTASection = () => (
-  <SectionWrapper id="cta" spacing="loose" className="relative overflow-hidden">
-    <GridBackdrop />
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(233,199,154,0.08),transparent_55%)]"
-    />
-    <Container>
-      <Reveal>
-        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-b from-ink-800 via-ink-900 to-ink-950 px-6 py-16 sm:px-12 sm:py-24 lg:py-28">
+export const CTASection = () => {
+  const { cta } = useMarketingContent();
+  return (
+    <section className="relative bg-white py-24 sm:py-32">
+      <Container>
+        <div className="relative overflow-hidden rounded-3xl bg-brand-700 px-8 py-16 text-center text-white shadow-glass sm:px-16 sm:py-20">
           <div
             aria-hidden
-            className="pointer-events-none absolute -right-40 -top-40 h-[440px] w-[440px] rounded-full bg-accent/20 blur-[120px]"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.18),transparent_60%)]"
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(to_top,rgba(0,0,0,0.5),transparent)]"
+            className="pointer-events-none absolute -bottom-24 left-1/2 h-64 w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(96,155,250,0.4),transparent_60%)] blur-2xl"
           />
-
-          <div className="relative mx-auto max-w-4xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-fog-300">
-              Secure your identity
-            </span>
+          <div className="relative">
             <h2
-              className="mt-8 font-display text-[44px] font-medium leading-[0.98] tracking-[-0.04em] text-fog-50 sm:text-[64px] lg:text-[84px]"
+              className="mx-auto max-w-3xl font-display text-3xl font-semibold tracking-tight sm:text-5xl"
               style={{ textWrap: "balance" }}
             >
-              Give every asset a private address.
+              {cta.headline}
             </h2>
-            <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-fog-300 sm:text-lg">
-              One-time purchase, lifetime protection, real infrastructure behind every scan.
-              Start with a single tag or deploy across a fleet.
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-brand-100 sm:text-lg">
+              {cta.description}
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-              <LinkButton to="/order" size="lg" showArrow>
-                Order AutoQr — €49
+              <LinkButton
+                to={cta.primaryCta.to}
+                size="lg"
+                showArrow
+                className="!bg-white !text-brand-700 hover:!bg-brand-50"
+              >
+                {cta.primaryCta.label}
               </LinkButton>
-              <LinkButton to="/contact" variant="secondary" size="lg">
-                Talk to us
+              <LinkButton
+                to={cta.secondaryCta.to}
+                size="lg"
+                className="!border !border-white/30 !bg-transparent !text-white hover:!bg-white/10"
+              >
+                {cta.secondaryCta.label}
               </LinkButton>
             </div>
-            <p className="mt-6 text-xs text-fog-500">
-              Free shipping across DE · activation within 24h of delivery
-            </p>
           </div>
         </div>
-      </Reveal>
-    </Container>
-  </SectionWrapper>
-);
+      </Container>
+    </section>
+  );
+};

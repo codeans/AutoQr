@@ -75,6 +75,7 @@ export type UserProfile = {
   email?: string;
   phone?: string;
   address?: string;
+  preferredLanguage?: "de" | "en";
   notificationPreferences?: {
     incidents?: boolean;
     calls?: boolean;

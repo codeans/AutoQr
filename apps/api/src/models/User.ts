@@ -1,5 +1,17 @@
 import mongoose, { Schema } from "mongoose";
 
+const pushTokenSchema = new Schema(
+  {
+    token: { type: String, required: true, index: true },
+    platform: { type: String, enum: ["ios", "android", "web"], default: "android" },
+    deviceId: { type: String, default: "" },
+    appVersion: { type: String, default: "" },
+    lastUsedAt: { type: Date, default: Date.now },
+    createdAt: { type: Date, default: Date.now }
+  },
+  { _id: false }
+);
+
 const userSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -11,12 +23,17 @@ const userSchema = new Schema(
     role: { type: String, enum: ["admin", "owner", "support"], default: "owner", index: true },
     status: { type: String, enum: ["active", "inactive", "flagged"], default: "active" },
     notificationPreferences: {
+      incidents: { type: Boolean, default: true },
+      calls: { type: Boolean, default: true },
+      orders: { type: Boolean, default: true },
       email: { type: Boolean, default: true },
       sms: { type: Boolean, default: true },
       whatsapp: { type: Boolean, default: true },
       push: { type: Boolean, default: true },
       inApp: { type: Boolean, default: true }
     },
+    pushTokens: { type: [pushTokenSchema], default: [] },
+    preferredLanguage: { type: String, enum: ["de", "en"], default: "de" },
     lastLoginAt: { type: Date }
   },
   { timestamps: true }

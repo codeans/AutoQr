@@ -7,7 +7,7 @@ import type {
 } from "react";
 
 const baseInput =
-  "w-full rounded-xl border border-white/10 bg-ink-900 px-4 py-3 text-[14.5px] text-fog-100 placeholder:text-fog-500 transition outline-none focus:border-accent/40 focus:ring-2 focus:ring-accent/20";
+  "w-full rounded-xl border border-surface-border bg-white px-4 py-3 text-[14.5px] text-content placeholder:text-content-soft transition outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20";
 
 export const FieldLabel = ({
   className,
@@ -16,7 +16,7 @@ export const FieldLabel = ({
 }: PropsWithChildren<LabelHTMLAttributes<HTMLLabelElement>>) => (
   <label
     className={clsx(
-      "block text-[11px] font-medium uppercase tracking-[0.18em] text-fog-400",
+      "block text-[11px] font-medium uppercase tracking-[0.18em] text-content-subtle",
       className
     )}
     {...props}

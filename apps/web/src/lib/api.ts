@@ -25,6 +25,14 @@ export const registerAccessTokenListener = (listener: (token: string) => void) =
 
 api.interceptors.request.use((config) => {
   if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
+  try {
+    const stored = typeof localStorage !== "undefined" ? localStorage.getItem("autoqr_locale") : null;
+    const locale = stored && (stored === "de" || stored === "en") ? stored : "de";
+    config.headers["X-Locale"] = locale;
+    config.headers["Accept-Language"] = locale;
+  } catch {
+    /* noop */
+  }
   return config;
 });
 

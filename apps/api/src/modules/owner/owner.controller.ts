@@ -34,15 +34,23 @@ const sanitizeCall = (call: any) => {
 };
 
 const updateProfileSchema = z.object({
-  name: z.string().min(2).max(120),
-  phone: z.string().min(7).max(40),
-  address: z.string().min(3).max(500),
+  name: z.string().min(2).max(120).optional(),
+  phone: z.string().min(7).max(40).optional(),
+  address: z.string().min(3).max(500).optional(),
+  preferredLanguage: z.enum(["de", "en"]).optional(),
   notificationPreferences: z
     .object({
+      incidents: z.boolean().optional(),
+      calls: z.boolean().optional(),
+      orders: z.boolean().optional(),
       email: z.boolean().optional(),
       inApp: z.boolean().optional()
     })
     .optional()
+});
+
+const languageSchema = z.object({
+  preferredLanguage: z.enum(["de", "en"])
 });
 
 export const dashboard = asyncHandler(async (req: Request, res: Response) => {
@@ -111,6 +119,16 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response) =>
   const user = await UserModel.findByIdAndUpdate(
     req.auth!.userId,
     { $set: payload },
+    { new: true, runValidators: true }
+  ).select("-passwordHash");
+  res.json({ user });
+});
+
+export const updateLanguage = asyncHandler(async (req: Request, res: Response) => {
+  const payload = languageSchema.parse(req.body);
+  const user = await UserModel.findByIdAndUpdate(
+    req.auth!.userId,
+    { $set: { preferredLanguage: payload.preferredLanguage } },
     { new: true, runValidators: true }
   ).select("-passwordHash");
   res.json({ user });

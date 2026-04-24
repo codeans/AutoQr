@@ -1,4 +1,6 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { isLocale } from "@autoqr/shared";
 import { useAuth } from "../context/AuthContext";
 import { MarketingLayout } from "../components/marketing/layout/MarketingLayout";
 import { ContactPage } from "../pages/Contact";
@@ -16,6 +18,9 @@ import { PartnerPage } from "../pages/Partner";
 import { HelpCenterPage } from "../pages/HelpCenter";
 import { PrivacyPage } from "../pages/Privacy";
 import { TermsPage } from "../pages/Terms";
+import { RefundPolicyPage } from "../pages/RefundPolicy";
+import { ShippingPolicyPage } from "../pages/ShippingPolicy";
+import { AboutPage } from "../pages/About";
 import {
   ActivationRecordsPage,
   AnalyticsPage,
@@ -56,6 +61,7 @@ import { OnboardingScreen } from "../modules/plans/screens/Onboarding";
 import { OnboardingSuccessScreen } from "../modules/plans/screens/OnboardingSuccess";
 import { ScanLandingScreen } from "../modules/scan/screens/ScanLanding";
 import { ReporterCallScreen } from "../features/calls/ReporterCallScreen";
+import { currentLocale, setLocale } from "../i18n";
 
 const Protected = ({ role, children }: { role: "admin" | "owner"; children: React.ReactNode }) => {
   const { user, isBootstrapping } = useAuth();
@@ -74,37 +80,70 @@ const OnboardGuard = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const LocaleSync = ({ children }: { children: React.ReactNode }) => {
+  const { locale } = useParams();
+
+  useEffect(() => {
+    if (isLocale(locale)) {
+      setLocale(locale);
+    }
+  }, [locale]);
+
+  return <>{children}</>;
+};
+
+const publicRoutes = (
+  <>
+    <Route index element={<HomePage />} />
+    <Route path="how-it-works" element={<HowItWorksPage />} />
+    <Route path="for-car-owners" element={<ForCarOwnersPage />} />
+    <Route path="for-items" element={<Navigate to="/" replace />} />
+    <Route path="use-cases" element={<UseCasesPage />} />
+    <Route path="partner" element={<PartnerPage />} />
+    <Route path="help" element={<HelpCenterPage />} />
+    <Route path="privacy" element={<PrivacyPage />} />
+    <Route path="terms" element={<TermsPage />} />
+    <Route path="refund-policy" element={<RefundPolicyPage />} />
+    <Route path="shipping-policy" element={<ShippingPolicyPage />} />
+    <Route path="about" element={<AboutPage />} />
+    <Route path="pricing" element={<PricingPage />} />
+    <Route path="faq" element={<FaqPage />} />
+    <Route path="contact" element={<ContactPage />} />
+    <Route path="login" element={<LoginPage />} />
+    <Route path="register" element={<RegisterPage />} />
+
+    <Route path="plans" element={<PlansScreen />} />
+    <Route path="plans/:slug" element={<PlanDetailScreen />} />
+
+    <Route path="shop" element={<Navigate to="/plans" replace />} />
+    <Route path="shop/:slug" element={<Navigate to="/plans" replace />} />
+    <Route path="cart" element={<Navigate to="/plans" replace />} />
+    <Route path="checkout" element={<Navigate to="/plans" replace />} />
+
+    <Route path="order" element={<OrderPage />} />
+    <Route path="incident/:token" element={<IncidentPage />} />
+  </>
+);
+
 export const AppRouter = () => (
   <Routes>
+    <Route path="/" element={<Navigate to={`/${currentLocale()}`} replace />} />
     <Route path="scan/:token" element={<ScanLandingScreen />} />
     <Route path="call/reporter" element={<ReporterCallScreen />} />
 
     <Route element={<MarketingLayout />}>
-      <Route index element={<HomePage />} />
-      <Route path="how-it-works" element={<HowItWorksPage />} />
-      <Route path="for-car-owners" element={<ForCarOwnersPage />} />
-      <Route path="for-items" element={<Navigate to="/" replace />} />
-      <Route path="use-cases" element={<UseCasesPage />} />
-      <Route path="partner" element={<PartnerPage />} />
-      <Route path="help" element={<HelpCenterPage />} />
-      <Route path="privacy" element={<PrivacyPage />} />
-      <Route path="terms" element={<TermsPage />} />
-      <Route path="pricing" element={<PricingPage />} />
-      <Route path="faq" element={<FaqPage />} />
-      <Route path="contact" element={<ContactPage />} />
-      <Route path="login" element={<LoginPage />} />
-      <Route path="register" element={<RegisterPage />} />
+      {publicRoutes}
+    </Route>
 
-      <Route path="plans" element={<PlansScreen />} />
-      <Route path="plans/:slug" element={<PlanDetailScreen />} />
-
-      <Route path="shop" element={<Navigate to="/plans" replace />} />
-      <Route path="shop/:slug" element={<Navigate to="/plans" replace />} />
-      <Route path="cart" element={<Navigate to="/plans" replace />} />
-      <Route path="checkout" element={<Navigate to="/plans" replace />} />
-
-      <Route path="order" element={<OrderPage />} />
-      <Route path="incident/:token" element={<IncidentPage />} />
+    <Route
+      path=":locale"
+      element={
+        <LocaleSync>
+          <MarketingLayout />
+        </LocaleSync>
+      }
+    >
+      {publicRoutes}
     </Route>
 
     <Route

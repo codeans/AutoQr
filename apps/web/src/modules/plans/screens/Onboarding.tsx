@@ -81,20 +81,20 @@ export const OnboardingScreen = () => {
   const planSummary = useMemo(() => {
     if (!plan) return null;
     return (
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 text-[14px]">
+      <div className="rounded-2xl border border-surface-border bg-surface-soft p-5 text-[14px]">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-fog-400">Selected plan</p>
-            <h3 className="mt-1 font-display text-2xl text-fog-50">{plan.name}</h3>
-            <p className="mt-1 text-[13px] text-fog-300">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-content-subtle">Selected plan</p>
+            <h3 className="mt-1 font-display text-2xl text-content">{plan.name}</h3>
+            <p className="mt-1 text-[13px] text-content-muted">
               {plan.tagsIncluded} tag{plan.tagsIncluded > 1 ? "s" : ""} · {plan.supportTier} support
             </p>
           </div>
           <div className="text-right">
-            <p className="font-display text-xl text-fog-50">
+            <p className="font-display text-xl text-content">
               {formatCurrency(plan.priceCents, plan.currency)}
             </p>
-            <p className="text-[11px] text-fog-500">one-time</p>
+            <p className="text-[11px] text-content0">one-time</p>
           </div>
         </div>
       </div>
@@ -106,7 +106,7 @@ export const OnboardingScreen = () => {
       <SectionWrapper>
         <Container>
           <p className="text-red-300">{loadError}</p>
-          <Link to="/plans" className="mt-4 text-fog-100 underline">
+          <Link to="/plans" className="mt-4 text-content underline">
             Back to plans
           </Link>
         </Container>
@@ -192,15 +192,15 @@ export const OnboardingScreen = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-ink-950">
+    <div className="relative min-h-screen bg-surface-soft">
       <SectionWrapper spacing="tight">
         <Container size="narrow">
           <Reveal>
-            <Link to="/plans" className="text-[13px] text-fog-400 hover:text-fog-100">
+            <Link to="/plans" className="text-[13px] text-content-subtle hover:text-content">
               ← Plans
             </Link>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-              <h1 className="font-display text-3xl text-fog-50 sm:text-4xl">Start your plan</h1>
+              <h1 className="font-display text-3xl text-content sm:text-4xl">Start your plan</h1>
               <OnboardingStepper current={step} />
             </div>
 
@@ -223,14 +223,14 @@ export const OnboardingScreen = () => {
                     title="Create your account"
                     description="We'll verify your mobile with a one-time code. No password needed."
                   >
-                    <div className="mb-5 inline-flex rounded-full border border-white/10 bg-ink-900/60 p-1 text-[12.5px]">
+                    <div className="mb-5 inline-flex rounded-full border border-surface-border bg-white/60 p-1 text-[12.5px]">
                       <button
                         type="button"
                         onClick={() => {
                           setAccountMode("new");
                           setOtpRequested(false);
                         }}
-                        className={`rounded-full px-3.5 py-1.5 ${accountMode === "new" ? "bg-fog-50 text-ink-950" : "text-fog-300"}`}
+                        className={`rounded-full px-3.5 py-1.5 ${accountMode === "new" ? "bg-fog-50 text-ink-950" : "text-content-muted"}`}
                       >
                         New customer
                       </button>
@@ -240,7 +240,7 @@ export const OnboardingScreen = () => {
                           setAccountMode("existing");
                           setOtpRequested(false);
                         }}
-                        className={`rounded-full px-3.5 py-1.5 ${accountMode === "existing" ? "bg-fog-50 text-ink-950" : "text-fog-300"}`}
+                        className={`rounded-full px-3.5 py-1.5 ${accountMode === "existing" ? "bg-fog-50 text-ink-950" : "text-content-muted"}`}
                       >
                         I already have an account
                       </button>
@@ -302,7 +302,7 @@ export const OnboardingScreen = () => {
                           />
                         </FieldGroup>
                         {devCode && (
-                          <p className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-[12.5px] text-accent">
+                          <p className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-[12.5px] text-brand-700">
                             Dev code: <strong>{devCode}</strong>
                           </p>
                         )}
@@ -313,7 +313,7 @@ export const OnboardingScreen = () => {
                         <button
                           type="button"
                           onClick={() => setOtpRequested(false)}
-                          className="w-full text-[13px] text-fog-400 hover:text-fog-100"
+                          className="w-full text-[13px] text-content-subtle hover:text-content"
                         >
                           Use a different number
                         </button>
@@ -405,19 +405,19 @@ export const OnboardingScreen = () => {
 
               <aside className="space-y-5 lg:sticky lg:top-24 lg:h-fit">
                 {planSummary}
-                <div className="rounded-2xl border border-white/[0.06] bg-ink-900/60 p-5 text-[13.5px] text-fog-300">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-fog-400">Why onboarding works this way</p>
+                <div className="rounded-2xl border border-surface-border bg-white/60 p-5 text-[13.5px] text-content-muted">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-content-subtle">Why onboarding works this way</p>
                   <ul className="mt-3 space-y-2.5">
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />
                       <span>We verify your phone so masked calls work from day one.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />
                       <span>Payment is one-time. No subscriptions, no surprise renewals.</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />
                       <span>Your details are stored encrypted, under a versioned consent record.</span>
                     </li>
                   </ul>
@@ -440,9 +440,9 @@ const Panel = ({
   description?: string;
   children: React.ReactNode;
 }) => (
-  <section className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-7">
-    <h2 className="font-display text-xl text-fog-50">{title}</h2>
-    {description && <p className="mt-1.5 text-[13.5px] text-fog-300">{description}</p>}
+  <section className="rounded-3xl border border-surface-border bg-surface-soft p-7">
+    <h2 className="font-display text-xl text-content">{title}</h2>
+    {description && <p className="mt-1.5 text-[13.5px] text-content-muted">{description}</p>}
     <div className="mt-6">{children}</div>
   </section>
 );

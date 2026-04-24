@@ -24,38 +24,38 @@ export const OnboardingSuccessScreen = () => {
     <SectionWrapper>
       <Container>
         <Reveal>
-          <div className="mx-auto max-w-xl rounded-3xl border border-white/[0.06] bg-white/[0.02] p-10 text-center">
-            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent/15 text-2xl text-accent">
+          <div className="mx-auto max-w-xl rounded-3xl border border-surface-border bg-surface-soft p-10 text-center">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent/15 text-2xl text-brand-700">
               {awaitingReview ? "⏳" : "✓"}
             </div>
-            <h1 className="mt-6 font-display text-3xl text-fog-50">
+            <h1 className="mt-6 font-display text-3xl text-content">
               {awaitingReview ? "Order received." : "You're in."}
             </h1>
-            <p className="mt-3 text-[15px] text-fog-300">
+            <p className="mt-3 text-[15px] text-content-muted">
               {awaitingReview
                 ? "Your order is queued for manual review. Our team will confirm payment and start fulfillment — you'll get a notification once it's approved."
                 : "Your plan is set up. We'll ship your tags and send the activation codes as soon as they leave the warehouse."}
             </p>
             {order && (
-              <dl className="mt-8 grid gap-2 rounded-2xl bg-ink-900/60 p-6 text-left text-[14px] text-fog-200">
+              <dl className="mt-8 grid gap-2 rounded-2xl bg-white/60 p-6 text-left text-[14px] text-content">
                 <div className="flex justify-between">
-                  <dt className="text-fog-400">Plan</dt>
+                  <dt className="text-content-subtle">Plan</dt>
                   <dd>{order.planSnapshot?.name ?? "AutoQR plan"}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-fog-400">Order ID</dt>
+                  <dt className="text-content-subtle">Order ID</dt>
                   <dd className="font-mono text-[13px]">{order._id}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-fog-400">Total</dt>
+                  <dt className="text-content-subtle">Total</dt>
                   <dd>{formatCurrency(Math.round(order.amount * 100), order.currency)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-fog-400">Payment</dt>
+                  <dt className="text-content-subtle">Payment</dt>
                   <dd className="capitalize">{order.paymentStatus}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-fog-400">Status</dt>
+                  <dt className="text-content-subtle">Status</dt>
                   <dd className="capitalize">{order.orderStatus.replace(/_/g, " ")}</dd>
                 </div>
               </dl>
@@ -69,7 +69,7 @@ export const OnboardingSuccessScreen = () => {
               </Link>
               <Link
                 to="/dashboard/activate"
-                className="rounded-full border border-white/10 px-6 py-3 text-[14px] text-fog-100 hover:bg-white/[0.04]"
+                className="rounded-full border border-surface-border px-6 py-3 text-[14px] text-content hover:bg-surface-soft"
               >
                 Activate a tag
               </Link>

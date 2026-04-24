@@ -21,17 +21,17 @@ export const OnboardingStepper = ({ current }: { current: OnboardingStepKey }) =
             <span
               className={`grid h-7 w-7 place-items-center rounded-full border text-[11px] font-semibold transition ${
                 done
-                  ? "border-accent/40 bg-accent/15 text-accent"
+                  ? "border-brand-200 bg-accent/15 text-brand-700"
                   : active
                   ? "border-fog-50/40 bg-fog-50 text-ink-950"
-                  : "border-white/10 bg-white/[0.02] text-fog-500"
+                  : "border-surface-border bg-surface-soft text-content0"
               }`}
             >
               {done ? <Check className="h-3.5 w-3.5" /> : idx + 1}
             </span>
             <span
               className={`text-[12.5px] uppercase tracking-[0.16em] ${
-                active ? "text-fog-50" : done ? "text-fog-300" : "text-fog-500"
+                active ? "text-content" : done ? "text-content-muted" : "text-content0"
               }`}
             >
               {step.label}

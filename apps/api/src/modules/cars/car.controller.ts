@@ -4,6 +4,7 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import {
   createCar,
   deleteCar,
+  getCar,
   listCars,
   setPrimaryCar,
   updateCar
@@ -23,6 +24,11 @@ const carSchema = z.object({
 export const getCars = asyncHandler(async (req: Request, res: Response) => {
   const cars = await listCars(req.auth!.userId);
   res.json({ cars });
+});
+
+export const getCarById = asyncHandler(async (req: Request, res: Response) => {
+  const car = await getCar(req.auth!.userId, String(req.params.id));
+  res.json({ car });
 });
 
 export const postCar = asyncHandler(async (req: Request, res: Response) => {

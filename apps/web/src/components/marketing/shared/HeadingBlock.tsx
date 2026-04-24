@@ -20,11 +20,11 @@ const sizeMap = {
 export const Eyebrow = ({ children, className }: { children: ReactNode; className?: string }) => (
   <span
     className={clsx(
-      "inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-fog-300",
+      "inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700",
       className
     )}
   >
-    <span className="h-px w-6 bg-fog-300/40" aria-hidden />
+    <span className="h-px w-6 bg-brand-200" aria-hidden />
     {children}
   </span>
 );
@@ -52,7 +52,7 @@ export const HeadingBlock = ({
     <Reveal delay={0.05}>
       <h2
         className={clsx(
-          "mt-5 font-display font-medium tracking-display text-balance text-fog-50",
+          "mt-5 font-display font-semibold tracking-display text-balance text-content",
           sizeMap[size]
         )}
         style={{ lineHeight: 0.98 }}
@@ -64,7 +64,7 @@ export const HeadingBlock = ({
       <Reveal delay={0.12}>
         <p
           className={clsx(
-            "mt-6 max-w-2xl text-base leading-relaxed text-fog-300 sm:text-lg",
+            "mt-6 max-w-2xl text-base leading-relaxed text-content-muted sm:text-lg",
             align === "center" ? "mx-auto" : ""
           )}
         >

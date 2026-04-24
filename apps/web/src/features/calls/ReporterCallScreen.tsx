@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   Info,
@@ -42,6 +43,7 @@ const formatDuration = (seconds: number) => {
 const resolveImageUrl = (path: string) => (path.startsWith("http") ? path : `${assetBaseUrl}${path}`);
 
 export const ReporterCallScreen = () => {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const incidentId = params.get("incidentId") || "";
   const ownerUserId = params.get("ownerUserId") || "";
@@ -68,7 +70,7 @@ export const ReporterCallScreen = () => {
   useEffect(() => {
     if (!incidentId || !sessionToken) {
       setReporterStatus("error");
-      setErrorMessage("Missing incident credentials. Please re-submit the incident.");
+      setErrorMessage(t("call.reporter.missingCredentials"));
       return;
     }
     fetchReporterIncident(incidentId, sessionToken)
@@ -78,9 +80,9 @@ export const ReporterCallScreen = () => {
       })
       .catch(() => {
         setReporterStatus("error");
-        setErrorMessage("Could not load incident details.");
+        setErrorMessage(t("call.reporter.couldNotLoadIncident"));
       });
-  }, [incidentId, sessionToken]);
+  }, [incidentId, sessionToken, t]);
 
   useEffect(() => {
     if (!socket) return;
@@ -98,7 +100,7 @@ export const ReporterCallScreen = () => {
       setReporterStatus("connecting");
       createOffer(payload.ownerSocketId, payload.callId).catch(() => {
         setReporterStatus("error");
-        setErrorMessage("Could not negotiate the call. Please try again.");
+        setErrorMessage(t("call.reporter.couldNotNegotiate"));
       });
     };
     const onCallStarted = () => setReporterStatus("in_call");
@@ -163,7 +165,7 @@ export const ReporterCallScreen = () => {
       socket.off("reconnect", onReconnect);
       socket.off("connect", onConnect);
     };
-  }, [addIce, applyAnswer, createOffer, socket, teardown]);
+  }, [addIce, applyAnswer, createOffer, socket, teardown, t]);
 
   useEffect(
     () => () => {
@@ -231,32 +233,35 @@ export const ReporterCallScreen = () => {
     ? [view.incident.car.nickname, [view.incident.car.make, view.incident.car.model].filter(Boolean).join(" ")]
         .filter(Boolean)
         .join(" · ")
-    : "Vehicle owner";
+    : t("call.reporter.vehicleOwnerFallback");
 
   const callStateBadge = (() => {
     switch (reporterStatus) {
       case "loading":
-        return { text: "Preparing secure channel", tone: "info" as const };
+        return { text: t("call.reporter.statusPreparing"), tone: "info" as const };
       case "idle":
-        return { text: "Ready to call", tone: "neutral" as const };
+        return { text: t("call.reporter.statusReady"), tone: "neutral" as const };
       case "requesting_mic":
-        return { text: "Waiting for microphone", tone: "warn" as const };
+        return { text: t("call.reporter.statusWaitingMic"), tone: "warn" as const };
       case "mic_denied":
-        return { text: "Microphone blocked", tone: "error" as const };
+        return { text: t("call.reporter.statusMicBlocked"), tone: "error" as const };
       case "connecting":
-        return { text: "Connecting", tone: "info" as const };
+        return { text: t("call.reporter.statusConnecting"), tone: "info" as const };
       case "ringing":
-        return { text: "Ringing owner", tone: "info" as const };
+        return { text: t("call.reporter.statusRinging"), tone: "info" as const };
       case "in_call":
-        return { text: `In call · ${formatDuration(seconds)}`, tone: "success" as const };
+        return {
+          text: t("call.reporter.statusInCall", { duration: formatDuration(seconds) }),
+          tone: "success" as const
+        };
       case "ended":
-        return { text: "Call ended", tone: "neutral" as const };
+        return { text: t("call.reporter.statusEnded"), tone: "neutral" as const };
       case "rejected":
-        return { text: "Owner could not talk", tone: "warn" as const };
+        return { text: t("call.reporter.statusOwnerUnable"), tone: "warn" as const };
       case "missed":
-        return { text: "Owner currently unavailable", tone: "warn" as const };
+        return { text: t("call.reporter.statusOwnerUnavailable"), tone: "warn" as const };
       case "error":
-        return { text: "Error", tone: "error" as const };
+        return { text: t("call.reporter.statusError"), tone: "error" as const };
     }
   })();
 
@@ -271,14 +276,14 @@ export const ReporterCallScreen = () => {
               <ShieldCheck className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-fog-400">AutoQR · Secure call</p>
-              <p className="text-sm font-semibold text-fog-100">Incident bridge</p>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-fog-400">{t("call.reporter.header")}</p>
+              <p className="text-sm font-semibold text-fog-100">{t("call.reporter.subheader")}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={closeWindow}
-            aria-label="Close call window"
+            aria-label={t("call.reporter.closeAria")}
             className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-fog-300 transition hover:border-white/20 hover:text-fog-100"
           >
             <X className="h-4 w-4" />
@@ -289,12 +294,12 @@ export const ReporterCallScreen = () => {
           <CallAvatar status={reporterStatus} />
 
           <div className="text-center">
-            <p className="text-[12px] uppercase tracking-[0.22em] text-fog-400">Connecting to</p>
+            <p className="text-[12px] uppercase tracking-[0.22em] text-fog-400">{t("call.reporter.connectingTo")}</p>
             <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-fog-50 sm:text-3xl">
               {carLabel}
             </h1>
             {phoneDisplay && (
-              <p className="mt-1 text-[13px] text-fog-400">From {phoneDisplay}</p>
+              <p className="mt-1 text-[13px] text-fog-400">{t("call.reporter.fromPhone", { phone: phoneDisplay })}</p>
             )}
           </div>
 
@@ -302,7 +307,7 @@ export const ReporterCallScreen = () => {
 
           {connectionState !== "connected" && (
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-[12px] text-amber-200">
-              <WifiOff className="h-3.5 w-3.5" /> Reconnecting…
+              <WifiOff className="h-3.5 w-3.5" /> {t("call.reporter.reconnecting")}
             </div>
           )}
 
@@ -315,7 +320,7 @@ export const ReporterCallScreen = () => {
           {view && (
             <div className="w-full space-y-3">
               <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-fog-400">Your report</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-fog-400">{t("call.reporter.yourReport")}</p>
                 <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-fog-200">
                   {view.incident.message}
                 </p>
@@ -326,7 +331,9 @@ export const ReporterCallScreen = () => {
                       onClick={() => setGalleryOpen(true)}
                       className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[12.5px] text-fog-200 transition hover:border-white/20"
                     >
-                      View {view.incident.images.length} photo{view.incident.images.length === 1 ? "" : "s"}
+                      {view.incident.images.length === 1
+                        ? t("call.reporter.viewPhotoOne")
+                        : t("call.reporter.viewPhotoMany", { count: view.incident.images.length })}
                     </button>
                     <div className="mt-3 flex gap-2 overflow-x-auto">
                       {view.incident.images.map((img, idx) => (
@@ -336,7 +343,11 @@ export const ReporterCallScreen = () => {
                           onClick={() => setGalleryOpen(true)}
                           className="h-16 w-16 flex-none overflow-hidden rounded-lg border border-white/10 bg-white/[0.05]"
                         >
-                          <img src={resolveImageUrl(img)} alt={`Incident ${idx + 1}`} className="h-full w-full object-cover" />
+                          <img
+                            src={resolveImageUrl(img)}
+                            alt={t("call.reporter.incidentPhotoAlt", { index: idx + 1 })}
+                            className="h-full w-full object-cover"
+                          />
                         </button>
                       ))}
                     </div>
@@ -419,6 +430,7 @@ const ReporterCallControls = ({
   onRetry: () => void;
   onClose: () => void;
 }) => {
+  const { t } = useTranslation();
   if (status === "idle") {
     return (
       <div className="space-y-3">
@@ -427,11 +439,11 @@ const ReporterCallControls = ({
           onClick={onStart}
           className="flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-500 px-5 py-4 text-[15px] font-semibold text-white shadow-premium transition hover:bg-emerald-600"
         >
-          <Phone className="h-5 w-5" /> Connect to Vehicle Owner
+          <Phone className="h-5 w-5" /> {t("call.reporter.connectToVehicleOwner")}
         </button>
         <p className="flex items-start gap-2 text-center text-[12px] text-fog-400">
           <Info className="mt-0.5 h-3.5 w-3.5 flex-none" />
-          <span>Your browser will ask for microphone access. Your phone number stays masked to the owner.</span>
+          <span>{t("call.reporter.micNotice")}</span>
         </p>
       </div>
     );
@@ -441,7 +453,11 @@ const ReporterCallControls = ({
     return (
       <div className="flex items-center justify-center gap-3 rounded-2xl bg-white/[0.04] px-5 py-4 text-[14px] text-fog-200">
         <Loader2 className="h-5 w-5 animate-spin" />
-        {status === "requesting_mic" ? "Waiting for microphone permission…" : status === "loading" ? "Preparing…" : "Connecting…"}
+        {status === "requesting_mic"
+          ? t("call.reporter.waitingMicPermission")
+          : status === "loading"
+          ? t("call.reporter.preparing")
+          : t("call.reporter.connectingShort")}
       </div>
     );
   }
@@ -450,17 +466,15 @@ const ReporterCallControls = ({
     return (
       <div className="space-y-3">
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-100">
-          <p className="font-semibold">Microphone permission required</p>
-          <p className="mt-1 text-red-200/80">
-            Please enable microphone access in your browser settings, then retry.
-          </p>
+          <p className="font-semibold">{t("call.reporter.micRequiredTitle")}</p>
+          <p className="mt-1 text-red-200/80">{t("call.reporter.micRequiredBody")}</p>
         </div>
         <button
           type="button"
           onClick={onRetry}
           className="flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-500 px-5 py-4 text-[15px] font-semibold text-white shadow-premium transition hover:bg-emerald-600"
         >
-          <Phone className="h-5 w-5" /> Try again
+          <Phone className="h-5 w-5" /> {t("call.reporter.tryAgain")}
         </button>
       </div>
     );
@@ -473,7 +487,7 @@ const ReporterCallControls = ({
         onClick={onEnd}
         className="flex w-full items-center justify-center gap-3 rounded-2xl bg-red-600 px-5 py-4 text-[15px] font-semibold text-white shadow-premium transition hover:bg-red-700"
       >
-        <PhoneOff className="h-5 w-5" /> Cancel call
+        <PhoneOff className="h-5 w-5" /> {t("call.reporter.cancelCall")}
       </button>
     );
   }
@@ -492,7 +506,7 @@ const ReporterCallControls = ({
           )}
         >
           {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          {muted ? "Unmute" : "Mute"}
+          {muted ? t("call.reporter.unmute") : t("call.reporter.mute")}
         </button>
         <button
           type="button"
@@ -500,11 +514,11 @@ const ReporterCallControls = ({
           className="col-span-1 flex flex-col items-center justify-center gap-1 rounded-2xl bg-red-600 px-3 py-3 text-[12px] font-semibold text-white shadow-premium transition hover:bg-red-700"
         >
           <PhoneOff className="h-5 w-5" />
-          End
+          {t("call.reporter.end")}
         </button>
         <div className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-[12px] font-semibold text-fog-100">
           <Volume2 className="h-5 w-5" />
-          <span>Speaker</span>
+          <span>{t("call.reporter.speaker")}</span>
         </div>
       </div>
     );
@@ -516,12 +530,12 @@ const ReporterCallControls = ({
       <div className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[13px] text-fog-200">
         <CheckCircle2 className="h-4 w-4 text-accent" />
         {status === "rejected"
-          ? "The owner can't take the call right now."
+          ? t("call.reporter.rejectedBody")
           : status === "missed"
-          ? "Owner is not available. They'll see a missed-call alert."
+          ? t("call.reporter.missedBody")
           : status === "error"
-          ? "Call couldn't complete. Please try again."
-          : "Call ended. Thanks for helping the owner."}
+          ? t("call.reporter.errorBody")
+          : t("call.reporter.endedBody")}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <button
@@ -529,34 +543,42 @@ const ReporterCallControls = ({
           onClick={onRetry}
           className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[14px] font-semibold text-fog-100 transition hover:border-white/25"
         >
-          Call again
+          {t("call.reporter.callAgain")}
         </button>
         <button
           type="button"
           onClick={onClose}
           className="rounded-2xl bg-emerald-500 px-4 py-3 text-[14px] font-semibold text-white shadow-premium transition hover:bg-emerald-600"
         >
-          Close
+          {t("call.reporter.close")}
         </button>
       </div>
     </div>
   );
 };
 
-const GalleryOverlay = ({ images, onClose }: { images: string[]; onClose: () => void }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/90 p-4">
-    <button
-      type="button"
-      onClick={onClose}
-      className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/[0.05] text-white hover:bg-white/[0.1]"
-      aria-label="Close gallery"
-    >
-      <X className="h-5 w-5" />
-    </button>
-    <div className="grid max-h-[90vh] w-full max-w-3xl gap-3 overflow-y-auto">
-      {images.map((img, idx) => (
-        <img key={idx} src={img} alt={`Incident photo ${idx + 1}`} className="w-full rounded-xl border border-white/10" />
-      ))}
+const GalleryOverlay = ({ images, onClose }: { images: string[]; onClose: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/90 p-4">
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/[0.05] text-white hover:bg-white/[0.1]"
+        aria-label={t("call.reporter.closeGalleryAria")}
+      >
+        <X className="h-5 w-5" />
+      </button>
+      <div className="grid max-h-[90vh] w-full max-w-3xl gap-3 overflow-y-auto">
+        {images.map((img, idx) => (
+          <img
+            key={idx}
+            src={img}
+            alt={t("call.reporter.incidentPhotoFullAlt", { index: idx + 1 })}
+            className="w-full rounded-xl border border-white/10"
+          />
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};

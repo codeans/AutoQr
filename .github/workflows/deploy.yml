@@ -1,0 +1,108 @@
+name: Deploy AutoQr
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy on Hetzner VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          port: ${{ secrets.HETZNER_PORT }}
+          script_stop: true
+          script: |
+            set -Eeuo pipefail
+
+            APP_DIR="/var/www/autoqr"
+            BRANCH="main"
+
+            on_failure() {
+              echo "Deployment failed. Current container state:"
+              cd "$APP_DIR" 2>/dev/null && docker compose ps || true
+              echo "Recent service logs:"
+              cd "$APP_DIR" 2>/dev/null && docker compose logs --tail=120 backend frontend mongodb || true
+            }
+
+            trap on_failure ERR
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo "Repository was not found at $APP_DIR."
+              echo "Clone the repo to $APP_DIR before running automated deployments."
+              exit 1
+            fi
+
+            cd "$APP_DIR"
+            git checkout "$BRANCH"
+            git pull origin "$BRANCH"
+
+            if [ ! -f .env ]; then
+              cp .env.example .env
+              echo "Created $APP_DIR/.env from .env.example."
+              echo "Populate real production values on the server, then rerun the workflow."
+              exit 1
+            fi
+
+            docker compose pull mongodb
+            docker compose up -d --build
+            docker image prune -f
+
+            echo "Container list:"
+            docker compose ps
+
+            wait_for_service() {
+              service_name="$1"
+              timeout_seconds="$2"
+              elapsed=0
+
+              while [ "$elapsed" -lt "$timeout_seconds" ]; do
+                container_id="$(docker compose ps -q "$service_name")"
+                if [ -n "$container_id" ]; then
+                  health_state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id")"
+                  if [ "$health_state" = "healthy" ] || [ "$health_state" = "running" ]; then
+                    echo "$service_name is $health_state"
+                    return 0
+                  fi
+                  echo "Waiting for $service_name. Current state: $health_state"
+                else
+                  echo "Waiting for $service_name container to appear"
+                fi
+                sleep 5
+                elapsed=$((elapsed + 5))
+              done
+
+              echo "$service_name did not become healthy in time."
+              return 1
+            }
+
+            wait_for_service mongodb 60
+            wait_for_service backend 120
+            wait_for_service frontend 120
+
+            echo "Backend health:"
+            curl -fsS http://127.0.0.1:4000/api/health
+            echo
+
+            echo "Backend readiness:"
+            curl -fsS http://127.0.0.1:4000/api/health/ready
+            echo
+
+            echo "Frontend health:"
+            curl -fsS http://127.0.0.1:3000/ >/dev/null
+            echo "Frontend responded successfully."
+
+            echo "Recent deployment logs:"
+            docker compose logs --tail=80 backend frontend mongodb
+
+            echo "AutoQr deployment completed successfully."

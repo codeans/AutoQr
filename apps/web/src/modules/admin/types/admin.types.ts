@@ -84,8 +84,17 @@ export interface AdminContentItem {
   _id: string;
   slug: string;
   title: string;
+  title_de?: string;
+  title_en?: string;
   published?: boolean;
   updatedAt: string;
+  sections?: unknown[];
+  sections_de?: unknown[];
+  sections_en?: unknown[];
+  body?: {
+    de?: string;
+    en?: string;
+  };
 }
 
 export interface AdminSetting {

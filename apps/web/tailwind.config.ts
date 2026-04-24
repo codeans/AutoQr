@@ -28,9 +28,28 @@ const config: Config = {
           muted: "#C9A982"
         },
         brand: {
-          50: "#eef2ff",
-          500: "#334155",
-          700: "#1e293b"
+          50: "#EFF4FF",
+          100: "#DBEAFE",
+          200: "#BFD7FE",
+          300: "#93BBFD",
+          400: "#609BFA",
+          500: "#3B7CF6",
+          600: "#2563EB",
+          700: "#1D4ED8",
+          800: "#1E40AF",
+          900: "#1E3A8A"
+        },
+        surface: {
+          DEFAULT: "#FFFFFF",
+          soft: "#F8FAFC",
+          sunken: "#F1F5F9",
+          border: "#E5E7EB"
+        },
+        content: {
+          DEFAULT: "#0F172A",
+          muted: "#475569",
+          subtle: "#64748B",
+          soft: "#94A3B8"
         },
         action: "#dc2626"
       },
@@ -67,13 +86,20 @@ const config: Config = {
       boxShadow: {
         premium: "0 10px 25px -10px rgba(15, 23, 42, 0.35)",
         glow: "0 0 60px -20px rgba(233, 199, 154, 0.35)",
-        elevate: "0 30px 80px -40px rgba(0, 0, 0, 0.8)"
+        elevate: "0 30px 80px -40px rgba(0, 0, 0, 0.8)",
+        soft: "0 1px 2px 0 rgba(17, 24, 39, 0.04), 0 1px 3px 0 rgba(17, 24, 39, 0.06)",
+        card: "0 10px 30px -12px rgba(29, 78, 216, 0.12), 0 4px 10px -4px rgba(17, 24, 39, 0.06)",
+        glass: "0 20px 60px -20px rgba(29, 78, 216, 0.18)"
       },
       backgroundImage: {
         "grid-lines":
           "linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)",
         "radial-fade":
-          "radial-gradient(ellipse at top, rgba(233,199,154,0.08), transparent 60%)"
+          "radial-gradient(ellipse at top, rgba(233,199,154,0.08), transparent 60%)",
+        "brand-fade":
+          "radial-gradient(ellipse at top, rgba(59,124,246,0.12), transparent 60%)",
+        "brand-soft":
+          "linear-gradient(180deg, #F8FAFF 0%, #FFFFFF 60%)"
       }
     }
   },
