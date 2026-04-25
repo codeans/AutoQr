@@ -39,6 +39,7 @@ export type IncomingCall = {
   message?: string;
   platform?: "web" | "android" | "ios";
   createdAt?: string;
+  expiresAt?: string;
 };
 
 export type ActiveCallState =

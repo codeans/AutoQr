@@ -17,6 +17,8 @@ type PermissionStore = {
   statuses: PermissionStatusMap;
   onboardingSeen: boolean;
   onboardingCompleted: boolean;
+  hasCompletedPermissionOnboarding: boolean;
+  lastCheckedAt: number | null;
   hydrated: boolean;
   setStatus: (permission: TrackedPermission, status: PermissionState) => void;
   setStatuses: (next: Partial<PermissionStatusMap>) => void;
@@ -32,18 +34,30 @@ export const usePermissionStore = create<PermissionStore>()(
       statuses: initialStatuses,
       onboardingSeen: false,
       onboardingCompleted: false,
+      hasCompletedPermissionOnboarding: false,
+      lastCheckedAt: null,
       hydrated: false,
       setStatus: (permission, status) =>
-        set((state) => ({ statuses: { ...state.statuses, [permission]: status } })),
-      setStatuses: (next) => set((state) => ({ statuses: { ...state.statuses, ...next } })),
+        set((state) => ({
+          statuses: { ...state.statuses, [permission]: status },
+          lastCheckedAt: Date.now()
+        })),
+      setStatuses: (next) =>
+        set((state) => ({
+          statuses: { ...state.statuses, ...next },
+          lastCheckedAt: Date.now()
+        })),
       setOnboardingSeen: (seen) => set({ onboardingSeen: seen }),
-      setOnboardingCompleted: (completed) => set({ onboardingCompleted: completed }),
+      setOnboardingCompleted: (completed) =>
+        set({ onboardingCompleted: completed, hasCompletedPermissionOnboarding: completed }),
       setHydrated: (hydrated) => set({ hydrated }),
       reset: () =>
         set({
           statuses: initialStatuses,
           onboardingSeen: false,
-          onboardingCompleted: false
+          onboardingCompleted: false,
+          hasCompletedPermissionOnboarding: false,
+          lastCheckedAt: null
         })
     }),
     {
@@ -52,9 +66,14 @@ export const usePermissionStore = create<PermissionStore>()(
       partialize: (state) => ({
         statuses: state.statuses,
         onboardingSeen: state.onboardingSeen,
-        onboardingCompleted: state.onboardingCompleted
+        onboardingCompleted: state.onboardingCompleted,
+        hasCompletedPermissionOnboarding: state.hasCompletedPermissionOnboarding,
+        lastCheckedAt: state.lastCheckedAt
       }),
       onRehydrateStorage: () => (state) => {
+        if (state && state.hasCompletedPermissionOnboarding === undefined) {
+          state.setOnboardingCompleted(Boolean(state.onboardingCompleted));
+        }
         state?.setHydrated(true);
       }
     }

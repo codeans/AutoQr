@@ -5,6 +5,11 @@ import { useCallStore } from "@/stores/call.store";
 import { CallEvents, type IncomingCall } from "@/types/call";
 import { useAuthStore } from "@/stores/auth.store";
 import { webrtcService } from "@/services/calls/webrtcService";
+import {
+  handleIncomingCall,
+  isCallHandled,
+  stopIncomingCallAlerting
+} from "./incomingCallNotificationHandler";
 
 // If the ringing side hasn't progressed within this window, we treat the call as missed
 // locally — the server will also mark it missed on reporter disconnect, but this keeps
@@ -13,7 +18,6 @@ const RINGING_TIMEOUT_MS = 45_000;
 
 export function useCallSocketHandlers(): void {
   const status = useAuthStore((s) => s.status);
-  const setIncoming = useCallStore((s) => s.setIncoming);
   const setActive = useCallStore((s) => s.setActive);
   const setStatus = useCallStore((s) => s.setStatus);
   const setEndReason = useCallStore((s) => s.setEndReason);
@@ -46,14 +50,13 @@ export function useCallSocketHandlers(): void {
 
     const onIncoming = (payload: IncomingCall) => {
       if (!payload?.callId) return;
-      if (lastIncomingCallIdRef.current === payload.callId) return;
+      if (lastIncomingCallIdRef.current === payload.callId || isCallHandled(payload.callId)) return;
       lastIncomingCallIdRef.current = payload.callId;
       clearRingingTimer();
       const incoming = normalizeIncoming(payload);
-      setIncoming(incoming);
+      void handleIncomingCall(incoming);
       console.info("[AutoQr] call:incoming received", { callId: incoming.callId, incidentId: incoming.incidentId });
       console.info("[AutoQr] callStore updated", { callId: incoming.callId, status: "ringing" });
-      router.push(`/calls/incoming/${incoming.callId}` as never);
       console.info("[AutoQr] incoming screen opened", { callId: incoming.callId });
       ringingTimerRef.current = setTimeout(() => {
         const state = useCallStore.getState();
@@ -67,6 +70,7 @@ export function useCallSocketHandlers(): void {
 
     const onMissed = (payload: { callId: string; reason?: string }) => {
       clearRingingTimer();
+      void stopIncomingCallAlerting();
       setEndReason(payload.reason ?? "missed");
       setStatus("missed");
       reset();
@@ -74,6 +78,7 @@ export function useCallSocketHandlers(): void {
 
     const onAccepted = (payload: { callId: string; ownerSocketId?: string; reporterSocketId?: string }) => {
       clearRingingTimer();
+      void stopIncomingCallAlerting();
       const remote = payload.ownerSocketId ?? payload.reporterSocketId ?? null;
       setActive({ callId: payload.callId, remoteSocketId: remote });
       webrtcService
@@ -95,6 +100,7 @@ export function useCallSocketHandlers(): void {
 
     const onEnded = (payload?: { reason?: string }) => {
       clearRingingTimer();
+      void stopIncomingCallAlerting();
       setEndReason(payload?.reason ?? "ended");
       webrtcService.cleanup().catch(() => undefined);
       reset();
@@ -109,12 +115,14 @@ export function useCallSocketHandlers(): void {
 
     const onCancelled = () => {
       clearRingingTimer();
+      void stopIncomingCallAlerting();
       setEndReason("reporter_cancelled");
       reset();
     };
 
     const onRejected = () => {
       clearRingingTimer();
+      void stopIncomingCallAlerting();
       setEndReason("rejected");
       setStatus("declined");
       reset();
@@ -140,5 +148,5 @@ export function useCallSocketHandlers(): void {
       clearRingingTimer();
       cleanup();
     };
-  }, [status, setIncoming, setActive, setStatus, setEndReason, markAudioConnected, reset]);
+  }, [status, setActive, setStatus, setEndReason, markAudioConnected, reset]);
 }

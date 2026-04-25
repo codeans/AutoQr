@@ -3,7 +3,7 @@ import { getSocket, registerSocketHandlers } from "@/services/socket/socket";
 import { useAuthStore } from "@/stores/auth.store";
 import { useNotificationStore } from "@/stores/notification.store";
 import { NotificationEvents, type AppNotification } from "@/types/notification";
-import { showLocalNotification, setBadgeCount } from "@/services/notifications/notifications";
+import { showLocalNotification, setBadgeCount } from "@/services/notifications/notificationService";
 
 const channelForType = (type: string): "calls" | "incidents" | "default" => {
   if (type === "INCOMING_CALL" || type === "MISSED_CALL" || type === "CALL_ENDED") return "calls";

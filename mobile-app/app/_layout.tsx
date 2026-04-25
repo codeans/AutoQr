@@ -13,12 +13,14 @@ import { useBootstrap } from "@/hooks/useBootstrap";
 import { useSocket } from "@/hooks/useSocket";
 import { useCallSocketHandlers } from "@/features/calls/callSocketHandlers";
 import { useNotificationSocketHandlers } from "@/features/notifications/notificationSocketHandlers";
-import { useNotificationTapNavigation } from "@/features/notifications/useNotificationTapNavigation";
+import { useNotificationHandlers } from "@/features/notifications/notificationHandlers";
 import { CallFloatingBanner } from "@/features/calls/CallFloatingBanner";
 import { useAuthStore } from "@/stores/auth.store";
-import { registerPushToken, setBadgeCount } from "@/services/notifications/notifications";
+import { registerExpoPushToken, setBadgeCount } from "@/services/notifications/notificationService";
 import { useNotificationStore } from "@/stores/notification.store";
 import { notificationsService } from "@/services/api/notifications.service";
+import { getAllPermissionStates, hasCriticalPermissions } from "@/services/permissions/permissionService";
+import { usePermissionStore } from "@/stores/permissionStore";
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -37,10 +39,13 @@ function AppGate() {
   useSocket();
   useCallSocketHandlers();
   useNotificationSocketHandlers();
-  useNotificationTapNavigation();
+  useNotificationHandlers();
 
   const status = useAuthStore((s) => s.status);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+  const hydratedPermissions = usePermissionStore((s) => s.hydrated);
+  const setPermissionStatuses = usePermissionStore((s) => s.setStatuses);
+  const setOnboardingCompleted = usePermissionStore((s) => s.setOnboardingCompleted);
   const [splashDone, setSplashDone] = useState(false);
   const [i18nReady, setI18nReady] = useState(false);
 
@@ -55,7 +60,7 @@ function AppGate() {
       SplashScreen.hideAsync().catch(() => undefined);
     }
     if (status === "authenticated") {
-      registerPushToken().catch(() => undefined);
+      registerExpoPushToken().catch(() => undefined);
       notificationsService
         .unreadCount()
         .then(({ count }) => {
@@ -70,12 +75,32 @@ function AppGate() {
     }
   }, [status, setUnreadCount]);
 
+  useEffect(() => {
+    if (status !== "authenticated" || !hydratedPermissions) return;
+    getAllPermissionStates()
+      .then((fresh) => {
+        setPermissionStatuses(fresh);
+        if (hasCriticalPermissions(fresh)) {
+          setOnboardingCompleted(true);
+        }
+      })
+      .catch(() => undefined);
+  }, [hydratedPermissions, setOnboardingCompleted, setPermissionStatuses, status]);
+
   // Refresh unread count + push token on foreground
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
       if (next !== "active") return;
       if (useAuthStore.getState().status !== "authenticated") return;
-      registerPushToken().catch(() => undefined);
+      registerExpoPushToken().catch(() => undefined);
+      getAllPermissionStates()
+        .then((fresh) => {
+          usePermissionStore.getState().setStatuses(fresh);
+          if (hasCriticalPermissions(fresh)) {
+            usePermissionStore.getState().setOnboardingCompleted(true);
+          }
+        })
+        .catch(() => undefined);
       notificationsService
         .unreadCount()
         .then(({ count }) => {

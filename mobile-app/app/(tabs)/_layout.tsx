@@ -12,16 +12,18 @@ export default function TabsLayout() {
   const status = useAuthStore((s) => s.status);
   const hydrated = usePermissionStore((s) => s.hydrated);
   const statuses = usePermissionStore((s) => s.statuses);
-  const onboardingCompleted = usePermissionStore((s) => s.onboardingCompleted);
+  const lastCheckedAt = usePermissionStore((s) => s.lastCheckedAt);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/(auth)/login");
     if (status === "authenticated" && hydrated) {
-      if (!onboardingCompleted || !hasCriticalPermissions(statuses)) {
+      if (!lastCheckedAt) return;
+      const hasRequiredPermissions = hasCriticalPermissions(statuses);
+      if (!hasRequiredPermissions) {
         router.replace("/permissions" as never);
       }
     }
-  }, [hydrated, onboardingCompleted, status, statuses]);
+  }, [hydrated, lastCheckedAt, status, statuses]);
 
   return (
     <Tabs

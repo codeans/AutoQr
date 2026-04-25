@@ -5,6 +5,8 @@ import { getSocket } from "@/services/socket/socket";
 import { useCallStore } from "@/stores/call.store";
 import { CallEvents } from "@/types/call";
 import { webrtcService } from "@/services/calls/webrtcService";
+import { stopIncomingCallAlerting } from "@/features/calls/incomingCallNotificationHandler";
+import { checkMicrophonePermission } from "@/services/permissions/permissionService";
 
 export function useCallActions() {
   const incoming = useCallStore((s) => s.incoming);
@@ -16,7 +18,17 @@ export function useCallActions() {
   const accept = useCallback(async () => {
     const socket = getSocket();
     if (!socket || !incoming) return;
+
+    const micStatus = await checkMicrophonePermission();
+    if (micStatus !== "granted") {
+      setStatus("failed");
+      setEndReason("permission_denied");
+      router.push("/permissions/microphone");
+      return;
+    }
+
     setStatus("connecting");
+    await stopIncomingCallAlerting();
 
     // Eagerly open the mic so the accepted-state transition has an RTCPeerConnection to
     // hand off to — the socket handler `onAccepted` will re-run initializeCall if needed
@@ -56,6 +68,7 @@ export function useCallActions() {
         socket.emit(CallEvents.CALL_REJECT, { callId: incoming.callId, reason });
       }
       setEndReason(reason ?? "rejected");
+      void stopIncomingCallAlerting();
       webrtcService.cleanup().catch(() => undefined);
       reset();
     },
@@ -75,6 +88,7 @@ export function useCallActions() {
       });
     }
     setEndReason("owner_ended");
+    void stopIncomingCallAlerting();
     webrtcService.cleanup().catch(() => undefined);
     reset();
   }, [incoming, reset, setEndReason]);

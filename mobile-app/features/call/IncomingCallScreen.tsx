@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,11 +10,31 @@ import { colors, radius, spacing } from "@/theme";
 import { Text } from "@/components/ui";
 import { Avatar } from "@/components/ui/Avatar";
 import { maskPhone } from "@/utils/format";
+import { callsService } from "@/services/api/calls.service";
 
 export function IncomingCallScreen() {
   const incoming = useCallStore((s) => s.incoming);
   const status = useCallStore((s) => s.status);
+  const setIncoming = useCallStore((s) => s.setIncoming);
   const { accept, reject } = useCallActions();
+  const params = useLocalSearchParams<{ callId?: string }>();
+
+  useEffect(() => {
+    const callId = typeof params.callId === "string" ? params.callId : "";
+    if (!callId) return;
+    if (incoming?.callId === callId) return;
+    callsService
+      .get(callId)
+      .then(({ call }) => {
+        if (!call?.callId) return;
+        if (call.status && call.status !== "ringing" && call.status !== "accepted" && call.status !== "connected") {
+          useCallStore.getState().setStatus(call.status === "missed" ? "missed" : "ended");
+          return;
+        }
+        setIncoming(call);
+      })
+      .catch(() => undefined);
+  }, [incoming?.callId, params.callId, setIncoming]);
 
   useEffect(() => {
     if (status === "connecting" || status === "active") {

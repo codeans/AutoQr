@@ -1,7 +1,9 @@
 import * as Notifications from "expo-notifications";
+import { Audio } from "expo-av";
 import { Camera } from "expo-camera";
 import * as MediaLibrary from "expo-media-library";
 import type { PermissionMeta, PermissionState, PermissionStatusMap, TrackedPermission } from "./types";
+import { usePermissionStore } from "@/stores/permissionStore";
 
 const REQUIRED_KEYS: TrackedPermission[] = ["notifications", "microphone"];
 
@@ -102,17 +104,27 @@ async function requestNotificationsState(): Promise<PermissionState> {
   return mapState(result.status, result.canAskAgain);
 }
 
-async function getMicrophoneState(): Promise<PermissionState> {
-  const result = await Camera.getMicrophonePermissionsAsync();
-  return mapState(result.status, result.canAskAgain);
+export async function checkMicrophonePermission(): Promise<PermissionState> {
+  const result = await Audio.getPermissionsAsync();
+  const next = mapState(result.status, result.canAskAgain);
+  usePermissionStore.getState().setStatus("microphone", next);
+  return next;
 }
 
-async function requestMicrophoneState(): Promise<PermissionState> {
-  const existing = await Camera.getMicrophonePermissionsAsync();
-  if (existing.granted) return "granted";
-  if (!existing.canAskAgain) return "blocked";
-  const result = await Camera.requestMicrophonePermissionsAsync();
-  return mapState(result.status, result.canAskAgain);
+export async function requestMicrophonePermission(): Promise<PermissionState> {
+  const existing = await Audio.getPermissionsAsync();
+  if (existing.granted) {
+    usePermissionStore.getState().setStatus("microphone", "granted");
+    return "granted";
+  }
+  if (!existing.canAskAgain) {
+    usePermissionStore.getState().setStatus("microphone", "blocked");
+    return "blocked";
+  }
+  const result = await Audio.requestPermissionsAsync();
+  const next = mapState(result.status, result.canAskAgain);
+  usePermissionStore.getState().setStatus("microphone", next);
+  return next;
 }
 
 async function getCameraState(): Promise<PermissionState> {
@@ -146,7 +158,7 @@ export async function getPermissionState(permission: TrackedPermission): Promise
     case "notifications":
       return getNotificationsState();
     case "microphone":
-      return getMicrophoneState();
+      return checkMicrophonePermission();
     case "camera":
       return getCameraState();
     case "mediaLibrary":
@@ -165,7 +177,7 @@ export async function requestPermission(permission: TrackedPermission): Promise<
     case "notifications":
       return requestNotificationsState();
     case "microphone":
-      return requestMicrophoneState();
+      return requestMicrophonePermission();
     case "camera":
       return requestCameraState();
     case "mediaLibrary":
@@ -181,7 +193,7 @@ export async function requestPermission(permission: TrackedPermission): Promise<
 
 export async function getAllPermissionStates(): Promise<PermissionStatusMap> {
   const notifications = await getNotificationsState();
-  const microphone = await getMicrophoneState();
+  const microphone = await checkMicrophonePermission();
   const camera = await getCameraState();
   const mediaLibrary = await getMediaLibraryState();
 
@@ -201,5 +213,5 @@ export function hasCriticalPermissions(statusMap: PermissionStatusMap): boolean 
 }
 
 export function isPermissionBlocked(status: PermissionState): boolean {
-  return status === "denied" || status === "blocked";
+  return status === "blocked";
 }

@@ -27,6 +27,14 @@ const callSessionSchema = new Schema(
     duration: { type: Number, default: 0 },
     endReason: { type: String, default: "" },
     rejectionReason: { type: String, default: "" }
+    ,
+    pushStatus: {
+      type: String,
+      enum: ["pending", "sent", "failed"],
+      default: "pending"
+    },
+    pushSentAt: { type: Date },
+    pushError: { type: String, default: "" }
   },
   { timestamps: true }
 );

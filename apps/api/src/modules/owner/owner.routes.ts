@@ -20,7 +20,7 @@ ownerRouter.get("/dashboard", dashboard);
 ownerRouter.get("/incidents", listIncidents);
 ownerRouter.get("/incidents/:id", incidentDetail);
 ownerRouter.get("/calls", callsList);
-ownerRouter.get("/calls/:id", callDetail);
+ownerRouter.get("/calls/:callId", callDetail);
 ownerRouter.get("/orders", ordersList);
 ownerRouter.get("/profile", profile);
 ownerRouter.put("/profile", updateProfile);

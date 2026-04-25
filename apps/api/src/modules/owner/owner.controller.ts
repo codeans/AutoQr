@@ -43,6 +43,14 @@ const sanitizeCallForIncoming = (call: any) => {
     ? [car.nickname, [car.make, car.model].filter(Boolean).join(" ")].filter(Boolean).join(" · ") || vehiclePlate
     : "";
 
+  const createdAtIso =
+    doc.createdAt instanceof Date
+      ? doc.createdAt.toISOString()
+      : typeof doc.createdAt === "string"
+        ? doc.createdAt
+        : new Date().toISOString();
+  const expiresAt = new Date(new Date(createdAtIso).getTime() + 45_000).toISOString();
+
   return {
     callId: String(doc._id),
     incidentId: String(incident?._id ?? doc.incidentId),
@@ -52,7 +60,8 @@ const sanitizeCallForIncoming = (call: any) => {
     incidentImages: Array.isArray(incident?.images) ? incident.images : [],
     ownerId: String(doc.ownerUserId),
     status: doc.status,
-    createdAt: doc.createdAt,
+    createdAt: createdAtIso,
+    expiresAt,
     reporterSocketId: doc.reporterSessionId || "",
     reporterPhone: phone,
     reporterPhoneMasked: phone ? maskGermanPhone(phone) : "",
@@ -128,7 +137,8 @@ export const callsList = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const callDetail = asyncHandler(async (req: Request, res: Response) => {
-  const call = await CallSessionModel.findOne({ _id: req.params.id, ownerUserId: req.auth!.userId })
+  const callId = req.params.callId || req.params.id;
+  const call = await CallSessionModel.findOne({ _id: callId, ownerUserId: req.auth!.userId })
     .populate({ path: "incidentId", select: "carId reporterPhone images message createdAt", populate: { path: "carId", select: "make model registrationNumber nickname" } });
   if (!call) throw new ApiError(404, "Call not found");
   res.json({ call: sanitizeCallForIncoming(call) });

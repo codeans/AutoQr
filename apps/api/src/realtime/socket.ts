@@ -199,7 +199,8 @@ export const createSocketServer = (server: HttpServer) => {
         reporterSessionId: socket.id,
         reporterPhone: incident.reporterPhone || "",
         reporterPlatform: platform,
-        status: "ringing"
+        status: "ringing",
+        pushStatus: "pending"
       });
       logger.info("call.created", { callId: call.id, incidentId, ownerUserId, reporterSocketId: socket.id });
       const ownerOnline = getOnlineUserSockets(ownerUserId).size > 0;
@@ -212,11 +213,18 @@ export const createSocketServer = (server: HttpServer) => {
       }
       try {
         const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
+        const createdAtIso =
+          ringingPayload.createdAt instanceof Date
+            ? ringingPayload.createdAt.toISOString()
+            : typeof ringingPayload.createdAt === "string"
+              ? ringingPayload.createdAt
+              : new Date().toISOString();
+        const expiresAt = new Date(new Date(createdAtIso).getTime() + RINGING_TIMEOUT_MS).toISOString();
         await publishNotification({
           userId: ownerUserId,
           type: "INCOMING_CALL",
-          title: ringingPayload.carLabel ? `Incoming call · ${ringingPayload.carLabel}` : "Incoming call",
-          body: ringingPayload.message || "Someone scanned your AutoQr tag and is calling you now.",
+          title: "Incoming AutoQr Call",
+          body: "Someone is trying to contact you about your vehicle.",
           relatedEntityId: incidentId,
           data: {
             callId: String(call._id),
@@ -224,6 +232,7 @@ export const createSocketServer = (server: HttpServer) => {
             vehicleId: ringingPayload.vehicleId || "",
             vehiclePlate: ringingPayload.vehiclePlate || "",
             callerPhone: incident.reporterPhone || "",
+            screen: "IncomingCall",
             incidentImages: ringingPayload.incidentImages || [],
             ownerId: ownerUserId,
             status: "ringing",
@@ -236,15 +245,23 @@ export const createSocketServer = (server: HttpServer) => {
             imageCount: ringingPayload.imageCount || 0,
             message: ringingPayload.message || "",
             platform: ringingPayload.platform || "web",
-            createdAt: ringingPayload.createdAt,
+            createdAt: createdAtIso,
+            expiresAt,
             type: "INCOMING_CALL"
           },
           forcePush: true,
           channelId: "calls",
           priority: "high"
         });
+        call.pushStatus = "sent";
+        call.pushSentAt = new Date();
+        call.pushError = "";
+        await call.save();
         logger.info("call.incoming_push_sent", { callId: call.id, ownerUserId });
       } catch (err) {
+        call.pushStatus = "failed";
+        call.pushError = (err as Error)?.message || "push_failed";
+        await call.save();
         logger.warn("call.incoming.push_failed", { err: (err as Error)?.message });
       }
       setTimeout(async () => {

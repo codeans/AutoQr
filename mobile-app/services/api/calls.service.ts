@@ -30,5 +30,5 @@ export type CallHistoryItem = {
 
 export const callsService = {
   list: () => apiClient.get<{ calls: CallHistoryItem[] }>("/owner/calls"),
-  get: (callId: string) => apiClient.get<{ call: import("@/types/call").IncomingCall }>(`/owner/calls/${callId}`)
+  get: (callId: string) => apiClient.get<{ call: import("@/types/call").IncomingCall }>(`/calls/${callId}`)
 };

@@ -16,6 +16,8 @@ import { scanOwnerRouter, scanPublicRouter } from "../modules/scan/scan.routes.j
 import { consentAdminRouter, consentRouter } from "../modules/consent/consent.routes.js";
 import { analyticsAdminRouter, analyticsRouter } from "../modules/analytics/analytics.routes.js";
 import { callbacksRouter } from "../modules/callbacks/callbacks.routes.js";
+import { callDetail } from "../modules/owner/owner.controller.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 import { openApiSpec } from "../docs/openapi.js";
 import { isDatabaseReady } from "../config/db.js";
 
@@ -66,3 +68,4 @@ apiRouter.use("/payments", paymentRouter);
 apiRouter.use("/mobile", mobileRouter);
 apiRouter.use("/notifications", notificationsRouter);
 apiRouter.use("/callbacks", callbacksRouter);
+apiRouter.get("/calls/:callId", requireAuth, requireRole("owner"), callDetail);
