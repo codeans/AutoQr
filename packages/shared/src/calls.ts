@@ -36,6 +36,7 @@ export type CallEndReasonValue = (typeof CallEndReason)[keyof typeof CallEndReas
 
 export const SocketCallEvent = {
   CALL_REQUESTED: "call_requested",
+  CALL_INCOMING: "call:incoming",
   CALL_RINGING: "call_ringing",
   CALL_ACCEPT: "call_accept",
   CALL_ACCEPTED: "call_accepted",
@@ -49,12 +50,50 @@ export const SocketCallEvent = {
   CALL_RECONNECT: "call_reconnect",
   WEBRTC_OFFER: "webrtc_offer",
   WEBRTC_ANSWER: "webrtc_answer",
-  WEBRTC_ICE: "webrtc_ice_candidate"
+  WEBRTC_ICE: "webrtc_ice_candidate",
+  CALLBACK_INCOMING: "callback:incoming",
+  CALLBACK_ACCEPTED: "callback:accepted",
+  CALLBACK_DECLINED: "callback:declined",
+  CALLBACK_MISSED: "callback:missed",
+  CALLBACK_ENDED: "callback:ended"
 } as const;
+
+export const CallbackStatus = {
+  PENDING: "pending",
+  CALLING: "calling",
+  CONNECTED: "connected",
+  DECLINED: "declined",
+  MISSED: "missed",
+  COMPLETED: "completed",
+  FAILED: "failed"
+} as const;
+
+export type CallbackStatusValue = (typeof CallbackStatus)[keyof typeof CallbackStatus];
+
+export type CallbackSession = {
+  _id: string;
+  incidentId: string;
+  vehicleId?: string;
+  ownerId: string;
+  reporterPhoneMasked?: string;
+  callbackStatus: CallbackStatusValue;
+  callbackStartedAt?: string;
+  callbackEndedAt?: string;
+  duration?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type IncomingCallNotification = {
   callId: string;
   incidentId: string;
+  vehicleId?: string;
+  vehiclePlate?: string;
+  callerPhone?: string;
+  incidentImages?: string[];
+  ownerId?: string;
+  status?: string;
   reporterSocketId: string;
   reporterPhone?: string;
   reporterName?: string;

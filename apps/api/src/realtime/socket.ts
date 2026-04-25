@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { CallSessionModel } from "../models/CallSession.js";
+import { CallbackModel } from "../models/Callback.js";
 import { IncidentModel } from "../models/Incident.js";
 import { NotificationModel } from "../models/Notification.js";
 import { CarModel } from "../models/Car.js";
@@ -22,6 +23,7 @@ const onlineUsers = new Map<string, Set<string>>();
 const socketAuthById = new Map<string, SocketAuth>();
 
 let ioInstance: Server | null = null;
+const RINGING_TIMEOUT_MS = 45_000;
 
 const addOnlineUserSocket = (userId: string, socketId: string) => {
   const sockets = onlineUsers.get(userId) ?? new Set<string>();
@@ -54,12 +56,17 @@ const callRequestedSchema = z.object({
 });
 
 const callActionSchema = z.object({
-  callId: z.string().min(1)
+  callId: z.string().min(1),
+  platform: z.enum(["web", "android", "ios"]).optional()
 });
 
 const webrtcSignalSchema = z.object({
   targetSocketId: z.string().min(1),
   callId: z.string().min(1)
+});
+
+const callbackActionSchema = z.object({
+  callbackId: z.string().min(1)
 });
 
 const getCallForSocket = async (socketId: string, callId: string) => {
@@ -78,12 +85,16 @@ const isCallActive = (status: string) => ["ringing", "accepted", "connected"].in
 const buildIncomingCallPayload = async (call: any, incidentId: string, reporterSocketId: string) => {
   const incident = await IncidentModel.findById(incidentId).lean();
   let carLabel = "";
+  let vehiclePlate = "";
+  let vehicleId = "";
   if (incident?.carId) {
     const car = await CarModel.findById(incident.carId).lean();
     if (car) {
       const nickname = car.nickname || "";
       const make = car.make || "";
       const model = car.model || "";
+      vehicleId = String(car._id);
+      vehiclePlate = car.registrationNumber || "";
       carLabel = [nickname, [make, model].filter(Boolean).join(" ")].filter(Boolean).join(" · ") || make || model || "";
     }
   }
@@ -91,14 +102,22 @@ const buildIncomingCallPayload = async (call: any, incidentId: string, reporterS
   return {
     callId: String(call._id),
     incidentId,
+    vehicleId,
+    vehiclePlate,
+    callerPhone: phone,
+    incidentImages: Array.isArray(incident?.images) ? incident.images : [],
+    ownerId: String(call.ownerUserId),
+    status: call.status || "ringing",
+    createdAt: call.createdAt instanceof Date ? call.createdAt.toISOString() : call.createdAt,
+    // Legacy aliases consumed by existing web/mobile clients.
     reporterSocketId,
+    reporterPhone: phone,
     reporterPhoneMasked: phone ? maskGermanPhone(phone) : "",
     carId: incident?.carId ? String(incident.carId) : "",
     carLabel,
     imageCount: Array.isArray(incident?.images) ? incident?.images.length : 0,
     message: incident?.message || "",
-    platform: call.reporterPlatform || "web",
-    createdAt: call.createdAt
+    platform: call.reporterPlatform || "web"
   };
 };
 
@@ -152,9 +171,14 @@ export const createSocketServer = (server: HttpServer) => {
     if (auth.userId) {
       addOnlineUserSocket(auth.userId, socket.id);
       socket.join(`user:${auth.userId}`);
+      logger.info("socket.user_connected", { userId: auth.userId, socketId: socket.id });
+      logger.info("socket.user_joined_room", { userId: auth.userId, room: `user:${auth.userId}` });
       ioInstance?.to(`user:${auth.userId}`).emit("user_online", { userId: auth.userId });
     }
-    if (auth.incidentId) socket.join(`incident:${auth.incidentId}`);
+    if (auth.incidentId) {
+      socket.join(`incident:${auth.incidentId}`);
+      logger.info("socket.incident_joined_room", { incidentId: auth.incidentId, socketId: socket.id });
+    }
 
     socket.on("call_requested", async (payload) => {
       const parsed = callRequestedSchema.safeParse(payload);
@@ -165,7 +189,7 @@ export const createSocketServer = (server: HttpServer) => {
       if (auth.incidentId !== incidentId) {
         return;
       }
-      const incident = await IncidentModel.findById(incidentId).select("userId reporterPhone");
+      const incident = await IncidentModel.findById(incidentId).select("userId reporterPhone reporterName");
       if (!incident || String(incident.userId) !== ownerUserId) {
         return;
       }
@@ -177,41 +201,62 @@ export const createSocketServer = (server: HttpServer) => {
         reporterPlatform: platform,
         status: "ringing"
       });
+      logger.info("call.created", { callId: call.id, incidentId, ownerUserId, reporterSocketId: socket.id });
       const ownerOnline = getOnlineUserSockets(ownerUserId).size > 0;
       const ringingPayload = await buildIncomingCallPayload(call, incidentId, socket.id);
-      socket.emit("call_requested", { callId: call.id, status: "ringing", ownerOnline });
+      socket.emit("call_requested", { callId: call.id, status: "ringing", ownerOnline, delivery: ownerOnline ? "socket_push" : "push" });
       if (ownerOnline) {
+        ioInstance?.to(`user:${ownerUserId}`).emit("call:incoming", ringingPayload);
         ioInstance?.to(`user:${ownerUserId}`).emit("call_ringing", ringingPayload);
-        // Still deliver a high-priority push so Android owners hear the call if the app
-        // is backgrounded — the owner app de-dupes on callId.
+        logger.info("call.incoming_emitted", { callId: call.id, ownerUserId, event: "call:incoming" });
+      }
+      try {
+        const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
+        await publishNotification({
+          userId: ownerUserId,
+          type: "INCOMING_CALL",
+          title: ringingPayload.carLabel ? `Incoming call · ${ringingPayload.carLabel}` : "Incoming call",
+          body: ringingPayload.message || "Someone scanned your AutoQr tag and is calling you now.",
+          relatedEntityId: incidentId,
+          data: {
+            callId: String(call._id),
+            incidentId,
+            vehicleId: ringingPayload.vehicleId || "",
+            vehiclePlate: ringingPayload.vehiclePlate || "",
+            callerPhone: incident.reporterPhone || "",
+            incidentImages: ringingPayload.incidentImages || [],
+            ownerId: ownerUserId,
+            status: "ringing",
+            reporterSocketId: socket.id,
+            reporterPhone: incident.reporterPhone || "",
+            reporterPhoneMasked: ringingPayload.reporterPhoneMasked || "",
+            reporterName: incident.reporterName || "",
+            carId: ringingPayload.carId || "",
+            carLabel: ringingPayload.carLabel || "",
+            imageCount: ringingPayload.imageCount || 0,
+            message: ringingPayload.message || "",
+            platform: ringingPayload.platform || "web",
+            createdAt: ringingPayload.createdAt,
+            type: "INCOMING_CALL"
+          },
+          forcePush: true,
+          channelId: "calls",
+          priority: "high"
+        });
+        logger.info("call.incoming_push_sent", { callId: call.id, ownerUserId });
+      } catch (err) {
+        logger.warn("call.incoming.push_failed", { err: (err as Error)?.message });
+      }
+      setTimeout(async () => {
         try {
-          const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
-          await publishNotification({
-            userId: ownerUserId,
-            type: "INCOMING_CALL",
-            title: ringingPayload.carLabel ? `Incoming call · ${ringingPayload.carLabel}` : "Incoming call",
-            body: ringingPayload.message || "Someone scanned your AutoQr tag and is calling you now.",
-            data: {
-              callId: String(call._id),
-              incidentId,
-              reporterSocketId: socket.id,
-              type: "INCOMING_CALL"
-            },
-            forcePush: true,
-            skipPersist: true,
-            channelId: "calls",
-            priority: "high"
-          });
-        } catch (err) {
-          logger.warn("call.incoming.push_failed", { err: (err as Error)?.message });
-        }
-      } else {
-        // Owner offline — mark as missed immediately and notify reporter
-        call.status = "missed";
-        call.endedAt = new Date();
-        call.endReason = "owner_offline";
-        await call.save();
-        try {
+          const latest = await CallSessionModel.findById(call.id);
+          if (!latest || latest.status !== "ringing") return;
+          latest.status = "missed";
+          latest.endedAt = new Date();
+          latest.endReason = "timeout";
+          await latest.save();
+          ioInstance?.to(socket.id).emit("call_missed", { callId: latest.id, reason: "timeout" });
+          ioInstance?.to(`user:${ownerUserId}`).emit("call_missed", { callId: latest.id, reason: "timeout" });
           const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
           await publishNotification({
             userId: ownerUserId,
@@ -219,15 +264,46 @@ export const createSocketServer = (server: HttpServer) => {
             title: "Missed incident call",
             body: `Missed call from ${maskGermanPhone(incident.reporterPhone || "")}`,
             relatedEntityId: incidentId,
-            data: { callId: String(call._id), incidentId, type: "MISSED_CALL" },
+            data: { callId: String(latest._id), incidentId, type: "MISSED_CALL" },
             channelId: "calls",
             forcePush: true
           });
         } catch (err) {
-          logger.warn("call.offline.notification_failed", { err: (err as Error)?.message });
+          logger.warn("call.ringing_timeout_failed", { callId: call.id, err: (err as Error)?.message });
         }
-        socket.emit("call_missed", { callId: call.id, reason: "owner_offline" });
-      }
+      }, RINGING_TIMEOUT_MS);
+    });
+
+    socket.on("callback:accepted", async (payload) => {
+      const parsed = callbackActionSchema.safeParse(payload);
+      if (!parsed.success || auth.userId) return;
+      const callback = await CallbackModel.findById(parsed.data.callbackId);
+      if (!callback) return;
+      callback.callbackStatus = "connected";
+      if (!callback.callbackStartedAt) callback.callbackStartedAt = new Date();
+      await callback.save();
+      ioInstance?.to(`user:${callback.ownerId}`).emit("callback:accepted", {
+        callbackId: String(callback._id),
+        incidentId: String(callback.incidentId),
+        callbackStatus: callback.callbackStatus,
+        reporterSocketId: socket.id
+      });
+    });
+
+    socket.on("callback:declined", async (payload) => {
+      const parsed = callbackActionSchema.safeParse(payload);
+      if (!parsed.success || auth.userId) return;
+      const callback = await CallbackModel.findById(parsed.data.callbackId);
+      if (!callback) return;
+      callback.callbackStatus = "declined";
+      callback.callbackEndedAt = new Date();
+      callback.duration = callback.callbackStartedAt ? Math.floor((callback.callbackEndedAt.getTime() - callback.callbackStartedAt.getTime()) / 1000) : 0;
+      await callback.save();
+      ioInstance?.to(`user:${callback.ownerId}`).emit("callback:declined", {
+        callbackId: String(callback._id),
+        incidentId: String(callback.incidentId),
+        callbackStatus: callback.callbackStatus
+      });
     });
 
     socket.on("call_cancel", async (payload) => {
@@ -254,9 +330,9 @@ export const createSocketServer = (server: HttpServer) => {
       if (!call) return;
       if (String(call.ownerUserId) !== auth.userId) return;
       if (!isCallActive(call.status)) return;
-      call.status = "connected";
+      call.status = "accepted";
       call.startedAt = new Date();
-      call.ownerPlatform = "web";
+      call.ownerPlatform = parsed.data.platform || "web";
       await call.save();
       ioInstance?.to(call.reporterSessionId).emit("call_accepted", { callId: call.id, ownerSocketId: socket.id });
       ioInstance?.to(call.reporterSessionId).emit("call_started", { callId: call.id });
@@ -275,7 +351,7 @@ export const createSocketServer = (server: HttpServer) => {
       const call = await getCallForSocket(socket.id, parsed.data.callId);
       if (!call) return;
       if (String(call.ownerUserId) !== auth.userId) return;
-      call.status = "rejected";
+      call.status = "declined";
       call.endedAt = new Date();
       call.rejectionReason = parsed.data.reason || "Owner rejected";
       call.endReason = "owner_ended";
@@ -287,7 +363,7 @@ export const createSocketServer = (server: HttpServer) => {
       const parsed = webrtcSignalSchema.extend({ offer: z.unknown() }).safeParse(payload);
       if (!parsed.success) return;
       const call = await getCallForSocket(socket.id, parsed.data.callId);
-      if (!call || call.status !== "connected") return;
+      if (!call || !isCallActive(call.status)) return;
       if (parsed.data.targetSocketId !== call.reporterSessionId && !isSocketForCallOwner(parsed.data.targetSocketId, String(call.ownerUserId))) return;
       ioInstance?.to(parsed.data.targetSocketId).emit("webrtc_offer", { offer: parsed.data.offer, callId: call.id, fromSocketId: socket.id });
     });
@@ -296,7 +372,7 @@ export const createSocketServer = (server: HttpServer) => {
       const parsed = webrtcSignalSchema.extend({ answer: z.unknown() }).safeParse(payload);
       if (!parsed.success) return;
       const call = await getCallForSocket(socket.id, parsed.data.callId);
-      if (!call || call.status !== "connected") return;
+      if (!call || !isCallActive(call.status)) return;
       if (parsed.data.targetSocketId !== call.reporterSessionId && !isSocketForCallOwner(parsed.data.targetSocketId, String(call.ownerUserId))) return;
       ioInstance?.to(parsed.data.targetSocketId).emit("webrtc_answer", { answer: parsed.data.answer, callId: call.id });
     });
@@ -305,7 +381,7 @@ export const createSocketServer = (server: HttpServer) => {
       const parsed = webrtcSignalSchema.extend({ candidate: z.unknown() }).safeParse(payload);
       if (!parsed.success) return;
       const call = await getCallForSocket(socket.id, parsed.data.callId);
-      if (!call || call.status !== "connected") return;
+      if (!call || !isCallActive(call.status)) return;
       if (parsed.data.targetSocketId !== call.reporterSessionId && !isSocketForCallOwner(parsed.data.targetSocketId, String(call.ownerUserId))) return;
       ioInstance?.to(parsed.data.targetSocketId).emit("webrtc_ice_candidate", { candidate: parsed.data.candidate, callId: call.id });
     });
@@ -428,6 +504,7 @@ export const emitIncidentCreated = async (userId: string, data: { incidentId: st
       /* ignore secondary failure */
     }
   }
+  ioInstance?.to(`user:${userId}`).emit("incident:created", data);
   ioInstance?.to(`user:${userId}`).emit("incident_created", data);
 };
 
@@ -437,6 +514,10 @@ export const emitToUser = (userId: string, event: string, payload: unknown) => {
 
 export const emitToSocket = (socketId: string, event: string, payload: unknown) => {
   ioInstance?.to(socketId).emit(event, payload);
+};
+
+export const emitToIncidentRoom = (incidentId: string, event: string, payload: unknown) => {
+  ioInstance?.to(`incident:${incidentId}`).emit(event, payload);
 };
 
 export const isUserOnline = (userId: string) => getOnlineUserSockets(userId).size > 0;

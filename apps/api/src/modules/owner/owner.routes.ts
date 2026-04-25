@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import {
   callsList,
+  callDetail,
   dashboard,
   incidentDetail,
   listIncidents,
@@ -19,6 +20,7 @@ ownerRouter.get("/dashboard", dashboard);
 ownerRouter.get("/incidents", listIncidents);
 ownerRouter.get("/incidents/:id", incidentDetail);
 ownerRouter.get("/calls", callsList);
+ownerRouter.get("/calls/:id", callDetail);
 ownerRouter.get("/orders", ordersList);
 ownerRouter.get("/profile", profile);
 ownerRouter.put("/profile", updateProfile);

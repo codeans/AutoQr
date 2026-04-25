@@ -33,6 +33,37 @@ const sanitizeCall = (call: any) => {
   return doc;
 };
 
+const sanitizeCallForIncoming = (call: any) => {
+  const doc = typeof call?.toObject === "function" ? call.toObject() : { ...call };
+  const incident = doc.incidentId;
+  const car = incident?.carId;
+  const phone = doc.reporterPhone || incident?.reporterPhone || "";
+  const vehiclePlate = car?.registrationNumber || "";
+  const carLabel = car
+    ? [car.nickname, [car.make, car.model].filter(Boolean).join(" ")].filter(Boolean).join(" · ") || vehiclePlate
+    : "";
+
+  return {
+    callId: String(doc._id),
+    incidentId: String(incident?._id ?? doc.incidentId),
+    vehicleId: car?._id ? String(car._id) : "",
+    vehiclePlate,
+    callerPhone: phone,
+    incidentImages: Array.isArray(incident?.images) ? incident.images : [],
+    ownerId: String(doc.ownerUserId),
+    status: doc.status,
+    createdAt: doc.createdAt,
+    reporterSocketId: doc.reporterSessionId || "",
+    reporterPhone: phone,
+    reporterPhoneMasked: phone ? maskGermanPhone(phone) : "",
+    carId: car?._id ? String(car._id) : "",
+    carLabel,
+    imageCount: Array.isArray(incident?.images) ? incident.images.length : 0,
+    message: incident?.message || "",
+    platform: doc.reporterPlatform || "web"
+  };
+};
+
 const updateProfileSchema = z.object({
   name: z.string().min(2).max(120).optional(),
   phone: z.string().min(7).max(40).optional(),
@@ -94,6 +125,13 @@ export const incidentDetail = asyncHandler(async (req: Request, res: Response) =
 export const callsList = asyncHandler(async (req: Request, res: Response) => {
   const calls = await CallSessionModel.find({ ownerUserId: req.auth!.userId }).sort({ createdAt: -1 });
   res.json({ calls: calls.map(sanitizeCall) });
+});
+
+export const callDetail = asyncHandler(async (req: Request, res: Response) => {
+  const call = await CallSessionModel.findOne({ _id: req.params.id, ownerUserId: req.auth!.userId })
+    .populate({ path: "incidentId", select: "carId reporterPhone images message createdAt", populate: { path: "carId", select: "make model registrationNumber nickname" } });
+  if (!call) throw new ApiError(404, "Call not found");
+  res.json({ call: sanitizeCallForIncoming(call) });
 });
 
 export const ordersList = asyncHandler(async (req: Request, res: Response) => {

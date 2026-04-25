@@ -86,13 +86,9 @@ export const ReporterCallScreen = () => {
 
   useEffect(() => {
     if (!socket) return;
-    const onCallRequested = ({ callId: id, ownerOnline }: { callId: string; ownerOnline: boolean }) => {
+    const onCallRequested = ({ callId: id }: { callId: string; ownerOnline?: boolean }) => {
       setCallId(id);
-      if (!ownerOnline) {
-        setReporterStatus("missed");
-      } else {
-        setReporterStatus("ringing");
-      }
+      setReporterStatus("ringing");
     };
     const onCallAccepted = (payload: { callId: string; ownerSocketId: string }) => {
       setCallId(payload.callId);

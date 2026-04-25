@@ -7,6 +7,12 @@ export type CallPlatform = "web" | "android" | "ios";
 export type IncomingCallPayload = {
   callId: string;
   incidentId: string;
+  vehicleId?: string;
+  vehiclePlate?: string;
+  callerPhone?: string;
+  incidentImages?: string[];
+  ownerId?: string;
+  status?: string;
   reporterSocketId: string;
   reporterPhoneMasked?: string;
   carId?: string;
@@ -15,6 +21,7 @@ export type IncomingCallPayload = {
   message?: string;
   platform?: CallPlatform;
   createdAt?: string;
+  callbackId?: string;
 };
 
 export type CallEndedPayload = {
@@ -52,13 +59,19 @@ export const signaling = {
   cancelCall(socket: Socket, callId: string) {
     socket.emit("call_cancel", { callId });
   },
-  accept(socket: Socket, callId: string) {
-    socket.emit("call_accept", { callId });
+  accept(socket: Socket, callId: string, platform: CallPlatform = "web") {
+    socket.emit("call_accept", { callId, platform });
   },
   reject(socket: Socket, callId: string, reason?: string) {
     socket.emit("call_reject", { callId, reason });
   },
   endCall(socket: Socket, callId: string, targetSocketId?: string, reason?: string) {
     socket.emit("call_end", { callId, targetSocketId, reason });
+  },
+  callbackAccept(socket: Socket, callbackId: string) {
+    socket.emit("callback:accepted", { callbackId });
+  },
+  callbackDecline(socket: Socket, callbackId: string) {
+    socket.emit("callback:declined", { callbackId });
   }
 };

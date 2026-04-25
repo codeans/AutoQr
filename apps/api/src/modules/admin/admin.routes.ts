@@ -5,6 +5,7 @@ import {
   content,
   dashboard,
   listCalls,
+  listCallbacks,
   listCars,
   listIncidents,
   listOrders,
@@ -35,6 +36,7 @@ adminRouter.get("/payments", listPayments);
 adminRouter.get("/incidents", listIncidents);
 adminRouter.patch("/incidents/:id", updateIncident);
 adminRouter.get("/calls", listCalls);
+adminRouter.get("/callbacks", listCallbacks);
 adminRouter.get("/shipments", shipments);
 adminRouter.patch("/shipments/:id", updateShipment);
 adminRouter.get("/content", content);

@@ -80,6 +80,17 @@ export interface AdminCall {
   incidentId?: { _id?: string };
 }
 
+export interface AdminCallback {
+  _id: string;
+  createdAt: string;
+  callbackStatus?: string;
+  duration?: number;
+  reporterPhoneMasked?: string;
+  ownerId?: AdminUser;
+  incidentId?: { _id?: string };
+  vehicleId?: { registrationNumber?: string };
+}
+
 export interface AdminContentItem {
   _id: string;
   slug: string;

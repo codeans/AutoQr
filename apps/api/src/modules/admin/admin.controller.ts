@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { AdminAuditLogModel } from "../../models/AdminAuditLog.js";
 import { AppSettingModel } from "../../models/AppSetting.js";
 import { CallSessionModel } from "../../models/CallSession.js";
+import { CallbackModel } from "../../models/Callback.js";
 import { CarModel } from "../../models/Car.js";
 import { CmsContentModel } from "../../models/CmsContent.js";
 import { IncidentModel } from "../../models/Incident.js";
@@ -184,6 +185,15 @@ export const listCalls = asyncHandler(async (_req: Request, res: Response) => {
     };
   });
   res.json({ calls: result });
+});
+
+export const listCallbacks = asyncHandler(async (_req: Request, res: Response) => {
+  const callbacks = await CallbackModel.find()
+    .populate("incidentId", "_id message status createdAt")
+    .populate("vehicleId", "_id registrationNumber make model nickname")
+    .populate("ownerId", "name email phone")
+    .sort({ createdAt: -1 });
+  res.json({ callbacks });
 });
 
 export const shipments = asyncHandler(async (_req: Request, res: Response) => {

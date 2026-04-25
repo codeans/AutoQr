@@ -18,7 +18,7 @@ const callSessionSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["ringing", "accepted", "connected", "ended", "missed", "rejected", "failed", "cancelled"],
+      enum: ["ringing", "accepted", "connected", "ended", "missed", "declined", "rejected", "failed", "cancelled"],
       default: "ringing",
       index: true
     },

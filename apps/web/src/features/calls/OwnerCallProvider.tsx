@@ -97,7 +97,13 @@ export const OwnerCallProvider = ({ children }: { children: React.ReactNode }) =
     const onReconnect = () => setConnectionState("connected");
 
     const onCallRinging = (payload: IncomingCallPayload) => {
-      setIncoming(payload);
+      setIncoming({
+        ...payload,
+        carId: payload.carId ?? payload.vehicleId,
+        carLabel: payload.carLabel ?? payload.vehiclePlate,
+        imageCount: payload.imageCount ?? payload.incidentImages?.length ?? 0,
+        reporterPhoneMasked: payload.reporterPhoneMasked ?? payload.callerPhone
+      });
       setState("ringing");
       setActiveCallId(payload.callId);
     };
@@ -140,6 +146,8 @@ export const OwnerCallProvider = ({ children }: { children: React.ReactNode }) =
     sock.on("disconnect", onDisconnect);
     sock.on("connect_error", onConnectError);
     sock.on("reconnect", onReconnect);
+    sock.on("call:incoming", onCallRinging);
+    sock.on("callback:incoming", onCallRinging);
     sock.on("call_ringing", onCallRinging);
     sock.on("call_cancelled", onCallCancelled);
     sock.on("call_ended", onCallEnded);
@@ -157,6 +165,8 @@ export const OwnerCallProvider = ({ children }: { children: React.ReactNode }) =
       sock.off("disconnect", onDisconnect);
       sock.off("connect_error", onConnectError);
       sock.off("reconnect", onReconnect);
+      sock.off("call:incoming", onCallRinging);
+      sock.off("callback:incoming", onCallRinging);
       sock.off("call_ringing", onCallRinging);
       sock.off("call_cancelled", onCallCancelled);
       sock.off("call_ended", onCallEnded);

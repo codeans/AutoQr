@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Button, Card, EmptyState, Input, LoadingState, SecondaryButton, SectionTitle, StatusBadge } from "../../../components/ui";
+import { Button, Card, EmptyState, Input, LoadingState, SecondaryButton, SectionTitle, Select, StatusBadge } from "../../../components/ui";
 import { ownerService } from "../services/owner.service";
 import type { OwnerCar } from "../services/owner.service";
+import { VEHICLE_COMPANIES, VEHICLE_MODELS, VEHICLE_YEARS } from "./vehicleOptions";
 
 const EMPTY = {
   registrationNumber: "",
@@ -20,6 +21,9 @@ export const CarsScreen = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [makeSelection, setMakeSelection] = useState<string>("");
+  const [modelSelection, setModelSelection] = useState<string>("");
+  const [yearSelection, setYearSelection] = useState<string>("");
 
   const refresh = async () => {
     const list = await ownerService.listCars();
@@ -31,16 +35,22 @@ export const CarsScreen = () => {
   }, []);
 
   const startEdit = (car: OwnerCar) => {
+    const nextMake = car.make ?? "";
+    const nextModel = car.model ?? "";
+    const nextYear = car.year ? String(car.year) : "";
     setEditingId(car._id);
     setForm({
       registrationNumber: car.registrationNumber,
-      make: car.make ?? "",
-      model: car.model ?? "",
+      make: nextMake,
+      model: nextModel,
       color: car.color ?? "",
-      year: car.year ?? "",
+      year: nextYear,
       nickname: car.nickname ?? "",
       displayMessage: car.displayMessage ?? ""
     });
+    setMakeSelection(nextMake && VEHICLE_COMPANIES.includes(nextMake as (typeof VEHICLE_COMPANIES)[number]) ? nextMake : nextMake ? "__other__" : "");
+    setModelSelection(nextModel && VEHICLE_MODELS.includes(nextModel as (typeof VEHICLE_MODELS)[number]) ? nextModel : nextModel ? "__other__" : "");
+    setYearSelection(nextYear && VEHICLE_YEARS.includes(nextYear) ? nextYear : nextYear ? "__other__" : "");
   };
 
   const save = async (e: FormEvent) => {
@@ -59,6 +69,9 @@ export const CarsScreen = () => {
       }
       setForm(EMPTY);
       setEditingId(null);
+      setMakeSelection("");
+      setModelSelection("");
+      setYearSelection("");
       await refresh();
     } catch (err: any) {
       setError(err?.response?.data?.message ?? "Could not save car.");
@@ -93,11 +106,57 @@ export const CarsScreen = () => {
           </label>
           <label className="text-sm font-medium text-slate-700">
             Make
-            <Input className="mt-1" placeholder="e.g. Volkswagen" value={form.make} onChange={(e) => setForm((p) => ({ ...p, make: e.target.value }))} />
+            <Select
+              className="mt-1"
+              value={makeSelection}
+              onChange={(e) => {
+                const value = e.target.value;
+                setMakeSelection(value);
+                if (value && value !== "__other__") {
+                  setForm((p) => ({ ...p, make: value }));
+                } else if (value === "") {
+                  setForm((p) => ({ ...p, make: "" }));
+                }
+              }}
+            >
+              <option value="">Select company</option>
+              {VEHICLE_COMPANIES.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+              <option value="__other__">Other</option>
+            </Select>
+            {makeSelection === "__other__" && (
+              <Input className="mt-2" placeholder="Write company name" value={form.make} onChange={(e) => setForm((p) => ({ ...p, make: e.target.value }))} />
+            )}
           </label>
           <label className="text-sm font-medium text-slate-700">
             Model
-            <Input className="mt-1" placeholder="e.g. Golf" value={form.model} onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))} />
+            <Select
+              className="mt-1"
+              value={modelSelection}
+              onChange={(e) => {
+                const value = e.target.value;
+                setModelSelection(value);
+                if (value && value !== "__other__") {
+                  setForm((p) => ({ ...p, model: value }));
+                } else if (value === "") {
+                  setForm((p) => ({ ...p, model: "" }));
+                }
+              }}
+            >
+              <option value="">Select model</option>
+              {VEHICLE_MODELS.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+              <option value="__other__">Other</option>
+            </Select>
+            {modelSelection === "__other__" && (
+              <Input className="mt-2" placeholder="Write model name" value={form.model} onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))} />
+            )}
           </label>
           <label className="text-sm font-medium text-slate-700">
             Colour
@@ -105,13 +164,30 @@ export const CarsScreen = () => {
           </label>
           <label className="text-sm font-medium text-slate-700">
             Year
-            <Input
+            <Select
               className="mt-1"
-              type="number"
-              placeholder="e.g. 2022"
-              value={form.year}
-              onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))}
-            />
+              value={yearSelection}
+              onChange={(e) => {
+                const value = e.target.value;
+                setYearSelection(value);
+                if (value && value !== "__other__") {
+                  setForm((p) => ({ ...p, year: value }));
+                } else if (value === "") {
+                  setForm((p) => ({ ...p, year: "" }));
+                }
+              }}
+            >
+              <option value="">Select model year</option>
+              {VEHICLE_YEARS.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+              <option value="__other__">Other</option>
+            </Select>
+            {yearSelection === "__other__" && (
+              <Input className="mt-2" type="number" placeholder="Write model year" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))} />
+            )}
           </label>
           <label className="text-sm font-medium text-slate-700">
             Nickname
@@ -137,6 +213,9 @@ export const CarsScreen = () => {
                 onClick={() => {
                   setEditingId(null);
                   setForm(EMPTY);
+                  setMakeSelection("");
+                  setModelSelection("");
+                  setYearSelection("");
                 }}
               >
                 Cancel

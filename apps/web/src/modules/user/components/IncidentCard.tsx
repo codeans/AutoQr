@@ -7,9 +7,10 @@ import { StatusBadge } from "./StatusBadge";
 type IncidentCardProps = {
   incident: UserIncident;
   onOpenDetail?: (id: string) => void;
+  onRequestCallback?: (incidentId: string) => void;
 };
 
-export const IncidentCard = ({ incident, onOpenDetail }: IncidentCardProps) => (
+export const IncidentCard = ({ incident, onOpenDetail, onRequestCallback }: IncidentCardProps) => (
   <Card className="space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -26,15 +27,26 @@ export const IncidentCard = ({ incident, onOpenDetail }: IncidentCardProps) => (
       </span>
       <span>{formatDateTime(incident.createdAt)}</span>
     </div>
-    {onOpenDetail ? (
-      <button
-        type="button"
-        className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-action transition hover:text-red-700"
-        onClick={() => onOpenDetail(incident._id)}
-      >
-        <Phone className="h-3.5 w-3.5" />
-        View call timeline
-      </button>
-    ) : null}
+    <div className="flex items-center gap-3">
+      {onOpenDetail ? (
+        <button
+          type="button"
+          className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-action transition hover:text-red-700"
+          onClick={() => onOpenDetail(incident._id)}
+        >
+          <Phone className="h-3.5 w-3.5" />
+          View call timeline
+        </button>
+      ) : null}
+      {onRequestCallback ? (
+        <button
+          type="button"
+          className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+          onClick={() => onRequestCallback(incident._id)}
+        >
+          Call Back
+        </button>
+      ) : null}
+    </div>
   </Card>
 );

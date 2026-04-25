@@ -20,7 +20,7 @@ export const statusTone = (status?: string): UserBadgeTone => {
   if (["missed", "pending", "created", "open", "printing", "packed", "dispatched", "ungenerated"].includes(normalized)) {
     return "warning";
   }
-  if (["failed", "rejected", "cancelled", "inactive"].includes(normalized)) {
+  if (["failed", "declined", "rejected", "cancelled", "inactive"].includes(normalized)) {
     return "danger";
   }
   if (["generated", "processing", "info"].includes(normalized)) {

@@ -57,6 +57,7 @@ export const CallStatus = {
   CONNECTED: "connected",
   ENDED: "ended",
   MISSED: "missed",
+  DECLINED: "declined",
   REJECTED: "rejected"
 } as const;
 

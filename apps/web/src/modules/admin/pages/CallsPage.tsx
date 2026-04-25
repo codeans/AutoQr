@@ -8,13 +8,17 @@ import { SearchInput } from "../components/SearchInput";
 import { SectionCard } from "../components/SectionCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { adminService } from "../services/admin.service";
-import { AdminCall } from "../types/admin.types";
+import { AdminCall, AdminCallback } from "../types/admin.types";
 import { statusTone } from "../utils/admin.helpers";
 
 export const CallsPage = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-calls"],
     queryFn: adminService.getCalls
+  });
+  const { data: callbacksData } = useQuery({
+    queryKey: ["admin-callbacks"],
+    queryFn: adminService.getCallbacks
   });
   const [query, setQuery] = useState("");
   if (isLoading) return <LoadingState rows={8} />;
@@ -39,6 +43,19 @@ export const CallsPage = () => {
             <StatusBadge label={call.status || "pending"} tone={statusTone(call.status || "pending")} />,
             `${call.duration ?? 0}s`,
             call.rejectionReason || "-"
+          ])}
+        />
+      </SectionCard>
+      <SectionCard title="Callback logs">
+        <DataTable
+          columns={["Date", "Owner", "Incident", "Vehicle", "Status", "Duration"]}
+          rows={(callbacksData?.callbacks ?? []).map((item: AdminCallback) => [
+            new Date(item.createdAt).toLocaleString(),
+            item.ownerId?.email ?? "-",
+            item.incidentId?._id ?? "-",
+            item.vehicleId?.registrationNumber ?? "-",
+            <StatusBadge label={item.callbackStatus || "pending"} tone={statusTone(item.callbackStatus || "pending")} />,
+            `${item.duration ?? 0}s`
           ])}
         />
       </SectionCard>

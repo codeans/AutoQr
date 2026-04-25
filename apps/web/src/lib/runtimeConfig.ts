@@ -7,8 +7,8 @@ const getEnv = (name: "VITE_API_URL" | "VITE_SOCKET_URL", fallbackForDev: string
   throw new Error(`Missing required environment variable: ${name}`);
 };
 
-export const apiBaseUrl = getEnv("VITE_API_URL", "http://localhost:4000/api").replace(/\/$/, "");
-export const socketBaseUrl = getEnv("VITE_SOCKET_URL", "http://localhost:4000").replace(/\/$/, "");
+export const apiBaseUrl = getEnv("VITE_API_URL", "https://api.autoqr.de/api").replace(/\/$/, "");
+export const socketBaseUrl = getEnv("VITE_SOCKET_URL", "https://api.autoqr.de").replace(/\/$/, "");
 export const assetBaseUrl = apiBaseUrl.replace(/\/api$/, "");
 
 const parseIceServers = () => {

@@ -9,8 +9,19 @@ import { SummaryCard } from "../components/SummaryCard";
 import { Timeline } from "../components/Timeline";
 import { useUserDashboard } from "../hooks/useUserDashboard";
 import { useUserNotifications } from "../hooks/useUserNotifications";
+import { userService } from "../services/user.service";
 
 export const DashboardScreen = () => {
+  const requestCallback = async (incidentId: string) => {
+    try {
+      const requested = await userService.requestCallback(incidentId);
+      await userService.startCallback(requested.callback._id);
+      window.alert("Callback started.");
+    } catch {
+      window.alert("Could not start callback.");
+    }
+  };
+
   const { data, isLoading } = useUserDashboard();
   const { data: notificationsData } = useUserNotifications();
 
@@ -41,7 +52,7 @@ export const DashboardScreen = () => {
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title="Recent car incidents" subtitle="Latest reports submitted by people who scanned your car tag.">
           <div className="space-y-3">
-            {data?.incidents?.length ? data.incidents.slice(0, 3).map((incident) => <IncidentCard key={incident._id} incident={incident} />) : <EmptyState title="No car incidents yet" message="New incident reports from scans will appear here." />}
+            {data?.incidents?.length ? data.incidents.slice(0, 3).map((incident) => <IncidentCard key={incident._id} incident={incident} onRequestCallback={requestCallback} />) : <EmptyState title="No car incidents yet" message="New incident reports from scans will appear here." />}
           </div>
         </SectionCard>
         <SectionCard title="Order & shipment status" subtitle="Your car QR tag order progress and delivery timeline.">
@@ -64,7 +75,7 @@ export const DashboardScreen = () => {
 
       <SectionCard title="Notification preview" subtitle="Recent scan alerts, call requests, and order updates for your cars.">
         {notificationsData?.notifications?.length ? (
-          <NotificationList notifications={notificationsData.notifications.slice(0, 4)} />
+          <NotificationList notifications={notificationsData.notifications.slice(0, 4)} onCallback={requestCallback} />
         ) : (
           <EmptyState title="No notifications yet" message="Real-time updates will show up here." />
         )}

@@ -3,7 +3,7 @@ import { assetBaseUrl } from "../../../lib/runtimeConfig";
 
 export const statusTone = (status: string): Tone => {
   if (["active", "success", "paid", "delivered", "activated", "connected", "ended", "resolved"].includes(status)) return "success";
-  if (["failed", "rejected", "disabled", "escalated"].includes(status)) return "danger";
+  if (["failed", "declined", "rejected", "disabled", "escalated"].includes(status)) return "danger";
   return "warning";
 };
 

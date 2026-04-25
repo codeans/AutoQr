@@ -13,6 +13,7 @@ export const adminService = {
   updateIncident: async (id: string, payload: { status: string; adminNotes?: string; escalationFlag?: boolean }) =>
     (await api.patch(`/admin/incidents/${id}`, payload)).data,
   getCalls: async () => (await api.get("/admin/calls")).data,
+  getCallbacks: async () => (await api.get("/admin/callbacks")).data,
   getShipments: async () => (await api.get("/admin/shipments")).data,
   updateShipment: async (id: string, payload: { status: string; courier: string; trackingNumber: string; notes: string }) =>
     (await api.patch(`/admin/shipments/${id}`, payload)).data,

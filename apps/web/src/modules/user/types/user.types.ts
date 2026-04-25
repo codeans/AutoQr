@@ -46,6 +46,21 @@ export type UserCall = {
   createdAt: string;
 };
 
+export type UserCallback = {
+  _id: string;
+  incidentId?: string | { _id?: string };
+  vehicleId?: string | { _id?: string; registrationNumber?: string };
+  ownerId?: string;
+  reporterPhoneMasked?: string;
+  callbackStatus: "pending" | "calling" | "connected" | "declined" | "missed" | "completed" | "failed";
+  callbackStartedAt?: string;
+  callbackEndedAt?: string;
+  duration?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type UserOrder = {
   _id: string;
   amount: number;
@@ -66,6 +81,7 @@ export type UserNotification = {
   message: string;
   isRead?: boolean;
   type?: string;
+  relatedEntityId?: string;
   createdAt: string;
 };
 

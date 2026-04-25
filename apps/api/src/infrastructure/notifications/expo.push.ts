@@ -93,6 +93,12 @@ export const sendPushToUser = async (
     }));
 
     const tickets = await sendExpoPush(messages);
+    logger.info("expo_push.sent", {
+      userId,
+      tokenCount: tokens.length,
+      ticketCount: tickets.length,
+      channelId: params.channelId ?? "default"
+    });
 
     // Prune tokens that Expo says are dead
     const invalidTokens: string[] = [];

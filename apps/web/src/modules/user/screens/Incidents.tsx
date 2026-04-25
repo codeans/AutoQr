@@ -20,6 +20,20 @@ export const IncidentsScreen = () => {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
+  const [callbackBusyId, setCallbackBusyId] = useState("");
+  const requestCallback = async (incidentId: string) => {
+    setCallbackBusyId(incidentId);
+    try {
+      const requested = await userService.requestCallback(incidentId);
+      await userService.startCallback(requested.callback._id);
+      window.alert("Callback started. The reporter will receive an incoming callback notification.");
+    } catch (error: any) {
+      window.alert(error?.response?.data?.message || "Could not start callback.");
+    } finally {
+      setCallbackBusyId("");
+    }
+  };
+
 
   const filteredIncidents = useMemo(
     () =>
@@ -59,7 +73,7 @@ export const IncidentsScreen = () => {
       {filteredIncidents.length ? (
         <div className="grid gap-4 xl:grid-cols-2">
           {filteredIncidents.map((incident) => (
-            <IncidentCard key={incident._id} incident={incident} onOpenDetail={setSelectedIncidentId} />
+            <IncidentCard key={incident._id} incident={incident} onOpenDetail={setSelectedIncidentId} onRequestCallback={requestCallback} />
           ))}
         </div>
       ) : (
@@ -68,7 +82,7 @@ export const IncidentsScreen = () => {
 
       <SectionCard title="Car incident table" subtitle="Reporter identities are masked — only their call, not their number, reaches you.">
         <DataTable
-          columns={["Date", "Reporter", "Message", "Images", "Status", "Action"]}
+          columns={["Date", "Reporter", "Message", "Images", "Status", "Action", "Callback"]}
           rows={filteredIncidents.map((incident) => [
             formatDateTime(incident.createdAt),
             <div key={incident._id}>
@@ -78,13 +92,23 @@ export const IncidentsScreen = () => {
             <p className="max-w-xs truncate">{incident.message}</p>,
             `${incident.images?.length ?? 0} image(s)`,
             <StatusBadge status={incident.status} />,
-            <button
-              type="button"
-              className="cursor-pointer text-sm font-semibold text-action transition hover:text-red-700"
-              onClick={() => setSelectedIncidentId(incident._id)}
-            >
-              View details
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="cursor-pointer text-sm font-semibold text-action transition hover:text-red-700"
+                onClick={() => setSelectedIncidentId(incident._id)}
+              >
+                View details
+              </button>
+              <button
+                type="button"
+                className="cursor-pointer text-sm font-semibold text-slate-700 transition hover:text-slate-900"
+                disabled={callbackBusyId === incident._id}
+                onClick={() => void requestCallback(incident._id)}
+              >
+                {callbackBusyId === incident._id ? "Starting..." : "Return Call"}
+              </button>
+            </div>
           ])}
         />
       </SectionCard>
