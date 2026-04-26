@@ -4,7 +4,13 @@ import { ApiError } from "../../utils/apiError.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { z } from "zod";
 import { loginSchema, registerSchema } from "./auth.validation.js";
-import { loginUser, registerOwner, revokeRefreshToken, rotateRefreshToken } from "./auth.service.js";
+import {
+  loginUser,
+  loginWithFirebaseOtp,
+  registerOwner,
+  revokeRefreshToken,
+  rotateRefreshToken
+} from "./auth.service.js";
 import { comparePassword, hashPassword } from "../../utils/crypto.js";
 import { env } from "../../config/env.js";
 
@@ -20,6 +26,18 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(8)
 });
 
+const firebaseOtpLoginSchema = z.object({
+  phone: z.string().min(6).max(32),
+  idToken: z.string().min(20).max(4000),
+  signup: z
+    .object({
+      name: z.string().min(2).max(120),
+      email: z.string().email(),
+      address: z.string().min(3).max(500)
+    })
+    .optional()
+});
+
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const payload = registerSchema.parse(req.body);
   const user = await registerOwner(payload);
@@ -30,6 +48,13 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const payload = loginSchema.parse(req.body);
   const result = await loginUser(payload);
+  res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
+  res.json({ accessToken: result.accessToken, user: result.user });
+});
+
+export const firebaseOtpLogin = asyncHandler(async (req: Request, res: Response) => {
+  const payload = firebaseOtpLoginSchema.parse(req.body);
+  const result = await loginWithFirebaseOtp(payload);
   res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
   res.json({ accessToken: result.accessToken, user: result.user });
 });

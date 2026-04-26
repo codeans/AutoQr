@@ -33,7 +33,8 @@ const envSchema = z.object({
   DB_RETRY_DELAY_MS: z.coerce.number().default(2000),
   SOCKET_PING_TIMEOUT_MS: z.coerce.number().default(20000),
   SOCKET_PING_INTERVAL_MS: z.coerce.number().default(25000),
-  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info")
+  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  FIREBASE_OTP_TEST_TOKEN: z.string().optional().default("")
 });
 
 const parsed = envSchema.parse(process.env);

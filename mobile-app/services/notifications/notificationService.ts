@@ -8,7 +8,6 @@ import { pushTokenService, type PushPlatform } from "@/services/api/pushToken.se
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
     shouldShowBanner: true,
@@ -82,6 +81,7 @@ function resolveProjectId(): string | undefined {
 }
 
 export async function registerExpoPushToken(): Promise<string | null> {
+  if (Platform.OS === "android" && Constants.appOwnership === "expo") return null;
   const granted = await requestNotificationPermission();
   if (!granted) return null;
   await configureNotificationChannels();
@@ -100,6 +100,7 @@ export async function registerExpoPushToken(): Promise<string | null> {
       await pushTokenService.register({
         token: tokenValue,
         platform,
+        tokenType: "expo",
         appVersion: Constants.expoConfig?.version ?? ""
       });
     } catch {

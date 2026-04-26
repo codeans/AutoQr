@@ -17,7 +17,7 @@ export function IncomingCallScreen() {
   const status = useCallStore((s) => s.status);
   const setIncoming = useCallStore((s) => s.setIncoming);
   const { accept, reject } = useCallActions();
-  const params = useLocalSearchParams<{ callId?: string }>();
+  const params = useLocalSearchParams<{ callId?: string; action?: string }>();
 
   useEffect(() => {
     const callId = typeof params.callId === "string" ? params.callId : "";
@@ -37,11 +37,24 @@ export function IncomingCallScreen() {
   }, [incoming?.callId, params.callId, setIncoming]);
 
   useEffect(() => {
+    const action = typeof params.action === "string" ? params.action.toLowerCase() : "";
+    if (!incoming?.callId || !action) return;
+    if (action === "accept") {
+      accept();
+      return;
+    }
+    if (action === "decline" || action === "reject") {
+      reject("owner_rejected");
+    }
+  }, [accept, incoming?.callId, params.action, reject]);
+
+  useEffect(() => {
     if (status === "connecting" || status === "active") {
       router.replace("/call/active");
     }
     if (status === "idle" || status === "missed" || status === "declined" || status === "ended") {
       if (router.canGoBack()) router.back();
+      else router.replace("/(tabs)/dashboard");
     }
   }, [status]);
 

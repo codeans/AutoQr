@@ -9,8 +9,8 @@ export type ExpoPushMessage = {
   title: string;
   body: string;
   data?: Record<string, unknown>;
-  sound?: "default" | null;
-  channelId?: "calls" | "incidents" | "default";
+  sound?: "default" | string | null;
+  channelId?: "incoming-calls" | "calls" | "incidents" | "default";
   priority?: "default" | "high";
   ttl?: number;
   categoryId?: string;
@@ -86,7 +86,7 @@ export const sendPushToUser = async (
       title: params.title,
       body: params.body,
       data: params.data,
-      sound: params.sound ?? "default",
+      sound: params.sound ?? (params.channelId === "incoming-calls" ? "autoqr_ringtone.wav" : "default"),
       channelId: params.channelId ?? "default",
       priority: params.priority ?? "high",
       ttl: params.ttl

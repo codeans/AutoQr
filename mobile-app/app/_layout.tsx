@@ -12,6 +12,7 @@ import { SplashLoader } from "@/components/common/SplashLoader";
 import { useBootstrap } from "@/hooks/useBootstrap";
 import { useSocket } from "@/hooks/useSocket";
 import { useCallSocketHandlers } from "@/features/calls/callSocketHandlers";
+import { useNativeCallHandlers } from "@/features/calls/useNativeCallHandlers";
 import { useNotificationSocketHandlers } from "@/features/notifications/notificationSocketHandlers";
 import { useNotificationHandlers } from "@/features/notifications/notificationHandlers";
 import { CallFloatingBanner } from "@/features/calls/CallFloatingBanner";
@@ -38,6 +39,7 @@ function AppGate() {
   useBootstrap();
   useSocket();
   useCallSocketHandlers();
+  useNativeCallHandlers();
   useNotificationSocketHandlers();
   useNotificationHandlers();
 

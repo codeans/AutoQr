@@ -16,6 +16,19 @@ export async function login(params: { email: string; password: string }): Promis
   return res;
 }
 
+export async function loginWithFirebaseOtp(params: {
+  phone: string;
+  idToken: string;
+  signup?: { name: string; email: string; address: string };
+}): Promise<AuthResponse> {
+  const res = await apiClient.post<AuthResponse>("/auth/login/firebase-otp", params, { skipAuth: true });
+  await setAuthTokens({
+    accessToken: res.accessToken,
+    ...(res.refreshToken ? { refreshToken: res.refreshToken } : {})
+  });
+  return res;
+}
+
 export async function register(params: {
   name: string;
   email: string;

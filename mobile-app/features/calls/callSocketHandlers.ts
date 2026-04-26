@@ -5,6 +5,8 @@ import { useCallStore } from "@/stores/call.store";
 import { CallEvents, type IncomingCall } from "@/types/call";
 import { useAuthStore } from "@/stores/auth.store";
 import { webrtcService } from "@/services/calls/webrtcService";
+import { nativeCallService } from "@/services/calls/nativeCallService";
+import { callsService } from "@/services/api/calls.service";
 import {
   handleIncomingCall,
   isCallHandled,
@@ -61,6 +63,8 @@ export function useCallSocketHandlers(): void {
       ringingTimerRef.current = setTimeout(() => {
         const state = useCallStore.getState();
         if (state.status === "ringing" && state.incoming?.callId === payload.callId) {
+          void callsService.missed(payload.callId, "timeout").catch(() => undefined);
+          void nativeCallService.endNativeCall(payload.callId).catch(() => undefined);
           state.setEndReason("timeout");
           state.setStatus("missed");
           state.reset();
@@ -71,6 +75,7 @@ export function useCallSocketHandlers(): void {
     const onMissed = (payload: { callId: string; reason?: string }) => {
       clearRingingTimer();
       void stopIncomingCallAlerting();
+      void nativeCallService.endIncomingCall(payload.callId);
       setEndReason(payload.reason ?? "missed");
       setStatus("missed");
       reset();
@@ -79,8 +84,23 @@ export function useCallSocketHandlers(): void {
     const onAccepted = (payload: { callId: string; ownerSocketId?: string; reporterSocketId?: string }) => {
       clearRingingTimer();
       void stopIncomingCallAlerting();
-      const remote = payload.ownerSocketId ?? payload.reporterSocketId ?? null;
+      const sock = getSocket();
+      const selfId = sock?.id ?? "";
+      const reporterPeer = payload.reporterSocketId ?? null;
+      const remote =
+        selfId && payload.ownerSocketId === selfId
+          ? reporterPeer
+          : payload.ownerSocketId ?? reporterPeer ?? null;
       setActive({ callId: payload.callId, remoteSocketId: remote });
+
+      const sameCall =
+        useCallStore.getState().activeCallId === payload.callId ||
+        useCallStore.getState().incoming?.callId === payload.callId;
+      if (webrtcService.isActive() && sameCall) {
+        if (remote) webrtcService.updateRemoteSocket(remote);
+        return;
+      }
+
       webrtcService
         .initializeCall(
           { callId: payload.callId, remoteSocketId: remote, role: "callee" },
@@ -96,26 +116,34 @@ export function useCallSocketHandlers(): void {
     const onStarted = () => {
       setStatus("active");
       useCallStore.getState().markConnected();
+      const callId = useCallStore.getState().activeCallId;
+      if (callId) nativeCallService.markCallActive(callId);
     };
 
-    const onEnded = (payload?: { reason?: string }) => {
+    const onEnded = (payload?: { callId?: string; reason?: string }) => {
       clearRingingTimer();
       void stopIncomingCallAlerting();
       setEndReason(payload?.reason ?? "ended");
+      const callId = payload?.callId ?? useCallStore.getState().activeCallId ?? useCallStore.getState().incoming?.callId;
+      if (callId) nativeCallService.markCallEnded(callId);
       webrtcService.cleanup().catch(() => undefined);
       reset();
-      if (router.canGoBack?.()) {
+      if (router.canGoBack()) {
         try {
           router.back();
         } catch {
           // ignore
         }
+      } else {
+        router.replace("/(tabs)/dashboard");
       }
     };
 
     const onCancelled = () => {
       clearRingingTimer();
       void stopIncomingCallAlerting();
+      const callId = useCallStore.getState().incoming?.callId;
+      if (callId) void nativeCallService.endIncomingCall(callId);
       setEndReason("reporter_cancelled");
       reset();
     };
@@ -123,6 +151,8 @@ export function useCallSocketHandlers(): void {
     const onRejected = () => {
       clearRingingTimer();
       void stopIncomingCallAlerting();
+      const callId = useCallStore.getState().incoming?.callId ?? useCallStore.getState().activeCallId;
+      if (callId) nativeCallService.markCallEnded(callId);
       setEndReason("rejected");
       setStatus("declined");
       reset();

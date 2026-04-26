@@ -100,6 +100,33 @@ export function getSocket(): Socket | null {
   return socket;
 }
 
+export function waitForSocketConnection(timeoutMs = 8000): Promise<Socket | null> {
+  const activeSocket = connectSocket();
+  if (!activeSocket) return Promise.resolve(null);
+  if (activeSocket.connected) return Promise.resolve(activeSocket);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (value: Socket | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      activeSocket.off("connect", onConnect);
+      activeSocket.off("connect_error", onConnectError);
+      resolve(value);
+    };
+    const onConnect = () => settle(activeSocket);
+    const onConnectError = () => {
+      // Keep socket.io's reconnect loop alive, but don't leave the caller waiting forever.
+    };
+    const timer = setTimeout(() => settle(activeSocket.connected ? activeSocket : null), timeoutMs);
+
+    activeSocket.on("connect", onConnect);
+    activeSocket.on("connect_error", onConnectError);
+    activeSocket.connect();
+  });
+}
+
 export function onConnectionChange(listener: ConnectionListener): () => void {
   connectionListeners.add(listener);
   listener(Boolean(socket?.connected));

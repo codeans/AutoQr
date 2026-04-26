@@ -18,7 +18,6 @@ export function ActiveCallScreen() {
   const status = useCallStore((s) => s.status);
   const micEnabled = useCallStore((s) => s.micEnabled);
   const speakerEnabled = useCallStore((s) => s.speakerEnabled);
-  const audioConnected = useCallStore((s) => s.audioConnected);
   const toggleMic = useCallStore((s) => s.toggleMic);
   const toggleSpeaker = useCallStore((s) => s.toggleSpeaker);
   const startedAt = useCallStore((s) => s.startedAt);
@@ -53,14 +52,16 @@ export function ActiveCallScreen() {
   useEffect(() => {
     if (status === "idle" || status === "ended" || status === "missed" || status === "declined") {
       if (router.canGoBack()) router.back();
+      else router.replace("/(tabs)/dashboard");
     }
   }, [status]);
 
   const connectionLabel = (() => {
     if (status === "connecting") return "Connecting…";
-    if (status === "active" && !audioConnected) return "Connected · audio starting";
     if (status === "active") return formatDuration(elapsed);
-    return "Reconnecting…";
+    if (status === "failed") return "Call failed";
+    if (status === "ended") return "Call ended";
+    return "Connecting…";
   })();
 
   return (

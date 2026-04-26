@@ -118,7 +118,8 @@ export function VehicleDetailScreen() {
             try {
               await del.mutateAsync(car.id);
               pushToast({ title: "Vehicle removed", tone: "info" });
-              router.back();
+              if (router.canGoBack()) router.back();
+              else router.replace("/(tabs)/vehicles");
             } catch (err) {
               pushToast({
                 title: "Couldn't remove",

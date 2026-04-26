@@ -3,7 +3,7 @@ import { emitToUser, isUserOnline } from "../../realtime/socket.js";
 import { sendPushToUser } from "./expo.push.js";
 import { logger } from "../../utils/logger.js";
 
-type ChannelId = "calls" | "incidents" | "default";
+type ChannelId = "incoming-calls" | "calls" | "incidents" | "default";
 
 export type RealtimeNotificationInput = {
   userId: string;
@@ -18,10 +18,12 @@ export type RealtimeNotificationInput = {
   skipPersist?: boolean;
   channelId?: ChannelId;
   priority?: "default" | "high";
+  ttl?: number;
 };
 
 const resolveChannel = (type: NotificationType): ChannelId => {
-  if (type === "INCOMING_CALL" || type === "MISSED_CALL" || type === "CALL_ENDED" || type === "call_missed" || type === "call_ended") {
+  if (type === "INCOMING_CALL") return "incoming-calls";
+  if (type === "MISSED_CALL" || type === "CALL_ENDED" || type === "call_missed" || type === "call_ended") {
     return "calls";
   }
   if (type === "INCIDENT_CREATED" || type === "incident_created") return "incidents";
@@ -76,7 +78,8 @@ export const publishNotification = async (input: RealtimeNotificationInput) => {
       body: input.body,
       data: { ...(input.data ?? {}), notificationId: payload.id, type: input.type },
       channelId,
-      priority: input.priority ?? (channelId === "calls" ? "high" : "default")
+      priority: input.priority ?? (channelId === "incoming-calls" || channelId === "calls" ? "high" : "default"),
+      ttl: input.ttl
     });
   }
 

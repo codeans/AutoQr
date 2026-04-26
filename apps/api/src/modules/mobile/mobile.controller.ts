@@ -8,6 +8,7 @@ import { logger } from "../../utils/logger.js";
 const registerPushTokenSchema = z.object({
   token: z.string().min(10).max(300),
   platform: z.enum(["ios", "android", "web"]).default("android"),
+  tokenType: z.enum(["expo", "fcm", "voip"]).default("expo"),
   deviceId: z.string().max(200).optional(),
   appVersion: z.string().max(40).optional()
 });
@@ -34,6 +35,7 @@ export const registerPushToken = asyncHandler(async (req: Request, res: Response
         pushTokens: {
           token: body.token,
           platform: body.platform,
+          tokenType: body.tokenType,
           deviceId: body.deviceId ?? "",
           appVersion: body.appVersion ?? "",
           createdAt: new Date(),
@@ -42,7 +44,35 @@ export const registerPushToken = asyncHandler(async (req: Request, res: Response
       }
     }
   );
-  logger.info("mobile.push_token.registered", { userId, platform: body.platform });
+  logger.info("mobile.push_token.registered", { userId, platform: body.platform, tokenType: body.tokenType });
+  res.json({ ok: true });
+});
+
+export const registerFcmToken = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.auth?.userId;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  const body = z.object({ token: z.string().min(10).max(300), appVersion: z.string().max(40).optional() }).parse(req.body);
+
+  await UserModel.updateMany(
+    { "pushTokens.token": body.token },
+    { $pull: { pushTokens: { token: body.token } } }
+  );
+  await UserModel.updateOne(
+    { _id: userId },
+    {
+      $push: {
+        pushTokens: {
+          token: body.token,
+          platform: "android",
+          tokenType: "fcm",
+          appVersion: body.appVersion ?? "",
+          createdAt: new Date(),
+          lastUsedAt: new Date()
+        }
+      }
+    }
+  );
+  logger.info("mobile.fcm_token.registered", { userId });
   res.json({ ok: true });
 });
 

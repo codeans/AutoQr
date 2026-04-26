@@ -2,6 +2,9 @@ import * as Notifications from "expo-notifications";
 import { Audio } from "expo-av";
 import { Camera } from "expo-camera";
 import * as MediaLibrary from "expo-media-library";
+
+/** Android 13+ only; must match `expo-media-library` config plugin `granularPermissions`. */
+const MEDIA_LIBRARY_GRANULAR = ["photo", "video"] as const;
 import type { PermissionMeta, PermissionState, PermissionStatusMap, TrackedPermission } from "./types";
 import { usePermissionStore } from "@/stores/permissionStore";
 
@@ -141,16 +144,24 @@ async function requestCameraState(): Promise<PermissionState> {
 }
 
 async function getMediaLibraryState(): Promise<PermissionState> {
-  const result = await MediaLibrary.getPermissionsAsync();
-  return mapState(result.status, result.canAskAgain);
+  try {
+    const result = await MediaLibrary.getPermissionsAsync(false, [...MEDIA_LIBRARY_GRANULAR]);
+    return mapState(result.status, result.canAskAgain);
+  } catch {
+    return "denied";
+  }
 }
 
 async function requestMediaLibraryState(): Promise<PermissionState> {
-  const existing = await MediaLibrary.getPermissionsAsync();
-  if (existing.granted) return "granted";
-  if (!existing.canAskAgain) return "blocked";
-  const result = await MediaLibrary.requestPermissionsAsync();
-  return mapState(result.status, result.canAskAgain);
+  try {
+    const existing = await MediaLibrary.getPermissionsAsync(false, [...MEDIA_LIBRARY_GRANULAR]);
+    if (existing.granted) return "granted";
+    if (!existing.canAskAgain) return "blocked";
+    const result = await MediaLibrary.requestPermissionsAsync(false, [...MEDIA_LIBRARY_GRANULAR]);
+    return mapState(result.status, result.canAskAgain);
+  } catch {
+    return "denied";
+  }
 }
 
 export async function getPermissionState(permission: TrackedPermission): Promise<PermissionState> {

@@ -7,6 +7,7 @@ import { useNotificationStore } from "@/stores/notification.store";
 import { disconnectSocket } from "@/services/socket/socket";
 import { unregisterPushTokenForCurrentDevice, setBadgeCount } from "@/services/notifications/notifications";
 import { webrtcService } from "@/services/calls/webrtcService";
+import { nativeCallService } from "@/services/calls/nativeCallService";
 
 export function useAuthActions() {
   const setUser = useAuthStore((s) => s.setUser);
@@ -17,6 +18,19 @@ export function useAuthActions() {
   const login = useCallback(
     async (email: string, password: string) => {
       const res = await AuthApi.login({ email, password });
+      setUser(res.user);
+      return res.user;
+    },
+    [setUser]
+  );
+
+  const loginWithFirebaseOtp = useCallback(
+    async (params: {
+      phone: string;
+      idToken: string;
+      signup?: { name: string; email: string; address: string };
+    }) => {
+      const res = await AuthApi.loginWithFirebaseOtp(params);
       setUser(res.user);
       return res.user;
     },
@@ -44,6 +58,7 @@ export function useAuthActions() {
     // the JWT, otherwise the DELETE request loses its Authorization header.
     await unregisterPushTokenForCurrentDevice().catch(() => undefined);
     await webrtcService.cleanup().catch(() => undefined);
+    nativeCallService.cleanupNativeCall();
     try {
       await AuthApi.logout();
     } finally {
@@ -56,5 +71,5 @@ export function useAuthActions() {
     }
   }, [qc, resetAuth, resetCall]);
 
-  return { login, register, logout };
+  return { login, loginWithFirebaseOtp, register, logout };
 }

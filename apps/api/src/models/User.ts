@@ -4,6 +4,7 @@ const pushTokenSchema = new Schema(
   {
     token: { type: String, required: true, index: true },
     platform: { type: String, enum: ["ios", "android", "web"], default: "android" },
+    tokenType: { type: String, enum: ["expo", "fcm", "voip"], default: "expo", index: true },
     deviceId: { type: String, default: "" },
     appVersion: { type: String, default: "" },
     lastUsedAt: { type: Date, default: Date.now },

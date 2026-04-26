@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { Card, Header, Screen, Text } from "@/components/ui";
@@ -51,7 +50,7 @@ export function LanguageScreen() {
 
   return (
     <Screen>
-      <Header title={t("settings.language") as string} onBack={() => router.back()} />
+      <Header title={t("settings.language") as string} />
       <Text variant="small" muted style={{ marginBottom: spacing.md, paddingHorizontal: spacing.sm }}>
         {t("settings.languageHelp")}
       </Text>

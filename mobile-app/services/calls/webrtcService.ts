@@ -35,6 +35,7 @@ type InternalState = {
 };
 
 let current: InternalState | null = null;
+let loggedWebRtcUnavailable = false;
 
 function emit(event: string, payload: Record<string, unknown>): void {
   const socket = getSocket();
@@ -138,7 +139,13 @@ export const webrtcService = {
 
     const available = await peer.init();
     if (!available) {
-      // Managed Expo without dev client — signalling path is set up but we can't open mic.
+      if (!loggedWebRtcUnavailable) {
+        loggedWebRtcUnavailable = true;
+        console.warn(
+          "[AutoQr] WebRTC native module unavailable. Voice media is disabled in Expo Go; use a development build (`npm run android` / `npm run ios`)."
+        );
+      }
+      // Managed Expo without dev client — we can't open mic/peer media.
       return false;
     }
     await bindSignaling(state);

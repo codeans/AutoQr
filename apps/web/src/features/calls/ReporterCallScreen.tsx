@@ -67,6 +67,9 @@ export const ReporterCallScreen = () => {
 
   const { status: webrtcStatus, setStatus, seconds, error, muted, toggleMute, remoteAudioRef, ensureMicrophone, createOffer, applyAnswer, addIce, teardown, reset } = useWebRtcAudioCall(socket);
 
+  const signalingRef = useRef({ createOffer, applyAnswer, addIce, teardown, t });
+  signalingRef.current = { createOffer, applyAnswer, addIce, teardown, t };
+
   useEffect(() => {
     if (!incidentId || !sessionToken) {
       setReporterStatus("error");
@@ -94,32 +97,35 @@ export const ReporterCallScreen = () => {
       setCallId(payload.callId);
       setOwnerSocketId(payload.ownerSocketId);
       setReporterStatus("connecting");
-      createOffer(payload.ownerSocketId, payload.callId).catch(() => {
+      const { createOffer: offer, t: tr } = signalingRef.current;
+      offer(payload.ownerSocketId, payload.callId).catch(() => {
         setReporterStatus("error");
-        setErrorMessage(t("call.reporter.couldNotNegotiate"));
+        setErrorMessage(tr("call.reporter.couldNotNegotiate"));
       });
     };
     const onCallStarted = () => setReporterStatus("in_call");
     const onCallRejected = () => {
       setReporterStatus("rejected");
-      teardown();
+      signalingRef.current.teardown();
     };
     const onCallMissed = () => {
       setReporterStatus("missed");
-      teardown();
+      signalingRef.current.teardown();
     };
     const onCallCancelled = () => {
       setReporterStatus("ended");
-      teardown();
+      signalingRef.current.teardown();
     };
     const onWebRtcAnswer = ({ answer }: { answer: RTCSessionDescriptionInit }) => {
-      void applyAnswer(answer);
+      void signalingRef.current.applyAnswer(answer).then(() => {
+        setReporterStatus((s) => (s === "connecting" ? "in_call" : s));
+      });
     };
     const onWebRtcCandidate = ({ candidate }: { candidate: RTCIceCandidateInit }) => {
-      void addIce(candidate);
+      void signalingRef.current.addIce(candidate);
     };
     const onCallEnded = () => {
-      teardown();
+      signalingRef.current.teardown();
       setReporterStatus("ended");
     };
     const onConnectError = () => setConnectionState("reconnecting");
@@ -161,7 +167,7 @@ export const ReporterCallScreen = () => {
       socket.off("reconnect", onReconnect);
       socket.off("connect", onConnect);
     };
-  }, [addIce, applyAnswer, createOffer, socket, teardown, t]);
+  }, [socket]);
 
   useEffect(
     () => () => {

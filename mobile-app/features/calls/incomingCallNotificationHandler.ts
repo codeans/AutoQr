@@ -4,6 +4,7 @@ import { Audio } from "expo-av";
 import type { IncomingCall } from "@/types/call";
 import { useCallStore } from "@/stores/call.store";
 import { callsService } from "@/services/api/calls.service";
+import { nativeCallService } from "@/services/calls/nativeCallService";
 
 const RINGING_TIMEOUT_MS = 45_000;
 const VIBRATION_PATTERN = [0, 450, 220, 450, 220, 650];
@@ -108,6 +109,8 @@ function scheduleMissedTimeout(callId: string): void {
   ringingTimeout = setTimeout(() => {
     const state = useCallStore.getState();
     if (state.status === "ringing" && state.incoming?.callId === callId) {
+      void callsService.missed(callId, "timeout").catch(() => undefined);
+      void nativeCallService.endNativeCall(callId).catch(() => undefined);
       state.setEndReason("timeout");
       state.setStatus("missed");
       void stopIncomingCallAlerting();
@@ -136,6 +139,7 @@ export async function handleIncomingCall(payload: Partial<IncomingCall> & { call
 
   useCallStore.getState().setIncoming(incoming);
   scheduleMissedTimeout(incoming.callId);
+  await nativeCallService.displayIncomingCall(incoming).catch(() => false);
 
   if (appState === "active") {
     if (ringingCallId !== incoming.callId) {

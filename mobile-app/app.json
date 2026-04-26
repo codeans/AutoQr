@@ -43,6 +43,7 @@
     },
     "android": {
       "package": "de.autoqr.app",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "icon": "./assets/icons/icon.png",
       "adaptiveIcon": {
@@ -58,7 +59,11 @@
         "android.permission.WAKE_LOCK",
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.MANAGE_OWN_CALLS",
+        "android.permission.READ_CALL_LOG",
+        "android.permission.USE_FULL_SCREEN_INTENT",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE"
       ]
     },
     "web": {
@@ -71,6 +76,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-dev-client",
       "expo-secure-store",
       [
         "expo-notifications",
@@ -100,7 +106,11 @@
         "expo-media-library",
         {
           "photosPermission": "AutoQr accesses your photos to attach vehicle and incident images.",
-          "savePhotosPermission": "AutoQr can save evidence images when you export a report."
+          "savePhotosPermission": "AutoQr can save evidence images when you export a report.",
+          "granularPermissions": [
+            "photo",
+            "video"
+          ]
         }
       ],
       [
@@ -111,7 +121,10 @@
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
         }
-      ]
+      ],
+      "expo-localization",
+      "@config-plugins/react-native-webrtc",
+      "./plugins/withAndroidNativeCallFirebase"
     ],
     "experiments": {
       "typedRoutes": true
