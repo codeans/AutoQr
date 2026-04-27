@@ -1268,6 +1268,30 @@ const overrides: DeepPartial<TranslationSchema> = {
       available: "Available",
       activated: "Activated"
     }
+  },
+  landingHero: {
+    chapterLabel: "Chapter",
+    ctaPrimary: "Order Car QR",
+    ctaSecondary: "Order Key QR",
+    chapters: {
+      arrival: {
+        headline: "Parked. <highlight>Protected.</highlight>",
+        subline: "Your car stays reachable — even after you walk away."
+      },
+      parking: {
+        headline: "When someone <highlight>hits</highlight> your car —",
+        subline: "it usually happens when you're not nearby."
+      },
+      reveal: {
+        headline: "One <highlight>QR code</highlight>. A lifetime of safety.",
+        subline:
+          "Anonymous. GDPR-compliant. Instant connection — without exposing your number."
+      },
+      walkaway: {
+        headline: "Walk away <highlight>at ease</highlight>.",
+        subline: "AutoQR is there if anything happens."
+      }
+    }
   }
 };
 

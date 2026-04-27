@@ -8,7 +8,6 @@ import { FaqPage } from "../pages/FAQ";
 import { ForCarOwnersPage } from "../pages/ForCarOwners";
 import { HomePage } from "../pages/Home";
 import { HowItWorksPage } from "../pages/HowItWorks";
-import { IncidentPage } from "../pages/Incident";
 import { LoginPage } from "../pages/Login";
 import { OrderPage } from "../pages/Order";
 import { PricingPage } from "../pages/Pricing";
@@ -121,15 +120,15 @@ const publicRoutes = (
     <Route path="checkout" element={<Navigate to="/plans" replace />} />
 
     <Route path="order" element={<OrderPage />} />
-    <Route path="incident/:token" element={<IncidentPage />} />
+    <Route path="incident/:token" element={<ScanLandingScreen mode="live" />} />
   </>
 );
 
 export const AppRouter = () => (
   <Routes>
     <Route path="/" element={<Navigate to={`/${currentLocale()}`} replace />} />
-    <Route path="scan/:token" element={<ScanLandingScreen />} />
-    <Route path="incident/:qrId" element={<IncidentPage />} />
+    <Route path="scan/:token" element={<ScanLandingScreen mode="preview" />} />
+    <Route path="incident/:qrId" element={<ScanLandingScreen mode="live" />} />
     <Route path="call/reporter" element={<ReporterCallScreen />} />
 
     <Route element={<MarketingLayout />}>

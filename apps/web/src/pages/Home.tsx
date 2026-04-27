@@ -1,7 +1,7 @@
 import { CTASection } from "../components/marketing/home/CTASection";
 import { CarsKeys } from "../components/marketing/home/CarsKeys";
 import { FAQSection } from "../components/marketing/home/FAQSection";
-import { Hero } from "../components/marketing/home/Hero";
+import { ScrollVideoHero } from "../components/landing/ScrollVideoHero";
 import { Pricing } from "../components/marketing/home/Pricing";
 import { Privacy } from "../components/marketing/home/Privacy";
 import { Problem } from "../components/marketing/home/Problem";
@@ -11,7 +11,7 @@ import { Workflow } from "../components/marketing/home/Workflow";
 
 export const HomePage = () => (
   <>
-    <Hero />
+    <ScrollVideoHero />
     <Problem />
     <Solution />
     <CarsKeys />

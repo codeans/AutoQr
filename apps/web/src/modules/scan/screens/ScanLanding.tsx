@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Eye, ShieldAlert } from "lucide-react";
+import { Eye, ImageIcon, PhoneCall, ShieldAlert, Sparkles } from "lucide-react";
+import { toGermanE164 } from "@autoqr/shared";
 import { Button } from "../../../components/marketing/shared/Button";
 import { Container } from "../../../components/marketing/shared/Container";
 import { FieldGroup, FieldLabel, TextArea, TextField } from "../../../components/marketing/shared/Field";
@@ -10,6 +11,10 @@ import { fetchLanding } from "../services/scan.service";
 import type { ScanLanding as LandingType, ScanReason } from "../services/scan.service";
 import { ReasonOption } from "../components/ReasonOption";
 import { GermanPhoneInput } from "../../../features/calls/components/GermanPhoneInput";
+import { MultiImageUploader } from "../../../features/calls/components/MultiImageUploader";
+import { submitIncident } from "../../../features/calls/services/incidentApi";
+
+type Mode = "preview" | "live";
 
 type ReasonConfig = {
   reason: ScanReason;
@@ -28,18 +33,28 @@ const REASONS: ReasonConfig[] = [
   { reason: "other", key: "other", severity: "info" }
 ];
 
-export const ScanLandingScreen = () => {
+type Props = {
+  mode?: Mode;
+};
+
+export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
   const { t } = useTranslation();
-  const { token } = useParams();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const previewMode = searchParams.get("preview") === "1";
+  const { token: tokenParam, qrId } = useParams();
+  const token = tokenParam ?? qrId ?? "";
+  const isLive = mode === "live";
+
   const [landing, setLanding] = useState<LandingType | null>(null);
   const [error, setError] = useState("");
   const [reason, setReason] = useState<ScanReason | null>(null);
   const [message, setMessage] = useState("");
   const [reporterPhone, setReporterPhone] = useState("");
   const [reporterName, setReporterName] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [consent, setConsent] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [pending, setPending] = useState<null | "alert" | "call">(null);
+
+  const phoneE164 = useMemo(() => toGermanE164(reporterPhone), [reporterPhone]);
 
   const reasonOptions = useMemo(
     () =>
@@ -54,14 +69,10 @@ export const ScanLandingScreen = () => {
 
   useEffect(() => {
     if (!token) return;
-    if (!previewMode) {
-      navigate(`/incident/${token}`, { replace: true });
-      return;
-    }
     fetchLanding(token)
       .then(setLanding)
       .catch(() => setError(t("scan.tagNotFoundMessage")));
-  }, [navigate, previewMode, t, token]);
+  }, [t, token]);
 
   if (error) {
     return (
@@ -70,10 +81,6 @@ export const ScanLandingScreen = () => {
         <p className="mt-3 text-content-muted">{error}</p>
       </div>
     );
-  }
-
-  if (!previewMode) {
-    return null;
   }
 
   if (!landing) {
@@ -93,15 +100,89 @@ export const ScanLandingScreen = () => {
 
   const car = landing.car;
 
+  const composedMessage = () => {
+    const reasonLabel = reason
+      ? t(`scan.reasons.${REASONS.find((r) => r.reason === reason)?.key}.label`)
+      : "";
+    const trimmed = message.trim();
+    if (reasonLabel && trimmed) return `[${reasonLabel}] ${trimmed}`;
+    if (reasonLabel) return reasonLabel;
+    return trimmed;
+  };
+
+  const validate = () => {
+    if (!phoneE164) {
+      setSubmitError(t("incident.errorInvalidPhone"));
+      return false;
+    }
+    if (!reason && message.trim().length < 5) {
+      setSubmitError(t("incident.errorMessageTooShort"));
+      return false;
+    }
+    if (!consent) {
+      setSubmitError(t("incident.errorConsentRequired"));
+      return false;
+    }
+    setSubmitError("");
+    return true;
+  };
+
+  const doSubmit = async (action: "alert" | "call") => {
+    if (!isLive) return;
+    if (!validate()) return;
+    setPending(action);
+    try {
+      const incident = await submitIncident({
+        token,
+        reporterName,
+        reporterPhoneE164: phoneE164!,
+        message: composedMessage() || (reason ?? "other"),
+        files
+      });
+      if (action === "call") {
+        const params = new URLSearchParams({
+          incidentId: incident.id,
+          ownerUserId: incident.ownerUserId,
+          sessionToken: incident.reporterSessionToken,
+          phone: incident.reporterPhone,
+          autoStart: "1"
+        });
+        const callUrl = `/call/reporter?${params.toString()}`;
+        const popup = window.open(callUrl, "_blank", "noopener=yes,noreferrer=yes,width=440,height=760");
+        if (!popup) window.location.assign(callUrl);
+      } else {
+        setSubmitError("");
+        setMessage("");
+        setReason(null);
+        setFiles([]);
+        setConsent(false);
+        alert(t("scan.thankYouResponseSoon"));
+      }
+    } catch (err: any) {
+      setSubmitError(err?.response?.data?.message ?? t("incident.errorSubmitGeneric"));
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const buttonsDisabled = !isLive || pending !== null;
+
   return (
     <div className="min-h-screen bg-surface-soft py-12">
       <Container size="narrow">
         <Reveal>
           <div className="mx-auto max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-800">
-              <Eye className="h-3.5 w-3.5" />
-              Preview Mode
-            </div>
+            {isLive ? (
+              <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-800">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                {t("incident.secureContactBadge")}
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-800">
+                <Eye className="h-3.5 w-3.5" />
+                Preview Mode
+              </div>
+            )}
             <div className="mt-3 text-[11px] uppercase tracking-[0.2em] text-content-subtle">{t("scan.privacyBridge")}</div>
             <h1 className="mt-4 font-display text-4xl text-content sm:text-5xl">
               {car?.nickname || t("scan.landingTitleFallback")} {t("scan.landingTitleSuffix")}
@@ -157,11 +238,16 @@ export const ScanLandingScreen = () => {
               <div className="grid gap-5 sm:grid-cols-2">
                 <FieldGroup>
                   <FieldLabel htmlFor="name">{t("scan.yourNameOptional")}</FieldLabel>
-                  <TextField id="name" value={reporterName} onChange={(e) => setReporterName(e.target.value)} />
+                  <TextField
+                    id="name"
+                    value={reporterName}
+                    onChange={(e) => setReporterName(e.target.value)}
+                    maxLength={120}
+                  />
                 </FieldGroup>
                 <FieldGroup>
                   <FieldLabel htmlFor="phone">{t("scan.yourPhoneLabel")}</FieldLabel>
-                  <GermanPhoneInput id="phone" value={reporterPhone} onChange={setReporterPhone} />
+                  <GermanPhoneInput id="phone" value={reporterPhone} onChange={setReporterPhone} required={isLive} />
                 </FieldGroup>
                 <FieldGroup>
                   <FieldLabel htmlFor="message">{t("scan.privateNoteLabel")}</FieldLabel>
@@ -170,32 +256,78 @@ export const ScanLandingScreen = () => {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder={t("scan.privateNotePlaceholder")}
+                    maxLength={2000}
                   />
+                </FieldGroup>
+                <FieldGroup>
+                  <FieldLabel>
+                    <span className="inline-flex items-center gap-2">
+                      <ImageIcon className="h-3.5 w-3.5" /> {t("incident.incidentPhotosLabel")}
+                    </span>
+                  </FieldLabel>
+                  <MultiImageUploader onChange={setFiles} disabled={!isLive} />
                 </FieldGroup>
               </div>
 
-              <label className="flex items-start gap-3 rounded-2xl border border-surface-border bg-white p-4 text-[13px] text-content-muted">
-                <ShieldAlert className="mt-0.5 h-4 w-4 text-brand-700" />
-                <span>{t("scan.consentLabel")}</span>
+              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-surface-border bg-white p-4 text-[13px] text-content-muted">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  disabled={!isLive}
+                  className="mt-0.5 h-4 w-4 rounded border-surface-border text-brand-700 focus:ring-brand-500/30"
+                />
+                <span className="flex items-start gap-2">
+                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />
+                  <span>{t("incident.consentLong")}</span>
+                </span>
               </label>
 
+              {submitError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+                  {submitError}
+                </div>
+              )}
+
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button type="button" size="lg" className="w-full" onClick={() => navigate(`/incident/${token}`)}>
-                  {t("scan.alertOwner")}
-                </Button>
                 <Button
                   type="button"
                   size="lg"
                   variant="secondary"
                   className="w-full"
-                  onClick={() => navigate(`/incident/${token}`)}
+                  disabled={buttonsDisabled}
+                  onClick={() => doSubmit("alert")}
                 >
-                  {t("scan.requestMaskedCall")}
+                  {pending === "alert" ? t("scan.sending") : t("scan.alertOwner")}
+                </Button>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full"
+                  disabled={buttonsDisabled}
+                  onClick={() => doSubmit("call")}
+                >
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <PhoneCall className="h-4 w-4" />
+                    {pending === "call" ? t("incident.connecting") : t("scan.requestMaskedCall")}
+                  </span>
                 </Button>
               </div>
-              <p className="text-[13px] text-content-subtle">
-                This preview mirrors the public page. Actions open the live incident flow for full submission and call handling.
-              </p>
+
+              {isLive ? (
+                <div className="rounded-2xl border border-surface-border bg-white p-4 text-[12.5px] text-content-muted">
+                  <div className="flex items-center gap-2 font-semibold text-content">
+                    <Sparkles className="h-3.5 w-3.5 text-brand-700" /> {t("incident.whatHappensNext")}
+                  </div>
+                  <p className="mt-1">
+                    {t("incident.whatHappensNextBody", { action: t("scan.requestMaskedCall") })}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[13px] text-content-subtle">
+                  This preview mirrors the public page. Actions are disabled here — they go live when the QR is scanned.
+                </p>
+              )}
             </div>
           </div>
         </Reveal>

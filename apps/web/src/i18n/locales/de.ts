@@ -1602,6 +1602,30 @@ export const de = {
       columnValue: "Wert",
       columnUpdated: "Aktualisiert"
     }
+  },
+  landingHero: {
+    chapterLabel: "Kapitel",
+    ctaPrimary: "Car QR bestellen",
+    ctaSecondary: "Key QR bestellen",
+    chapters: {
+      arrival: {
+        headline: "Geparkt. <highlight>Geschützt.</highlight>",
+        subline: "Dein Auto bleibt erreichbar — auch wenn du es verlässt."
+      },
+      parking: {
+        headline: "Wenn jemand dein Auto <highlight>trifft</highlight> —",
+        subline: "passiert das meist, wenn du nicht in der Nähe bist."
+      },
+      reveal: {
+        headline: "Ein <highlight>QR-Code</highlight>. Lebenslange Sicherheit.",
+        subline:
+          "Anonym. DSGVO-konform. Sofortige Verbindung — ohne deine Nummer öffentlich zu zeigen."
+      },
+      walkaway: {
+        headline: "Geh <highlight>beruhigt</highlight> weg.",
+        subline: "AutoQR ist da, falls etwas passiert."
+      }
+    }
   }
 };
 
