@@ -40,12 +40,12 @@ export const GermanPhoneInput = ({
       <div
         className={clsx(
           "flex items-stretch overflow-hidden rounded-xl border transition",
-          "bg-white/[0.03] border-white/10 focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20",
-          value && !valid && "border-red-500/50 focus-within:border-red-500/60 focus-within:ring-red-500/20"
+          "border-surface-border bg-white focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20",
+          value && !valid && "border-red-300 focus-within:border-red-500 focus-within:ring-red-500/20"
         )}
       >
         <span
-          className="flex items-center gap-2 border-r border-white/10 bg-white/[0.04] px-3.5 py-3 text-[14px] font-semibold text-fog-100"
+          className="flex items-center gap-2 border-r border-surface-border bg-surface-soft px-3.5 py-3 text-[14px] font-semibold text-content"
           aria-hidden
         >
           <span
@@ -72,11 +72,11 @@ export const GermanPhoneInput = ({
           onKeyDown={(e) => {
             if (e.key === "Enter" && onEnter) onEnter();
           }}
-          className="flex-1 bg-transparent px-3.5 py-3 text-[15px] text-fog-50 placeholder:text-fog-500 outline-none"
+          className="flex-1 bg-transparent px-3.5 py-3 text-[15px] text-content placeholder:text-content-soft outline-none"
         />
       </div>
       {showValidation && (
-        <p className={clsx("mt-1.5 text-[12px]", value && !valid ? "text-red-300" : "text-fog-400")}>{hint}</p>
+        <p className={clsx("mt-1.5 text-[12px]", value && !valid ? "text-red-600" : "text-content-subtle")}>{hint}</p>
       )}
     </div>
   );

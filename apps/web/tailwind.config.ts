@@ -23,9 +23,9 @@ const config: Config = {
           600: "#3D3D44"
         },
         accent: {
-          DEFAULT: "#E9C79A",
-          soft: "#2A221A",
-          muted: "#C9A982"
+          DEFAULT: "#1D4ED8",
+          soft: "#DBEAFE",
+          muted: "#1E3A8A"
         },
         brand: {
           50: "#EFF4FF",
@@ -46,10 +46,10 @@ const config: Config = {
           border: "#E5E7EB"
         },
         content: {
-          DEFAULT: "#0F172A",
-          muted: "#475569",
-          subtle: "#64748B",
-          soft: "#94A3B8"
+          DEFAULT: "#111827",
+          muted: "#6B7280",
+          subtle: "#6B7280",
+          soft: "#9CA3AF"
         },
         action: "#dc2626"
       },
@@ -95,7 +95,7 @@ const config: Config = {
         "grid-lines":
           "linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)",
         "radial-fade":
-          "radial-gradient(ellipse at top, rgba(233,199,154,0.08), transparent 60%)",
+          "radial-gradient(ellipse at top, rgba(29,78,216,0.10), transparent 60%)",
         "brand-fade":
           "radial-gradient(ellipse at top, rgba(59,124,246,0.12), transparent 60%)",
         "brand-soft":

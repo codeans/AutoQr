@@ -38,10 +38,11 @@ const envSchema = z.object({
 });
 
 const parsed = envSchema.parse(process.env);
+const corsOriginsRaw = parsed.CORS_ORIGINS || process.env.CORS_ORIGIN || "";
 
 export const env = {
   ...parsed,
-  CORS_ORIGIN_LIST: [parsed.CLIENT_URL, ...parsed.CORS_ORIGINS.split(",")]
+  CORS_ORIGIN_LIST: [parsed.CLIENT_URL, ...corsOriginsRaw.split(",")]
     .map((entry) => entry.trim())
     .filter(Boolean),
   UPLOAD_DIR_ABSOLUTE: path.resolve(parsed.UPLOAD_DIR)

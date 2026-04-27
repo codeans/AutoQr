@@ -13,7 +13,8 @@ import { api } from "../lib/api";
 
 export const IncidentPage = () => {
   const { t } = useTranslation();
-  const { token = "" } = useParams();
+  const { token, qrId } = useParams();
+  const publicToken = token ?? qrId ?? "";
   const [reporterName, setReporterName] = useState("");
   const [reporterPhone, setReporterPhone] = useState("");
   const [message, setMessage] = useState("");
@@ -26,11 +27,11 @@ export const IncidentPage = () => {
 
   useEffect(() => {
     api
-      .get(`/public/incident/${token}`)
+      .get(`/public/incident/${publicToken}`)
       .then((res) => setQrInfo(res.data.qr))
       .catch(() => setQrInfo(null))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [publicToken]);
 
   const phoneE164 = useMemo(() => toGermanE164(reporterPhone), [reporterPhone]);
   const canSubmit = !!phoneE164 && message.trim().length >= 5 && consent && !pending;
@@ -53,7 +54,7 @@ export const IncidentPage = () => {
     setPending(true);
     try {
       const incident = await submitIncident({
-        token,
+        token: publicToken,
         reporterName,
         reporterPhoneE164: phoneE164,
         message,

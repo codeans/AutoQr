@@ -11,15 +11,15 @@ type Props = {
 };
 
 const severityStyles: Record<string, string> = {
-  info: "border-white/10 bg-white/[0.03]",
-  urgent: "border-amber-400/20 bg-amber-500/5",
-  emergency: "border-red-500/25 bg-red-500/5"
+  info: "border-surface-border bg-white",
+  urgent: "border-amber-300 bg-amber-50/70",
+  emergency: "border-red-300 bg-red-50/70"
 };
 
 const severityBadgeStyles: Record<string, string> = {
-  info: "bg-white/10 text-fog-200",
-  urgent: "bg-amber-400/20 text-amber-200",
-  emergency: "bg-red-500/20 text-red-200"
+  info: "bg-brand-100 text-brand-900",
+  urgent: "bg-amber-100 text-amber-700",
+  emergency: "bg-red-100 text-red-700"
 };
 
 export const ReasonOption = ({ reason: _reason, label, description, severity, selected, onSelect }: Props) => {
@@ -29,13 +29,13 @@ export const ReasonOption = ({ reason: _reason, label, description, severity, se
       type="button"
       onClick={onSelect}
       className={`text-left w-full rounded-2xl border p-5 transition ${severityStyles[severity]} ${
-        selected ? "ring-2 ring-accent/40 border-accent/40" : "hover:border-white/20"
+        selected ? "ring-2 ring-brand-500/30 border-brand-500 bg-brand-50" : "hover:border-brand-300 hover:bg-brand-50/30"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg text-fog-50">{label}</h3>
-          <p className="mt-1 text-[13px] text-fog-300">{description}</p>
+          <h3 className="font-display text-lg text-content">{label}</h3>
+          <p className="mt-1 text-[13px] text-content-muted">{description}</p>
         </div>
         <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${severityBadgeStyles[severity]}`}>
           {t(`scan.severity.${severity}`)}

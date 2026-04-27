@@ -80,7 +80,7 @@ export const TagsScreen = () => {
                 tag.activatedAt ? new Date(tag.activatedAt).toLocaleString() : "—",
                 <Link
                   key="u"
-                  to={`/scan/${tag.publicToken}`}
+                  to={`/scan/${tag.publicToken}?preview=1`}
                   className="text-sm text-blue-600 hover:underline"
                   target="_blank"
                   rel="noreferrer"

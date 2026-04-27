@@ -99,7 +99,7 @@ export const MultiImageUploader = ({
         {items.map((item) => (
           <figure
             key={item.id}
-            className="group relative aspect-square overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
+            className="group relative aspect-square overflow-hidden rounded-xl border border-surface-border bg-white"
           >
             <img
               src={item.url}
@@ -110,11 +110,11 @@ export const MultiImageUploader = ({
               type="button"
               aria-label={`Remove ${item.file.name}`}
               onClick={() => remove(item.id)}
-              className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-ink-950/80 text-fog-100 backdrop-blur-sm transition hover:bg-action hover:text-white"
+              className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-content/80 text-white backdrop-blur-sm transition hover:bg-action hover:text-white"
             >
               <X className="h-3.5 w-3.5" />
             </button>
-            <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-950/85 to-transparent px-2 py-1.5 text-[10.5px] text-fog-200">
+            <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-content/85 to-transparent px-2 py-1.5 text-[10.5px] text-white">
               <span className="block truncate">{item.file.name}</span>
             </figcaption>
           </figure>
@@ -124,7 +124,7 @@ export const MultiImageUploader = ({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 bg-white/[0.02] text-fog-300 transition hover:border-accent/40 hover:bg-accent/5 hover:text-accent"
+            className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-surface-border bg-surface-soft text-content-subtle transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
           >
             <ImagePlus className="h-6 w-6" />
             <span className="text-[11px] font-medium uppercase tracking-wider">Add photos</span>
@@ -133,7 +133,7 @@ export const MultiImageUploader = ({
       </div>
 
       <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[12px] text-fog-400">
+        <p className="text-[12px] text-content-subtle">
           {items.length}/{maxFiles} photos attached · JPG, PNG or WebP · up to {maxSizeMb} MB each
         </p>
         <div className="flex gap-2">
@@ -141,7 +141,7 @@ export const MultiImageUploader = ({
             type="button"
             onClick={() => cameraRef.current?.click()}
             disabled={disabled || items.length >= maxFiles}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[12.5px] text-fog-200 transition hover:border-white/25 disabled:opacity-50 sm:hidden"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-white px-3 py-1.5 text-[12.5px] text-content-muted transition hover:border-brand-300 disabled:opacity-50 sm:hidden"
           >
             <Camera className="h-3.5 w-3.5" /> Take photo
           </button>
@@ -149,7 +149,7 @@ export const MultiImageUploader = ({
       </div>
 
       {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12.5px] text-red-200">{error}</p>
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700">{error}</p>
       )}
     </div>
   );

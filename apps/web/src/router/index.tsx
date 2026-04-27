@@ -129,6 +129,7 @@ export const AppRouter = () => (
   <Routes>
     <Route path="/" element={<Navigate to={`/${currentLocale()}`} replace />} />
     <Route path="scan/:token" element={<ScanLandingScreen />} />
+    <Route path="incident/:qrId" element={<IncidentPage />} />
     <Route path="call/reporter" element={<ReporterCallScreen />} />
 
     <Route element={<MarketingLayout />}>
@@ -202,8 +203,10 @@ export const AppRouter = () => (
       <Route path="tags" element={<TagsInventoryPage />} />
       <Route path="activations" element={<ActivationRecordsPage />} />
       <Route path="qrs" element={<Navigate to="/admin/tags" replace />} />
+      <Route path="qr" element={<Navigate to="/admin/tags" replace />} />
       <Route path="incidents" element={<IncidentsPage />} />
       <Route path="scan-alerts" element={<ScanAlertsPage />} />
+      <Route path="cms" element={<Navigate to="/admin/content" replace />} />
       <Route path="calls" element={<CallsPage />} />
       <Route path="shipments" element={<ShipmentsPage />} />
       <Route path="consent" element={<ConsentPage />} />
