@@ -15,6 +15,47 @@ import {
 } from "../models/ActivationRecord.js";
 import { hashPassword } from "../utils/crypto.js";
 
+const closeDuplicateLiveCalls = async () => {
+  const liveStatuses = ["ringing", "accepted", "connected"];
+  const duplicates = await CallSessionModel.aggregate<{
+    _id: { incidentId: unknown; ownerUserId: unknown };
+    ids: unknown[];
+    count: number;
+  }>([
+    { $match: { status: { $in: liveStatuses } } },
+    { $sort: { createdAt: -1 } },
+    {
+      $group: {
+        _id: { incidentId: "$incidentId", ownerUserId: "$ownerUserId" },
+        ids: { $push: "$_id" },
+        count: { $sum: 1 }
+      }
+    },
+    { $match: { count: { $gt: 1 } } }
+  ]);
+
+  let closed = 0;
+  for (const group of duplicates) {
+    const staleIds = group.ids.slice(1);
+    if (!staleIds.length) continue;
+    const result = await CallSessionModel.updateMany(
+      { _id: { $in: staleIds }, status: { $in: liveStatuses } },
+      {
+        $set: {
+          status: "cancelled",
+          endedAt: new Date(),
+          endReason: "duplicate_live_session_closed"
+        }
+      }
+    );
+    closed += result.modifiedCount;
+  }
+
+  if (closed > 0) {
+    console.log(`Closed duplicate live call sessions: ${closed}`);
+  }
+};
+
 const syncAllIndexes = async () => {
   const models = [
     UserModel,
@@ -76,6 +117,7 @@ const seedAdminIfRequested = async () => {
 
 const run = async () => {
   await connectDatabase();
+  await closeDuplicateLiveCalls();
   await syncAllIndexes();
   await seedAdminIfRequested();
   console.log("Database migration complete.");

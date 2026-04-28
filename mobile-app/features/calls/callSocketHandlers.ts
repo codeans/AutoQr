@@ -153,10 +153,18 @@ export function useCallSocketHandlers(): void {
       }
     };
 
-    const onCancelled = () => {
+    const onCancelled = (payload?: { callId?: string }) => {
       clearRingingTimer();
+      const state = useCallStore.getState();
+      if (
+        payload?.callId &&
+        state.activeCallId === payload.callId &&
+        (state.status === "connecting" || state.status === "active")
+      ) {
+        return;
+      }
       void stopIncomingCallAlerting();
-      const callId = useCallStore.getState().incoming?.callId;
+      const callId = payload?.callId ?? state.incoming?.callId;
       if (callId) void nativeCallService.endIncomingCall(callId);
       setEndReason("reporter_cancelled");
       reset();

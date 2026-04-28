@@ -26,6 +26,7 @@ async function refreshIncomingForAccept(incoming: IncomingCall): Promise<Incomin
 export function useCallActions() {
   const incoming = useCallStore((s) => s.incoming);
   const setStatus = useCallStore((s) => s.setStatus);
+  const setActive = useCallStore((s) => s.setActive);
   const markAudioConnected = useCallStore((s) => s.markAudioConnected);
   const setEndReason = useCallStore((s) => s.setEndReason);
   const reset = useCallStore((s) => s.reset);
@@ -56,32 +57,25 @@ export function useCallActions() {
       }
 
       await stopIncomingCallAlerting();
-
-      const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
-      const acceptResult = await callsService.accept(liveIncoming.callId, platform).catch(() => null);
-      const resolvedIncoming = acceptResult?.call?.reporterSocketId
-        ? {
-            ...useCallStore.getState().incoming!,
-            reporterSocketId: acceptResult.call.reporterSocketId
-          }
-        : useCallStore.getState().incoming ?? liveIncoming;
-      useCallStore.getState().setIncoming(resolvedIncoming);
-
       const socket = await waitForSocketConnection();
       if (!socket) {
         setStatus("failed");
         setEndReason("network_error");
         return;
       }
+      setActive({
+        callId: liveIncoming.callId,
+        remoteSocketId: liveIncoming.reporterSocketId ?? null
+      });
 
-      // Eagerly open the mic so the accepted-state transition has an RTCPeerConnection to
-      // hand off to — the socket handler `onAccepted` will re-run initializeCall if needed
-      // but double-init is idempotent because initializeCall tears down first.
+      const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
+      // Bind WebRTC signaling before REST accept emits `call_accepted`; otherwise the
+      // reporter can send an offer before this device has an offer listener attached.
       const audioReady = await webrtcService
         .initializeCall(
           {
             callId: liveIncoming.callId,
-            remoteSocketId: resolvedIncoming.reporterSocketId ?? null,
+            remoteSocketId: liveIncoming.reporterSocketId ?? null,
             role: "callee"
           },
           {
@@ -95,12 +89,30 @@ export function useCallActions() {
       if (!audioReady) {
         markAudioConnected(false);
       }
+      const acceptResult = await callsService.accept(liveIncoming.callId, platform, socket.id).catch(() => null);
+      if (!acceptResult?.ok) {
+        await webrtcService.cleanup().catch(() => undefined);
+        setStatus("failed");
+        setEndReason("accept_failed");
+        return;
+      }
+      const resolvedIncoming = acceptResult.call?.reporterSocketId
+        ? {
+            ...useCallStore.getState().incoming!,
+            reporterSocketId: acceptResult.call.reporterSocketId
+          }
+        : useCallStore.getState().incoming ?? liveIncoming;
+      useCallStore.getState().setIncoming(resolvedIncoming);
+      setActive({
+        callId: liveIncoming.callId,
+        remoteSocketId: resolvedIncoming.reporterSocketId ?? null
+      });
       // REST `/accept` already transitions call state server-side and emits socket events.
       // Emitting CALL_ACCEPT again from client can duplicate acceptance/signaling.
     } finally {
       acceptingCallId = null;
     }
-  }, [markAudioConnected, reset, setEndReason, setStatus]);
+  }, [markAudioConnected, reset, setActive, setEndReason, setStatus]);
 
   const accept = useCallback(() => {
     void acceptIncoming(useCallStore.getState().incoming);

@@ -6,6 +6,7 @@
  * The rest of the app — socket signaling, call lifecycle, UI — is wired to
  * this abstraction, so enabling real audio is a single-file swap.
  */
+import { config } from "@/constants/config";
 
 type PeerEvents = {
   onLocalOffer?: (offer: unknown) => void;
@@ -37,7 +38,6 @@ async function loadWebRtc(): Promise<WebRtcModule | null> {
   return cachedModule;
 }
 
-const DEFAULT_ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
 const DEFAULT_AUDIO_CONSTRAINTS = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -48,6 +48,7 @@ const DEFAULT_AUDIO_CONSTRAINTS = {
 export class PeerConnection {
   private pc: any = null;
   private localStream: any = null;
+  private pendingIceCandidates: unknown[] = [];
   private events: PeerEvents;
   private available = false;
 
@@ -62,7 +63,7 @@ export class PeerConnection {
       return false;
     }
     this.available = true;
-    this.pc = new mod.RTCPeerConnection({ iceServers: DEFAULT_ICE_SERVERS });
+    this.pc = new mod.RTCPeerConnection({ iceServers: config.webRtcIceServers });
 
     this.pc.onicecandidate = (event: { candidate: unknown | null }) => {
       if (event.candidate) this.events.onLocalIceCandidate?.(event.candidate);
@@ -105,6 +106,7 @@ export class PeerConnection {
     const mod = await loadWebRtc();
     if (!this.pc || !mod) return;
     await this.pc.setRemoteDescription(new mod.RTCSessionDescription(offer as any));
+    await this.flushPendingIceCandidates();
     const answer = await this.pc.createAnswer();
     await this.pc.setLocalDescription(answer);
     this.events.onLocalAnswer?.(answer);
@@ -114,15 +116,27 @@ export class PeerConnection {
     const mod = await loadWebRtc();
     if (!this.pc || !mod) return;
     await this.pc.setRemoteDescription(new mod.RTCSessionDescription(answer as any));
+    await this.flushPendingIceCandidates();
   }
 
   async addIceCandidate(candidate: unknown): Promise<void> {
     const mod = await loadWebRtc();
     if (!this.pc || !mod || !candidate) return;
+    if (!this.pc.remoteDescription) {
+      this.pendingIceCandidates.push(candidate);
+      return;
+    }
     try {
       await this.pc.addIceCandidate(new mod.RTCIceCandidate(candidate as any));
     } catch (err) {
       this.events.onError?.(err);
+    }
+  }
+
+  private async flushPendingIceCandidates(): Promise<void> {
+    const candidates = this.pendingIceCandidates.splice(0);
+    for (const candidate of candidates) {
+      await this.addIceCandidate(candidate);
     }
   }
 
@@ -145,5 +159,6 @@ export class PeerConnection {
     }
     this.pc = null;
     this.localStream = null;
+    this.pendingIceCandidates = [];
   }
 }

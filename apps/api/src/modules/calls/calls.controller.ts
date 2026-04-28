@@ -3,11 +3,12 @@ import { z } from "zod";
 import { CallSessionModel } from "../../models/CallSession.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
-import { emitToIncidentRoom, emitToUser } from "../../realtime/socket.js";
+import { emitToIncidentRoom, emitToUser, emitToUserExcept, getPreferredUserSocketId } from "../../realtime/socket.js";
 
 const callActionSchema = z.object({
   reason: z.string().max(200).optional(),
-  platform: z.enum(["web", "android", "ios"]).optional()
+  platform: z.enum(["web", "android", "ios"]).optional(),
+  ownerSocketId: z.string().min(1).optional()
 });
 
 const canAccept = (status: string) => status === "ringing" || status === "accepted" || status === "connected";
@@ -30,6 +31,7 @@ export const acceptCall = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const wasRinging = call.status === "ringing";
+  const ownerSocketId = getPreferredUserSocketId(String(call.ownerUserId), payload.ownerSocketId);
   call.status = "accepted";
   call.ownerPlatform = payload.platform ?? call.ownerPlatform ?? "web";
   if (!call.startedAt) call.startedAt = new Date();
@@ -39,17 +41,20 @@ export const acceptCall = asyncHandler(async (req: Request, res: Response) => {
     callId: call.id,
     incidentId: String(call.incidentId),
     status: call.status,
+    ownerSocketId,
     reporterSocketId: call.reporterSessionId || ""
   };
 
   if (wasRinging) {
     emitToIncidentRoom(String(call.incidentId), "call_accepted", {
       callId: call.id,
-      ownerSocketId: "",
+      ownerSocketId,
       reporterSocketId: call.reporterSessionId || ""
     });
     emitToIncidentRoom(String(call.incidentId), "call_started", { callId: call.id });
-    emitToUser(String(call.ownerUserId), "call_cancelled", { callId: call.id });
+    if (ownerSocketId) {
+      emitToUserExcept(String(call.ownerUserId), ownerSocketId, "call_cancelled", { callId: call.id });
+    }
   }
 
   res.json({ ok: true, call: result });

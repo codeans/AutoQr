@@ -35,6 +35,7 @@ type CallMutationResponse = {
     incidentId?: string;
     status: CallStatus | string;
     reason?: string;
+    ownerSocketId?: string;
     reporterSocketId?: string;
   };
 };
@@ -42,8 +43,8 @@ type CallMutationResponse = {
 export const callsService = {
   list: () => apiClient.get<{ calls: CallHistoryItem[] }>("/owner/calls"),
   get: (callId: string) => apiClient.get<{ call: import("@/types/call").IncomingCall }>(`/calls/${callId}`),
-  accept: (callId: string, platform: "ios" | "android" | "web") =>
-    apiClient.post<CallMutationResponse>(`/calls/${callId}/accept`, { platform }),
+  accept: (callId: string, platform: "ios" | "android" | "web", ownerSocketId?: string) =>
+    apiClient.post<CallMutationResponse>(`/calls/${callId}/accept`, { platform, ownerSocketId }),
   decline: (callId: string, reason?: string) =>
     apiClient.post<CallMutationResponse>(`/calls/${callId}/decline`, reason ? { reason } : {}),
   missed: (callId: string, reason = "timeout") =>

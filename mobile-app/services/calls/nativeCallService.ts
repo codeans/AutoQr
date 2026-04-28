@@ -274,7 +274,9 @@ export const nativeCallService = {
     await setupCallKeep();
     const RNCallKeep = getCallKeep();
     if (!RNCallKeep) return false;
-    const uuid = rememberIncoming(incoming);
+    const uuid = callUuidFromId(incoming.callId);
+    if (incomingByUuid.has(uuid)) return true;
+    incomingByUuid.set(uuid, incoming);
     RNCallKeep.displayIncomingCall(
       uuid,
       incoming.reporterPhone || incoming.callerPhone || "AutoQr caller",

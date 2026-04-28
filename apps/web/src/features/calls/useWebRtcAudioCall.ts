@@ -24,6 +24,7 @@ export const useWebRtcAudioCall = (socket: Socket | null) => {
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
+  const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const [status, setStatus] = useState<WebRtcCallStatus>("idle");
   const [seconds, setSeconds] = useState(0);
@@ -99,6 +100,10 @@ export const useWebRtcAudioCall = (socket: Socket | null) => {
     async (targetSocketId: string, offer: RTCSessionDescriptionInit, callId: string) => {
       const peer = await createPeer(targetSocketId, callId);
       await peer.setRemoteDescription(offer);
+      const pending = pendingIceRef.current.splice(0);
+      for (const candidate of pending) {
+        await peer.addIceCandidate(candidate).catch(() => undefined);
+      }
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);
       socket?.emit("webrtc_answer", { targetSocketId, answer, callId });
@@ -109,14 +114,22 @@ export const useWebRtcAudioCall = (socket: Socket | null) => {
 
   const applyAnswer = useCallback(async (answer: RTCSessionDescriptionInit) => {
     await peerRef.current?.setRemoteDescription(answer);
+    const pending = pendingIceRef.current.splice(0);
+    for (const candidate of pending) {
+      await peerRef.current?.addIceCandidate(candidate).catch(() => undefined);
+    }
     setStatus("connected");
   }, []);
 
   const addIce = useCallback(async (candidate: RTCIceCandidateInit) => {
     try {
+      if (peerRef.current && !peerRef.current.remoteDescription) {
+        pendingIceRef.current.push(candidate);
+        return;
+      }
       await peerRef.current?.addIceCandidate(candidate);
     } catch {
-      /* candidate may arrive before remote description — safe to ignore */
+      /* remote peer can resend candidates after renegotiation/reconnect */
     }
   }, []);
 
@@ -138,6 +151,7 @@ export const useWebRtcAudioCall = (socket: Socket | null) => {
     }
     peerRef.current?.close();
     peerRef.current = null;
+    pendingIceRef.current = [];
     setMuted(false);
     setStatus((prev) =>
       prev === "rejected" || prev === "missed" || prev === "permission_denied" || prev === "failed" ? prev : "ended"

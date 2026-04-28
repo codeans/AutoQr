@@ -39,4 +39,15 @@ const callSessionSchema = new Schema(
   { timestamps: true }
 );
 
+callSessionSchema.index(
+  { incidentId: 1, ownerUserId: 1 },
+  {
+    name: "uniq_live_call_per_incident_owner",
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["ringing", "accepted", "connected"] }
+    }
+  }
+);
+
 export const CallSessionModel = mongoose.model("CallSession", callSessionSchema);

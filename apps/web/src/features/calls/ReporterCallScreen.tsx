@@ -99,6 +99,11 @@ export const ReporterCallScreen = () => {
       setCallId(payload.callId);
       setOwnerSocketId(payload.ownerSocketId);
       setReporterStatus("connecting");
+      if (!payload.ownerSocketId) {
+        setReporterStatus("error");
+        setErrorMessage(signalingRef.current.t("call.reporter.couldNotNegotiate"));
+        return;
+      }
       const { createOffer: offer, t: tr } = signalingRef.current;
       offer(payload.ownerSocketId, payload.callId).catch(() => {
         setReporterStatus("error");

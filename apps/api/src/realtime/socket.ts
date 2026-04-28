@@ -50,6 +50,22 @@ const isSocketForCallOwner = (socketId: string, ownerUserId: string) => {
   return !!targetAuth?.userId && targetAuth.userId === ownerUserId;
 };
 
+export const getPreferredUserSocketId = (userId: string, preferredSocketId?: string) => {
+  if (preferredSocketId && isSocketForCallOwner(preferredSocketId, userId)) {
+    return preferredSocketId;
+  }
+  return getOnlineUserSockets(userId).values().next().value ?? "";
+};
+
+export const emitToUserExcept = (userId: string, excludedSocketId: string, event: string, payload: unknown) => {
+  if (!ioInstance) return;
+  for (const socketId of getOnlineUserSockets(userId)) {
+    if (socketId !== excludedSocketId) {
+      ioInstance.to(socketId).emit(event, payload);
+    }
+  }
+};
+
 const callRequestedSchema = z.object({
   ownerUserId: z.string().min(1),
   incidentId: z.string().min(1),
@@ -222,11 +238,15 @@ export const createSocketServer = (server: HttpServer) => {
       }
       // Idempotency guard: if the reporter retries while a call is still live,
       // reuse the existing session instead of creating duplicate ringing calls.
-      const existingLiveCall = await CallSessionModel.findOne({
-        incidentId,
-        ownerUserId,
-        status: { $in: ["ringing", "accepted", "connected"] }
-      }).sort({ createdAt: -1 });
+      const existingLiveCall = await CallSessionModel.findOneAndUpdate(
+        {
+          incidentId,
+          ownerUserId,
+          status: { $in: ["ringing", "accepted", "connected"] }
+        },
+        { $set: { reporterSessionId: socket.id } },
+        { new: true, sort: { createdAt: -1 } }
+      );
       if (existingLiveCall) {
         const ringingPayload = await buildIncomingCallPayload(existingLiveCall, incidentId, existingLiveCall.reporterSessionId || socket.id);
         socket.emit("call_requested", {
@@ -246,15 +266,47 @@ export const createSocketServer = (server: HttpServer) => {
         });
         return;
       }
-      const call = await CallSessionModel.create({
-        incidentId,
-        ownerUserId,
-        reporterSessionId: socket.id,
-        reporterPhone: incident.reporterPhone || "",
-        reporterPlatform: platform,
-        status: "ringing",
-        pushStatus: "pending"
-      });
+      let call;
+      try {
+        call = await CallSessionModel.create({
+          incidentId,
+          ownerUserId,
+          reporterSessionId: socket.id,
+          reporterPhone: incident.reporterPhone || "",
+          reporterPlatform: platform,
+          status: "ringing",
+          pushStatus: "pending"
+        });
+      } catch (err) {
+        if ((err as { code?: number })?.code !== 11000) throw err;
+        const racedCall = await CallSessionModel.findOneAndUpdate(
+          {
+            incidentId,
+            ownerUserId,
+            status: { $in: ["ringing", "accepted", "connected"] }
+          },
+          { $set: { reporterSessionId: socket.id } },
+          { new: true, sort: { createdAt: -1 } }
+        );
+        if (!racedCall) throw err;
+        const ringingPayload = await buildIncomingCallPayload(racedCall, incidentId, racedCall.reporterSessionId || socket.id);
+        socket.emit("call_requested", {
+          callId: racedCall.id,
+          status: racedCall.status || "ringing",
+          ownerOnline: getOnlineUserSockets(ownerUserId).size > 0,
+          delivery: "existing_session"
+        });
+        if (getOnlineUserSockets(ownerUserId).size > 0) {
+          ioInstance?.to(`user:${ownerUserId}`).emit("call:incoming", ringingPayload);
+        }
+        logger.info("call.reused_raced_session", {
+          callId: racedCall.id,
+          incidentId,
+          ownerUserId,
+          reporterSocketId: socket.id
+        });
+        return;
+      }
       logger.info("call.created", { callId: call.id, incidentId, ownerUserId, reporterSocketId: socket.id });
       const ownerOnline = getOnlineUserSockets(ownerUserId).size > 0;
       const ringingPayload = await buildIncomingCallPayload(call, incidentId, socket.id);
