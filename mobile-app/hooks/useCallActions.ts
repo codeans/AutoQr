@@ -11,6 +11,7 @@ import { checkMicrophonePermission } from "@/services/permissions/permissionServ
 import { callsService } from "@/services/api/calls.service";
 
 const isLiveCallStatus = (status?: string) => !status || status === "ringing" || status === "accepted" || status === "connected";
+let acceptingCallId: string | null = null;
 
 async function refreshIncomingForAccept(incoming: IncomingCall): Promise<IncomingCall | null> {
   try {
@@ -31,72 +32,74 @@ export function useCallActions() {
 
   const acceptIncoming = useCallback(async (targetIncoming: IncomingCall | null | undefined) => {
     if (!targetIncoming) return;
+    if (acceptingCallId === targetIncoming.callId) return;
+    acceptingCallId = targetIncoming.callId;
+    try {
+      setStatus("connecting");
+      const liveIncoming = await refreshIncomingForAccept(targetIncoming);
+      if (!liveIncoming) {
+        setStatus("missed");
+        setEndReason("timeout");
+        await stopIncomingCallAlerting();
+        reset();
+        return;
+      }
+      useCallStore.getState().setIncoming(liveIncoming);
+      setStatus("connecting");
 
-    setStatus("connecting");
-    const liveIncoming = await refreshIncomingForAccept(targetIncoming);
-    if (!liveIncoming) {
-      setStatus("missed");
-      setEndReason("timeout");
+      const micStatus = await checkMicrophonePermission();
+      if (micStatus !== "granted") {
+        setStatus("failed");
+        setEndReason("permission_denied");
+        router.push("/permissions/microphone");
+        return;
+      }
+
       await stopIncomingCallAlerting();
-      reset();
-      return;
+
+      const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
+      const acceptResult = await callsService.accept(liveIncoming.callId, platform).catch(() => null);
+      const resolvedIncoming = acceptResult?.call?.reporterSocketId
+        ? {
+            ...useCallStore.getState().incoming!,
+            reporterSocketId: acceptResult.call.reporterSocketId
+          }
+        : useCallStore.getState().incoming ?? liveIncoming;
+      useCallStore.getState().setIncoming(resolvedIncoming);
+
+      const socket = await waitForSocketConnection();
+      if (!socket) {
+        setStatus("failed");
+        setEndReason("network_error");
+        return;
+      }
+
+      // Eagerly open the mic so the accepted-state transition has an RTCPeerConnection to
+      // hand off to — the socket handler `onAccepted` will re-run initializeCall if needed
+      // but double-init is idempotent because initializeCall tears down first.
+      const audioReady = await webrtcService
+        .initializeCall(
+          {
+            callId: liveIncoming.callId,
+            remoteSocketId: resolvedIncoming.reporterSocketId ?? null,
+            role: "callee"
+          },
+          {
+            onConnected: () => markAudioConnected(true),
+            onDisconnected: () => markAudioConnected(false),
+            onError: () => markAudioConnected(false)
+          }
+        )
+        .catch(() => false);
+
+      if (!audioReady) {
+        markAudioConnected(false);
+      }
+      // REST `/accept` already transitions call state server-side and emits socket events.
+      // Emitting CALL_ACCEPT again from client can duplicate acceptance/signaling.
+    } finally {
+      acceptingCallId = null;
     }
-    useCallStore.getState().setIncoming(liveIncoming);
-    setStatus("connecting");
-
-    const micStatus = await checkMicrophonePermission();
-    if (micStatus !== "granted") {
-      setStatus("failed");
-      setEndReason("permission_denied");
-      router.push("/permissions/microphone");
-      return;
-    }
-
-    await stopIncomingCallAlerting();
-
-    const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
-    const acceptResult = await callsService.accept(liveIncoming.callId, platform).catch(() => null);
-    const resolvedIncoming = acceptResult?.call?.reporterSocketId
-      ? {
-          ...useCallStore.getState().incoming!,
-          reporterSocketId: acceptResult.call.reporterSocketId
-        }
-      : useCallStore.getState().incoming ?? liveIncoming;
-    useCallStore.getState().setIncoming(resolvedIncoming);
-
-    const socket = await waitForSocketConnection();
-    if (!socket) {
-      setStatus("failed");
-      setEndReason("network_error");
-      return;
-    }
-
-    // Eagerly open the mic so the accepted-state transition has an RTCPeerConnection to
-    // hand off to — the socket handler `onAccepted` will re-run initializeCall if needed
-    // but double-init is idempotent because initializeCall tears down first.
-    const audioReady = await webrtcService
-      .initializeCall(
-        {
-          callId: liveIncoming.callId,
-          remoteSocketId: resolvedIncoming.reporterSocketId ?? null,
-          role: "callee"
-        },
-        {
-          onConnected: () => markAudioConnected(true),
-          onDisconnected: () => markAudioConnected(false),
-          onError: () => markAudioConnected(false)
-        }
-      )
-      .catch(() => false);
-
-    if (!audioReady) {
-      markAudioConnected(false);
-    }
-
-    socket.emit(CallEvents.CALL_ACCEPT, {
-      callId: liveIncoming.callId,
-      platform
-    });
   }, [markAudioConnected, reset, setEndReason, setStatus]);
 
   const accept = useCallback(() => {

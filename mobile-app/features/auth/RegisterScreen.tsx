@@ -36,7 +36,7 @@ export function RegisterScreen() {
         address: values.address?.trim() || undefined,
         password: values.password
       });
-      router.replace("/(tabs)/dashboard");
+      router.replace("/");
     } catch (err) {
       pushToast({
         title: "Couldn't create account",

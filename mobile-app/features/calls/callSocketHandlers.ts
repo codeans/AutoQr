@@ -22,6 +22,7 @@ export function useCallSocketHandlers(): void {
   const status = useAuthStore((s) => s.status);
   const setActive = useCallStore((s) => s.setActive);
   const setStatus = useCallStore((s) => s.setStatus);
+  const markConnected = useCallStore((s) => s.markConnected);
   const setEndReason = useCallStore((s) => s.setEndReason);
   const markAudioConnected = useCallStore((s) => s.markAudioConnected);
   const reset = useCallStore((s) => s.reset);
@@ -52,6 +53,13 @@ export function useCallSocketHandlers(): void {
 
     const onIncoming = (payload: IncomingCall) => {
       if (!payload?.callId) return;
+      const callState = useCallStore.getState();
+      if (
+        (callState.status === "connecting" || callState.status === "active") &&
+        (callState.activeCallId === payload.callId || callState.incoming?.callId === payload.callId)
+      ) {
+        return;
+      }
       if (lastIncomingCallIdRef.current === payload.callId || isCallHandled(payload.callId)) return;
       lastIncomingCallIdRef.current = payload.callId;
       clearRingingTimer();
@@ -92,6 +100,8 @@ export function useCallSocketHandlers(): void {
           ? reporterPeer
           : payload.ownerSocketId ?? reporterPeer ?? null;
       setActive({ callId: payload.callId, remoteSocketId: remote });
+      setStatus("active");
+      markConnected();
 
       const sameCall =
         useCallStore.getState().activeCallId === payload.callId ||
@@ -105,7 +115,11 @@ export function useCallSocketHandlers(): void {
         .initializeCall(
           { callId: payload.callId, remoteSocketId: remote, role: "callee" },
           {
-            onConnected: () => markAudioConnected(true),
+            onConnected: () => {
+              markAudioConnected(true);
+              setStatus("active");
+              markConnected();
+            },
             onDisconnected: () => markAudioConnected(false),
             onError: () => markAudioConnected(false)
           }
@@ -160,7 +174,6 @@ export function useCallSocketHandlers(): void {
 
     const cleanup = registerSocketHandlers({
       [CallEvents.CALL_INCOMING]: onIncoming,
-      [CallEvents.CALL_RINGING]: onIncoming,
       [CallEvents.CALLBACK_INCOMING]: onIncoming,
       [CallEvents.CALL_MISSED]: onMissed,
       [CallEvents.CALLBACK_MISSED]: onMissed,
@@ -178,5 +191,5 @@ export function useCallSocketHandlers(): void {
       clearRingingTimer();
       cleanup();
     };
-  }, [status, setActive, setStatus, setEndReason, markAudioConnected, reset]);
+  }, [status, setActive, setStatus, markConnected, setEndReason, markAudioConnected, reset]);
 }

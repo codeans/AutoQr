@@ -51,6 +51,7 @@ export const ReporterCallScreen = () => {
   const phoneHint = params.get("phone") || "";
   const autoStart = params.get("autoStart") === "1";
   const autoStartedRef = useRef(false);
+  const requestingCallRef = useRef(false);
 
   const [view, setView] = useState<ReporterIncidentView | null>(null);
   const [reporterStatus, setReporterStatus] = useState<ReporterStatus>("loading");
@@ -92,6 +93,7 @@ export const ReporterCallScreen = () => {
     const onCallRequested = ({ callId: id }: { callId: string; ownerOnline?: boolean }) => {
       setCallId(id);
       setReporterStatus("ringing");
+      requestingCallRef.current = false;
     };
     const onCallAccepted = (payload: { callId: string; ownerSocketId: string }) => {
       setCallId(payload.callId);
@@ -178,16 +180,23 @@ export const ReporterCallScreen = () => {
 
   const startCall = async () => {
     if (!socket) return;
+    if (requestingCallRef.current) return;
+    if (reporterStatus === "ringing" || reporterStatus === "connecting" || reporterStatus === "in_call") return;
+    requestingCallRef.current = true;
     setErrorMessage("");
     setReporterStatus("requesting_mic");
     try {
       await ensureMicrophone();
     } catch {
       setReporterStatus("mic_denied");
+      requestingCallRef.current = false;
       return;
     }
     setReporterStatus("connecting");
     signaling.requestCall(socket, { ownerUserId, incidentId, platform: "web" });
+    window.setTimeout(() => {
+      requestingCallRef.current = false;
+    }, 1000);
   };
 
   useEffect(() => {
@@ -197,6 +206,7 @@ export const ReporterCallScreen = () => {
   }, [autoStart, reporterStatus, view]);
 
   const endCall = () => {
+    requestingCallRef.current = false;
     if (socket && callId) {
       if (reporterStatus === "ringing") {
         signaling.cancelCall(socket, callId);
@@ -209,6 +219,7 @@ export const ReporterCallScreen = () => {
   };
 
   const retry = () => {
+    requestingCallRef.current = false;
     reset();
     setStatus("idle");
     setErrorMessage("");

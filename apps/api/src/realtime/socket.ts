@@ -220,6 +220,32 @@ export const createSocketServer = (server: HttpServer) => {
       if (!incident || String(incident.userId) !== ownerUserId) {
         return;
       }
+      // Idempotency guard: if the reporter retries while a call is still live,
+      // reuse the existing session instead of creating duplicate ringing calls.
+      const existingLiveCall = await CallSessionModel.findOne({
+        incidentId,
+        ownerUserId,
+        status: { $in: ["ringing", "accepted", "connected"] }
+      }).sort({ createdAt: -1 });
+      if (existingLiveCall) {
+        const ringingPayload = await buildIncomingCallPayload(existingLiveCall, incidentId, existingLiveCall.reporterSessionId || socket.id);
+        socket.emit("call_requested", {
+          callId: existingLiveCall.id,
+          status: existingLiveCall.status || "ringing",
+          ownerOnline: getOnlineUserSockets(ownerUserId).size > 0,
+          delivery: "existing_session"
+        });
+        if (getOnlineUserSockets(ownerUserId).size > 0) {
+          ioInstance?.to(`user:${ownerUserId}`).emit("call:incoming", ringingPayload);
+        }
+        logger.info("call.reused_existing_session", {
+          callId: existingLiveCall.id,
+          incidentId,
+          ownerUserId,
+          reporterSocketId: socket.id
+        });
+        return;
+      }
       const call = await CallSessionModel.create({
         incidentId,
         ownerUserId,

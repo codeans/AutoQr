@@ -23,7 +23,7 @@ export function LoginScreen() {
     setSubmitting(true);
     try {
       await login(values.email.trim(), values.password);
-      router.replace("/(tabs)/dashboard");
+      router.replace("/");
     } catch (err) {
       pushToast({
         title: "Sign in failed",

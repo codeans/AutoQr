@@ -6,7 +6,8 @@ export default function AuthLayout() {
   const status = useAuthStore((s) => s.status);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/(tabs)/dashboard");
+    // Route through the root gate so permission onboarding can decide the next screen.
+    if (status === "authenticated") router.replace("/");
   }, [status]);
 
   return (

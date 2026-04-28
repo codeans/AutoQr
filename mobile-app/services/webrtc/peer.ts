@@ -38,6 +38,12 @@ async function loadWebRtc(): Promise<WebRtcModule | null> {
 }
 
 const DEFAULT_ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+const DEFAULT_AUDIO_CONSTRAINTS = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+  channelCount: 1
+};
 
 export class PeerConnection {
   private pc: any = null;
@@ -70,7 +76,10 @@ export class PeerConnection {
     };
 
     try {
-      this.localStream = await mod.mediaDevices.getUserMedia({ audio: true, video: false });
+      this.localStream = await mod.mediaDevices.getUserMedia({
+        audio: DEFAULT_AUDIO_CONSTRAINTS,
+        video: false
+      });
       this.localStream.getTracks().forEach((track: any) => {
         this.pc.addTrack(track, this.localStream);
       });

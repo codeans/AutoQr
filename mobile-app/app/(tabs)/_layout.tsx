@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Tabs, router } from "expo-router";
+import { Tabs, router, usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { colors } from "@/theme";
@@ -13,17 +13,22 @@ export default function TabsLayout() {
   const hydrated = usePermissionStore((s) => s.hydrated);
   const statuses = usePermissionStore((s) => s.statuses);
   const lastCheckedAt = usePermissionStore((s) => s.lastCheckedAt);
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (status === "unauthenticated") router.replace("/(auth)/login");
+    if (status === "unauthenticated") {
+      if (!pathname.startsWith("/(auth)")) router.replace("/(auth)/login");
+      return;
+    }
     if (status === "authenticated" && hydrated) {
       if (!lastCheckedAt) return;
       const hasRequiredPermissions = hasCriticalPermissions(statuses);
       if (!hasRequiredPermissions) {
+        if (pathname.startsWith("/permissions")) return;
         router.replace("/permissions" as never);
       }
     }
-  }, [hydrated, lastCheckedAt, status, statuses]);
+  }, [hydrated, lastCheckedAt, pathname, status, statuses]);
 
   return (
     <Tabs

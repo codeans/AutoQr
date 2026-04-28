@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { View } from "react-native";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { Loader } from "@/components/ui";
 import { useAuthStore } from "@/stores/auth.store";
 import { usePermissionStore } from "@/stores/permissionStore";
@@ -12,19 +12,33 @@ export default function IndexGate() {
   const hydrated = usePermissionStore((s) => s.hydrated);
   const statuses = usePermissionStore((s) => s.statuses);
   const lastCheckedAt = usePermissionStore((s) => s.lastCheckedAt);
+  const pathname = usePathname();
+  const lastRedirectRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const safeReplace = (target: string) => {
+      if (pathname === target || pathname.startsWith(`${target}/`)) return;
+      if (lastRedirectRef.current === target) return;
+      lastRedirectRef.current = target;
+      router.replace(target as never);
+    };
+
     if (status === "authenticated" && hydrated) {
       if (!lastCheckedAt) return;
       const hasRequiredPermissions = hasCriticalPermissions(statuses);
       if (!hasRequiredPermissions) {
-        router.replace("/permissions" as never);
+        safeReplace("/permissions");
         return;
       }
-      router.replace("/(tabs)/dashboard");
+      safeReplace("/(tabs)/dashboard");
+      return;
     }
-    else if (status === "unauthenticated") router.replace("/(auth)/login");
-  }, [hydrated, lastCheckedAt, status, statuses]);
+    if (status === "unauthenticated") {
+      safeReplace("/(auth)/login");
+      return;
+    }
+    lastRedirectRef.current = null;
+  }, [hydrated, lastCheckedAt, pathname, status, statuses]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
