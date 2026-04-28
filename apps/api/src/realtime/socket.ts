@@ -24,6 +24,7 @@ const socketAuthById = new Map<string, SocketAuth>();
 
 let ioInstance: Server | null = null;
 const RINGING_TIMEOUT_MS = 45_000;
+const REPORTER_DISCONNECT_GRACE_MS = 12_000;
 
 const addOnlineUserSocket = (userId: string, socketId: string) => {
   const sockets = onlineUsers.get(userId) ?? new Set<string>();
@@ -473,54 +474,68 @@ export const createSocketServer = (server: HttpServer) => {
       socket.emit("call_ended", endPayload);
     });
 
-    socket.on("disconnect", async () => {
-      try {
-        const openCalls = await CallSessionModel.find({ reporterSessionId: socket.id, status: { $in: ["ringing", "accepted", "connected"] } });
-        for (const call of openCalls) {
-          const wasRinging = call.status === "ringing";
-          if (wasRinging) {
-            call.status = "missed";
-            call.endReason = "disconnect";
-          } else {
-            call.status = "ended";
-            call.endReason = "disconnect";
-            if (call.startedAt) {
-              call.duration = Math.floor((Date.now() - call.startedAt.getTime()) / 1000);
+    socket.on("disconnect", () => {
+      const disconnectedSocketId = socket.id;
+      setTimeout(() => {
+        void (async () => {
+          try {
+            // Give mobile/web clients time to reconnect and rebind reporterSessionId.
+            // Without this grace period, short network hiccups end active calls.
+            const openCalls = await CallSessionModel.find({
+              reporterSessionId: disconnectedSocketId,
+              status: { $in: ["ringing", "accepted", "connected"] }
+            });
+            for (const call of openCalls) {
+              const wasRinging = call.status === "ringing";
+              if (wasRinging) {
+                call.status = "missed";
+                call.endReason = "disconnect";
+              } else {
+                call.status = "ended";
+                call.endReason = "disconnect";
+                if (call.startedAt) {
+                  call.duration = Math.floor((Date.now() - call.startedAt.getTime()) / 1000);
+                }
+              }
+              call.endedAt = new Date();
+              await call.save();
+              const ownerUserId = String(call.ownerUserId);
+              if (getOnlineUserSockets(ownerUserId).size > 0) {
+                if (wasRinging) {
+                  ioInstance?.to(`user:${ownerUserId}`).emit("call_missed", {
+                    callId: call.id,
+                    reason: "reporter_disconnected"
+                  });
+                } else {
+                  ioInstance?.to(`user:${ownerUserId}`).emit("call_ended", {
+                    callId: call.id,
+                    duration: call.duration,
+                    reason: call.endReason
+                  });
+                }
+              }
+              if (wasRinging) {
+                try {
+                  const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
+                  await publishNotification({
+                    userId: ownerUserId,
+                    type: "MISSED_CALL",
+                    title: "Missed incident call",
+                    body: "A caller hung up before you could answer.",
+                    relatedEntityId: String(call.incidentId),
+                    data: { callId: call.id, incidentId: String(call.incidentId), type: "MISSED_CALL" },
+                    channelId: "calls"
+                  });
+                } catch (err) {
+                  logger.warn("call.missed.push_failed", { err: (err as Error)?.message });
+                }
+              }
             }
+          } catch (err) {
+            logger.warn("call.disconnect.cleanup_failed", { err: (err as Error)?.message });
           }
-          call.endedAt = new Date();
-          await call.save();
-          const ownerUserId = String(call.ownerUserId);
-          if (getOnlineUserSockets(ownerUserId).size > 0) {
-            if (wasRinging) {
-              ioInstance?.to(`user:${ownerUserId}`).emit("call_missed", {
-                callId: call.id,
-                reason: "reporter_disconnected"
-              });
-            } else {
-              ioInstance?.to(`user:${ownerUserId}`).emit("call_ended", { callId: call.id, duration: call.duration, reason: call.endReason });
-            }
-          }
-          if (wasRinging) {
-            try {
-              const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
-              await publishNotification({
-                userId: ownerUserId,
-                type: "MISSED_CALL",
-                title: "Missed incident call",
-                body: "A caller hung up before you could answer.",
-                relatedEntityId: String(call.incidentId),
-                data: { callId: call.id, incidentId: String(call.incidentId), type: "MISSED_CALL" },
-                channelId: "calls"
-              });
-            } catch (err) {
-              logger.warn("call.missed.push_failed", { err: (err as Error)?.message });
-            }
-          }
-        }
-      } catch (err) {
-        logger.warn("call.disconnect.cleanup_failed", { err: (err as Error)?.message });
-      }
+        })();
+      }, REPORTER_DISCONNECT_GRACE_MS);
       socketAuthById.delete(socket.id);
       if (auth.userId) {
         const isOffline = removeOnlineUserSocket(auth.userId, socket.id);
