@@ -36,6 +36,8 @@ export function useScrollVideo(
     let current = 0;
     let lastApplied = -1;
     let rafId = 0;
+    let targetRafId = 0;
+    let pendingTargetUpdate = false;
     let isReady = false;
     let isVisible = true;
 
@@ -46,6 +48,7 @@ export function useScrollVideo(
     const quantize = (t: number) => Math.round(t / FRAME_DURATION) * FRAME_DURATION;
 
     const computeTarget = () => {
+      pendingTargetUpdate = false;
       const y = window.scrollY;
       const dy = Math.abs(y - lastScrollY);
       lastScrollY = y;
@@ -64,6 +67,12 @@ export function useScrollVideo(
       target = progress * video.duration;
     };
 
+    const scheduleTargetUpdate = () => {
+      if (pendingTargetUpdate) return;
+      pendingTargetUpdate = true;
+      targetRafId = requestAnimationFrame(computeTarget);
+    };
+
     const onLoadedMetadata = () => {
       isReady = true;
       try {
@@ -72,7 +81,7 @@ export function useScrollVideo(
       } catch {
         // Safari may throw on early seeks; ignore.
       }
-      computeTarget();
+      scheduleTargetUpdate();
     };
 
     const tick = () => {
@@ -121,18 +130,19 @@ export function useScrollVideo(
     visibilityObserver.observe(container);
 
     video.addEventListener("loadedmetadata", onLoadedMetadata);
-    window.addEventListener("scroll", computeTarget, { passive: true });
-    window.addEventListener("resize", computeTarget);
+    window.addEventListener("scroll", scheduleTargetUpdate, { passive: true });
+    window.addEventListener("resize", scheduleTargetUpdate);
     rafId = requestAnimationFrame(tick);
 
     if (video.readyState >= 1) onLoadedMetadata();
 
     return () => {
       video.removeEventListener("loadedmetadata", onLoadedMetadata);
-      window.removeEventListener("scroll", computeTarget);
-      window.removeEventListener("resize", computeTarget);
+      window.removeEventListener("scroll", scheduleTargetUpdate);
+      window.removeEventListener("resize", scheduleTargetUpdate);
       visibilityObserver.disconnect();
       cancelAnimationFrame(rafId);
+      cancelAnimationFrame(targetRafId);
     };
   }, [videoRef, containerRef]);
 }

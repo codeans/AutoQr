@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useScroll } from "framer-motion";
+import { useScroll, useSpring } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ScrollVideoStage } from "./ScrollVideoStage";
@@ -39,6 +39,12 @@ export const ScrollVideoHero = () => {
     target: containerRef,
     offset: ["start start", "end end"]
   });
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 28,
+    mass: 0.3,
+    restDelta: 0.0005
+  });
 
   if (reduced || videoFailed) {
     return <StaticHeroFallback />;
@@ -55,8 +61,8 @@ export const ScrollVideoHero = () => {
           containerRef={containerRef}
           onError={() => setVideoFailed(true)}
         />
-        <ScrollNarrative scrollYProgress={scrollYProgress} />
-        <ScrollProgressIndicator scrollYProgress={scrollYProgress} />
+        <ScrollNarrative scrollYProgress={smoothProgress} />
+        <ScrollProgressIndicator scrollYProgress={smoothProgress} />
       </div>
     </section>
   );
