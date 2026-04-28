@@ -10,6 +10,7 @@ import { NotificationModel } from "../models/Notification.js";
 import { CarModel } from "../models/Car.js";
 import { logger } from "../utils/logger.js";
 import { maskGermanPhone } from "@autoqr/shared";
+import { buildAgoraJoinPayload, ensureAgoraFields } from "../services/agora/agora.service.js";
 
 type SocketAuth = {
   userId?: string;
@@ -77,11 +78,6 @@ const callActionSchema = z.object({
   platform: z.enum(["web", "android", "ios"]).optional()
 });
 
-const webrtcSignalSchema = z.object({
-  targetSocketId: z.string().min(1),
-  callId: z.string().min(1)
-});
-
 const callbackActionSchema = z.object({
   callbackId: z.string().min(1)
 });
@@ -91,14 +87,6 @@ const isIncidentReporterAuth = (a: SocketAuth | undefined, call: { incidentId: u
 
 const isReporterSocket = (socketId: string, auth: SocketAuth | undefined, call: any) =>
   call.reporterSessionId === socketId || isIncidentReporterAuth(auth, call);
-
-/** WebRTC peer target: stored reporter socket, current incident reporter socket, or an owner device. */
-const isValidWebrtcTarget = (call: any, targetSocketId: string) => {
-  if (targetSocketId === call.reporterSessionId) return true;
-  if (isSocketForCallOwner(targetSocketId, String(call.ownerUserId))) return true;
-  const targetAuth = socketAuthById.get(targetSocketId);
-  return isIncidentReporterAuth(targetAuth, call);
-};
 
 const getCallForSocket = async (socketId: string, callId: string) => {
   const call = await CallSessionModel.findById(callId);
@@ -111,9 +99,10 @@ const getCallForSocket = async (socketId: string, callId: string) => {
   return call;
 };
 
-const isCallActive = (status: string) => ["ringing", "accepted", "connected"].includes(status);
+const isCallActive = (status: string) => ["ringing", "accepted", "active", "connected"].includes(status);
 
 const buildIncomingCallPayload = async (call: any, incidentId: string, reporterSocketId: string) => {
+  ensureAgoraFields(call);
   const incident = await IncidentModel.findById(incidentId).lean();
   let carLabel = "";
   let vehiclePlate = "";
@@ -156,7 +145,10 @@ const buildIncomingCallPayload = async (call: any, incidentId: string, reporterS
     carLabel,
     imageCount: Array.isArray(incident?.images) ? incident?.images.length : 0,
     message: incident?.message || "",
-    platform: call.reporterPlatform || "web"
+    platform: call.reporterPlatform || "web",
+    agoraChannelName: call.agoraChannelName,
+    agoraUidCaller: call.agoraUidCaller,
+    agoraUidReceiver: call.agoraUidReceiver
   };
 };
 
@@ -218,7 +210,7 @@ export const createSocketServer = (server: HttpServer) => {
       socket.join(`incident:${auth.incidentId}`);
       logger.info("socket.incident_joined_room", { incidentId: auth.incidentId, socketId: socket.id });
       void CallSessionModel.updateMany(
-        { incidentId: auth.incidentId, status: { $in: ["ringing", "accepted", "connected"] } },
+        { incidentId: auth.incidentId, status: { $in: ["ringing", "accepted", "active", "connected"] } },
         { $set: { reporterSessionId: socket.id } }
       ).catch((err) => logger.warn("call.reporter_session_rebind_failed", { err: (err as Error)?.message }));
     }
@@ -242,18 +234,21 @@ export const createSocketServer = (server: HttpServer) => {
         {
           incidentId,
           ownerUserId,
-          status: { $in: ["ringing", "accepted", "connected"] }
+          status: { $in: ["ringing", "accepted", "active", "connected"] }
         },
         { $set: { reporterSessionId: socket.id } },
         { new: true, sort: { createdAt: -1 } }
       );
       if (existingLiveCall) {
         const ringingPayload = await buildIncomingCallPayload(existingLiveCall, incidentId, existingLiveCall.reporterSessionId || socket.id);
+        const agora = buildAgoraJoinPayload(existingLiveCall, "caller");
+        await existingLiveCall.save();
         socket.emit("call_requested", {
           callId: existingLiveCall.id,
           status: existingLiveCall.status || "ringing",
           ownerOnline: getOnlineUserSockets(ownerUserId).size > 0,
-          delivery: "existing_session"
+          delivery: "existing_session",
+          agora
         });
         if (getOnlineUserSockets(ownerUserId).size > 0) {
           ioInstance?.to(`user:${ownerUserId}`).emit("call:incoming", ringingPayload);
@@ -277,24 +272,29 @@ export const createSocketServer = (server: HttpServer) => {
           status: "ringing",
           pushStatus: "pending"
         });
+        ensureAgoraFields(call);
+        await call.save();
       } catch (err) {
         if ((err as { code?: number })?.code !== 11000) throw err;
         const racedCall = await CallSessionModel.findOneAndUpdate(
           {
-            incidentId,
-            ownerUserId,
-            status: { $in: ["ringing", "accepted", "connected"] }
-          },
+          incidentId,
+          ownerUserId,
+          status: { $in: ["ringing", "accepted", "active", "connected"] }
+        },
           { $set: { reporterSessionId: socket.id } },
           { new: true, sort: { createdAt: -1 } }
         );
         if (!racedCall) throw err;
         const ringingPayload = await buildIncomingCallPayload(racedCall, incidentId, racedCall.reporterSessionId || socket.id);
+        const agora = buildAgoraJoinPayload(racedCall, "caller");
+        await racedCall.save();
         socket.emit("call_requested", {
           callId: racedCall.id,
           status: racedCall.status || "ringing",
           ownerOnline: getOnlineUserSockets(ownerUserId).size > 0,
-          delivery: "existing_session"
+          delivery: "existing_session",
+          agora
         });
         if (getOnlineUserSockets(ownerUserId).size > 0) {
           ioInstance?.to(`user:${ownerUserId}`).emit("call:incoming", ringingPayload);
@@ -310,7 +310,8 @@ export const createSocketServer = (server: HttpServer) => {
       logger.info("call.created", { callId: call.id, incidentId, ownerUserId, reporterSocketId: socket.id });
       const ownerOnline = getOnlineUserSockets(ownerUserId).size > 0;
       const ringingPayload = await buildIncomingCallPayload(call, incidentId, socket.id);
-      socket.emit("call_requested", { callId: call.id, status: "ringing", ownerOnline, delivery: ownerOnline ? "socket_push" : "push" });
+      const callerAgora = buildAgoraJoinPayload(call, "caller");
+      socket.emit("call_requested", { callId: call.id, status: "ringing", ownerOnline, delivery: ownerOnline ? "socket_push" : "push", agora: callerAgora });
       if (ownerOnline) {
         ioInstance?.to(`user:${ownerUserId}`).emit("call:incoming", ringingPayload);
         ioInstance?.to(`user:${ownerUserId}`).emit("call_ringing", ringingPayload);
@@ -341,6 +342,9 @@ export const createSocketServer = (server: HttpServer) => {
           imageCount: ringingPayload.imageCount || 0,
           message: ringingPayload.message || "",
           platform: ringingPayload.platform || "web",
+          agoraChannelName: ringingPayload.agoraChannelName || "",
+          agoraUidCaller: ringingPayload.agoraUidCaller || 0,
+          agoraUidReceiver: ringingPayload.agoraUidReceiver || 0,
           createdAt: createdAtIso,
           expiresAt
         };
@@ -357,6 +361,9 @@ export const createSocketServer = (server: HttpServer) => {
             incidentImages: ringingPayload.incidentImages || [],
             ownerId: ownerUserId,
             status: "ringing",
+            agoraChannelName: ringingPayload.agoraChannelName || "",
+            agoraUidCaller: ringingPayload.agoraUidCaller || 0,
+            agoraUidReceiver: ringingPayload.agoraUidReceiver || 0,
             type: "INCOMING_CALL"
           },
           forcePush: true,
@@ -381,9 +388,12 @@ export const createSocketServer = (server: HttpServer) => {
           if (!latest || latest.status !== "ringing") return;
           latest.status = "missed";
           latest.endedAt = new Date();
+          latest.agoraDisconnectedAt = latest.endedAt;
           latest.endReason = "timeout";
           await latest.save();
+          ioInstance?.to(`incident:${incidentId}`).emit("call:missed", { callId: latest.id, reason: "timeout" });
           ioInstance?.to(`incident:${incidentId}`).emit("call_missed", { callId: latest.id, reason: "timeout" });
+          ioInstance?.to(`user:${ownerUserId}`).emit("call:missed", { callId: latest.id, reason: "timeout" });
           ioInstance?.to(`user:${ownerUserId}`).emit("call_missed", { callId: latest.id, reason: "timeout" });
           const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
           await publishNotification({
@@ -443,6 +453,7 @@ export const createSocketServer = (server: HttpServer) => {
       if (call.status !== "ringing") return;
       call.status = "cancelled";
       call.endedAt = new Date();
+      call.agoraDisconnectedAt = call.endedAt;
       call.endReason = "reporter_ended";
       await call.save();
       if (getOnlineUserSockets(String(call.ownerUserId)).size > 0) {
@@ -460,15 +471,30 @@ export const createSocketServer = (server: HttpServer) => {
       if (!isCallActive(call.status)) return;
       call.status = "accepted";
       call.startedAt = new Date();
+      if (!call.agoraJoinedAt) call.agoraJoinedAt = call.startedAt;
       call.ownerPlatform = parsed.data.platform || "web";
+      ensureAgoraFields(call);
       await call.save();
       const incidentRoom = `incident:${String(call.incidentId)}`;
-      ioInstance?.to(incidentRoom).emit("call_accepted", { callId: call.id, ownerSocketId: socket.id });
+      const acceptedPayload = {
+        callId: call.id,
+        ownerSocketId: socket.id,
+        reporterSocketId: call.reporterSessionId,
+        agoraChannelName: call.agoraChannelName,
+        agoraUidCaller: call.agoraUidCaller,
+        agoraUidReceiver: call.agoraUidReceiver
+      };
+      ioInstance?.to(incidentRoom).emit("call:accepted", acceptedPayload);
+      ioInstance?.to(incidentRoom).emit("call_accepted", acceptedPayload);
       ioInstance?.to(incidentRoom).emit("call_started", { callId: call.id });
       socket.emit("call_accepted", {
         callId: call.id,
         ownerSocketId: socket.id,
-        reporterSocketId: call.reporterSessionId
+        reporterSocketId: call.reporterSessionId,
+        agora: buildAgoraJoinPayload(call, "receiver"),
+        agoraChannelName: call.agoraChannelName,
+        agoraUidCaller: call.agoraUidCaller,
+        agoraUidReceiver: call.agoraUidReceiver
       });
       socket.to(`user:${auth.userId}`).emit("call_cancelled", { callId: call.id });
       socket.emit("call_started", { callId: call.id });
@@ -487,37 +513,12 @@ export const createSocketServer = (server: HttpServer) => {
       if (String(call.ownerUserId) !== auth.userId) return;
       call.status = "declined";
       call.endedAt = new Date();
+      call.agoraDisconnectedAt = call.endedAt;
       call.rejectionReason = parsed.data.reason || "Owner rejected";
       call.endReason = "owner_ended";
       await call.save();
+      ioInstance?.to(`incident:${String(call.incidentId)}`).emit("call:declined", { callId: call.id, reason: call.rejectionReason });
       ioInstance?.to(`incident:${String(call.incidentId)}`).emit("call_rejected", { callId: call.id, reason: call.rejectionReason });
-    });
-
-    socket.on("webrtc_offer", async (payload) => {
-      const parsed = webrtcSignalSchema.extend({ offer: z.unknown() }).safeParse(payload);
-      if (!parsed.success) return;
-      const call = await getCallForSocket(socket.id, parsed.data.callId);
-      if (!call || !isCallActive(call.status)) return;
-      if (!isValidWebrtcTarget(call, parsed.data.targetSocketId)) return;
-      ioInstance?.to(parsed.data.targetSocketId).emit("webrtc_offer", { offer: parsed.data.offer, callId: call.id, fromSocketId: socket.id });
-    });
-
-    socket.on("webrtc_answer", async (payload) => {
-      const parsed = webrtcSignalSchema.extend({ answer: z.unknown() }).safeParse(payload);
-      if (!parsed.success) return;
-      const call = await getCallForSocket(socket.id, parsed.data.callId);
-      if (!call || !isCallActive(call.status)) return;
-      if (!isValidWebrtcTarget(call, parsed.data.targetSocketId)) return;
-      ioInstance?.to(parsed.data.targetSocketId).emit("webrtc_answer", { answer: parsed.data.answer, callId: call.id });
-    });
-
-    socket.on("webrtc_ice_candidate", async (payload) => {
-      const parsed = webrtcSignalSchema.extend({ candidate: z.unknown() }).safeParse(payload);
-      if (!parsed.success) return;
-      const call = await getCallForSocket(socket.id, parsed.data.callId);
-      if (!call || !isCallActive(call.status)) return;
-      if (!isValidWebrtcTarget(call, parsed.data.targetSocketId)) return;
-      ioInstance?.to(parsed.data.targetSocketId).emit("webrtc_ice_candidate", { candidate: parsed.data.candidate, callId: call.id });
     });
 
     socket.on("call_end", async (payload) => {
@@ -534,11 +535,14 @@ export const createSocketServer = (server: HttpServer) => {
       const isOwner = !!auth.userId && String(call.ownerUserId) === auth.userId;
       call.status = "ended";
       call.endedAt = new Date();
+      call.agoraDisconnectedAt = call.endedAt;
       call.duration = call.startedAt ? Math.floor((call.endedAt.getTime() - call.startedAt.getTime()) / 1000) : 0;
       call.endReason = parsed.data.reason || (isOwner ? "owner_ended" : "reporter_ended");
       await call.save();
       const explicitTarget = parsed.data.targetSocketId;
       const endPayload = { callId: call.id, duration: call.duration, reason: call.endReason };
+      ioInstance?.to(`user:${call.ownerUserId}`).emit("call:ended", endPayload);
+      ioInstance?.to(`incident:${String(call.incidentId)}`).emit("call:ended", endPayload);
       if (explicitTarget) {
         ioInstance?.to(explicitTarget).emit("call_ended", endPayload);
       } else {
@@ -561,7 +565,7 @@ export const createSocketServer = (server: HttpServer) => {
             // Without this grace period, short network hiccups end active calls.
             const openCalls = await CallSessionModel.find({
               reporterSessionId: disconnectedSocketId,
-              status: { $in: ["ringing", "accepted", "connected"] }
+              status: { $in: ["ringing", "accepted", "active", "connected"] }
             });
             for (const call of openCalls) {
               const wasRinging = call.status === "ringing";
@@ -576,15 +580,25 @@ export const createSocketServer = (server: HttpServer) => {
                 }
               }
               call.endedAt = new Date();
+              call.agoraDisconnectedAt = call.endedAt;
               await call.save();
               const ownerUserId = String(call.ownerUserId);
               if (getOnlineUserSockets(ownerUserId).size > 0) {
                 if (wasRinging) {
+                  ioInstance?.to(`user:${ownerUserId}`).emit("call:missed", {
+                    callId: call.id,
+                    reason: "reporter_disconnected"
+                  });
                   ioInstance?.to(`user:${ownerUserId}`).emit("call_missed", {
                     callId: call.id,
                     reason: "reporter_disconnected"
                   });
                 } else {
+                  ioInstance?.to(`user:${ownerUserId}`).emit("call:ended", {
+                    callId: call.id,
+                    duration: call.duration,
+                    reason: call.endReason
+                  });
                   ioInstance?.to(`user:${ownerUserId}`).emit("call_ended", {
                     callId: call.id,
                     duration: call.duration,

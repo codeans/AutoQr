@@ -15,11 +15,18 @@ export const CallEvents = {
   CALLBACK_ACCEPTED: "callback:accepted",
   CALLBACK_DECLINED: "callback:declined",
   CALLBACK_MISSED: "callback:missed",
-  CALLBACK_ENDED: "callback:ended",
-  WEBRTC_OFFER: "webrtc_offer",
-  WEBRTC_ANSWER: "webrtc_answer",
-  WEBRTC_ICE: "webrtc_ice_candidate"
+  CALLBACK_ENDED: "callback:ended"
 } as const;
+
+export type AgoraJoinPayload = {
+  appId: string;
+  token: string;
+  channelName: string;
+  uid: number;
+  role: "publisher" | "subscriber";
+  expiresAt: string;
+  expiresInSeconds: number;
+};
 
 export type IncomingCall = {
   callId: string;
@@ -40,6 +47,9 @@ export type IncomingCall = {
   platform?: "web" | "android" | "ios";
   createdAt?: string;
   expiresAt?: string;
+  agoraChannelName?: string;
+  agoraUidCaller?: number;
+  agoraUidReceiver?: number;
 };
 
 export type ActiveCallState =

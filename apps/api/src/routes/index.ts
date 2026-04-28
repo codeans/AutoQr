@@ -19,6 +19,7 @@ import { callbacksRouter } from "../modules/callbacks/callbacks.routes.js";
 import { callDetail } from "../modules/owner/owner.controller.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { callsRouter } from "../modules/calls/calls.routes.js";
+import { agoraRouter } from "../modules/agora/agora.routes.js";
 import { openApiSpec } from "../docs/openapi.js";
 import { isDatabaseReady } from "../config/db.js";
 
@@ -69,5 +70,6 @@ apiRouter.use("/payments", paymentRouter);
 apiRouter.use("/mobile", mobileRouter);
 apiRouter.use("/notifications", notificationsRouter);
 apiRouter.use("/callbacks", callbacksRouter);
+apiRouter.use("/agora", agoraRouter);
 apiRouter.use("/calls", callsRouter);
 apiRouter.get("/calls/:callId", requireAuth, requireRole("owner"), callDetail);

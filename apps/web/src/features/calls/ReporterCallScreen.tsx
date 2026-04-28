@@ -16,9 +16,9 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { formatGermanPhoneDisplay } from "@autoqr/shared";
-import { createReporterCallSocket, signaling } from "./services/callSignaling";
+import { createReporterCallSocket, signaling, type AgoraJoinPayload } from "./services/callSignaling";
 import { fetchReporterIncident, type ReporterIncidentView } from "./services/incidentApi";
-import { useWebRtcAudioCall } from "./useWebRtcAudioCall";
+import { useAgoraCall } from "../../hooks/useAgoraCall";
 import { assetBaseUrl } from "../../lib/runtimeConfig";
 
 type ReporterStatus =
@@ -52,11 +52,11 @@ export const ReporterCallScreen = () => {
   const autoStart = params.get("autoStart") === "1";
   const autoStartedRef = useRef(false);
   const requestingCallRef = useRef(false);
+  const callerAgoraRef = useRef<AgoraJoinPayload | null>(null);
 
   const [view, setView] = useState<ReporterIncidentView | null>(null);
   const [reporterStatus, setReporterStatus] = useState<ReporterStatus>("loading");
   const [callId, setCallId] = useState("");
-  const [ownerSocketId, setOwnerSocketId] = useState("");
   const [connectionState, setConnectionState] = useState<"connected" | "reconnecting">("connected");
   const [errorMessage, setErrorMessage] = useState("");
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -66,10 +66,10 @@ export const ReporterCallScreen = () => {
     return createReporterCallSocket(incidentId, sessionToken);
   }, [incidentId, sessionToken]);
 
-  const { status: webrtcStatus, setStatus, seconds, error, muted, toggleMute, remoteAudioRef, ensureMicrophone, createOffer, applyAnswer, addIce, teardown, reset } = useWebRtcAudioCall(socket);
+  const { setStatus, seconds, error, muted, toggleMute, remoteAudioRef, ensureMicrophone, join, teardown, reset } = useAgoraCall();
 
-  const signalingRef = useRef({ createOffer, applyAnswer, addIce, teardown, t });
-  signalingRef.current = { createOffer, applyAnswer, addIce, teardown, t };
+  const signalingRef = useRef({ join, teardown, t });
+  signalingRef.current = { join, teardown, t };
 
   useEffect(() => {
     if (!incidentId || !sessionToken) {
@@ -90,27 +90,32 @@ export const ReporterCallScreen = () => {
 
   useEffect(() => {
     if (!socket) return;
-    const onCallRequested = ({ callId: id }: { callId: string; ownerOnline?: boolean }) => {
+    const onCallRequested = ({ callId: id, agora }: { callId: string; ownerOnline?: boolean; agora?: AgoraJoinPayload }) => {
       setCallId(id);
+      callerAgoraRef.current = agora ?? null;
       setReporterStatus("ringing");
       requestingCallRef.current = false;
     };
-    const onCallAccepted = (payload: { callId: string; ownerSocketId: string }) => {
+    const onCallAccepted = (payload: { callId: string }) => {
       setCallId(payload.callId);
-      setOwnerSocketId(payload.ownerSocketId);
       setReporterStatus("connecting");
-      if (!payload.ownerSocketId) {
-        setReporterStatus("error");
-        setErrorMessage(signalingRef.current.t("call.reporter.couldNotNegotiate"));
-        return;
-      }
-      const { createOffer: offer, t: tr } = signalingRef.current;
-      offer(payload.ownerSocketId, payload.callId).catch(() => {
+      const { join: joinAgora, t: tr } = signalingRef.current;
+      const agora = callerAgoraRef.current;
+      if (!agora) {
         setReporterStatus("error");
         setErrorMessage(tr("call.reporter.couldNotNegotiate"));
-      });
+        return;
+      }
+      joinAgora(agora, { callId: payload.callId, reporterSessionToken: sessionToken })
+        .then(() => setReporterStatus("in_call"))
+        .catch(() => {
+          setReporterStatus("error");
+          setErrorMessage(tr("call.reporter.couldNotNegotiate"));
+        });
     };
-    const onCallStarted = () => setReporterStatus("in_call");
+    const onCallStarted = () => {
+      setReporterStatus((status) => (status === "connecting" ? status : "in_call"));
+    };
     const onCallRejected = () => {
       setReporterStatus("rejected");
       signalingRef.current.teardown();
@@ -122,14 +127,6 @@ export const ReporterCallScreen = () => {
     const onCallCancelled = () => {
       setReporterStatus("ended");
       signalingRef.current.teardown();
-    };
-    const onWebRtcAnswer = ({ answer }: { answer: RTCSessionDescriptionInit }) => {
-      void signalingRef.current.applyAnswer(answer).then(() => {
-        setReporterStatus((s) => (s === "connecting" ? "in_call" : s));
-      });
-    };
-    const onWebRtcCandidate = ({ candidate }: { candidate: RTCIceCandidateInit }) => {
-      void signalingRef.current.addIce(candidate);
     };
     const onCallEnded = () => {
       signalingRef.current.teardown();
@@ -146,8 +143,6 @@ export const ReporterCallScreen = () => {
     socket.on("call_missed", onCallMissed);
     socket.on("call_cancelled", onCallCancelled);
     socket.on("call_ended", onCallEnded);
-    socket.on("webrtc_answer", onWebRtcAnswer);
-    socket.on("webrtc_ice_candidate", onWebRtcCandidate);
     socket.on("connect_error", onConnectError);
     socket.on("disconnect", onConnectError);
     socket.on("reconnect", onReconnect);
@@ -167,8 +162,6 @@ export const ReporterCallScreen = () => {
       socket.off("call_missed", onCallMissed);
       socket.off("call_cancelled", onCallCancelled);
       socket.off("call_ended", onCallEnded);
-      socket.off("webrtc_answer", onWebRtcAnswer);
-      socket.off("webrtc_ice_candidate", onWebRtcCandidate);
       socket.off("connect_error", onConnectError);
       socket.off("disconnect", onConnectError);
       socket.off("reconnect", onReconnect);
@@ -216,7 +209,7 @@ export const ReporterCallScreen = () => {
       if (reporterStatus === "ringing") {
         signaling.cancelCall(socket, callId);
       } else {
-        signaling.endCall(socket, callId, ownerSocketId || undefined, "reporter_ended");
+        signaling.endCall(socket, callId, undefined, "reporter_ended");
       }
     }
     teardown();
@@ -230,7 +223,7 @@ export const ReporterCallScreen = () => {
     setErrorMessage("");
     setReporterStatus("idle");
     setCallId("");
-    setOwnerSocketId("");
+    callerAgoraRef.current = null;
   };
 
   const closeWindow = () => {

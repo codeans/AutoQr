@@ -18,13 +18,18 @@ const callSessionSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["ringing", "accepted", "connected", "ended", "missed", "declined", "rejected", "failed", "cancelled"],
+      enum: ["ringing", "accepted", "active", "connected", "ended", "missed", "declined", "rejected", "failed", "cancelled"],
       default: "ringing",
       index: true
     },
     startedAt: { type: Date },
     endedAt: { type: Date },
     duration: { type: Number, default: 0 },
+    agoraChannelName: { type: String, default: "", index: true },
+    agoraUidCaller: { type: Number },
+    agoraUidReceiver: { type: Number },
+    agoraJoinedAt: { type: Date },
+    agoraDisconnectedAt: { type: Date },
     endReason: { type: String, default: "" },
     rejectionReason: { type: String, default: "" }
     ,
@@ -45,7 +50,7 @@ callSessionSchema.index(
     name: "uniq_live_call_per_incident_owner",
     unique: true,
     partialFilterExpression: {
-      status: { $in: ["ringing", "accepted", "connected"] }
+      status: { $in: ["ringing", "accepted", "active", "connected"] }
     }
   }
 );

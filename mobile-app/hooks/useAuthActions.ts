@@ -6,7 +6,7 @@ import { useCallStore } from "@/stores/call.store";
 import { useNotificationStore } from "@/stores/notification.store";
 import { disconnectSocket } from "@/services/socket/socket";
 import { unregisterPushTokenForCurrentDevice, setBadgeCount } from "@/services/notifications/notifications";
-import { webrtcService } from "@/services/calls/webrtcService";
+import { agoraVoiceService } from "@/services/agora/agoraVoiceService";
 import { nativeCallService } from "@/services/calls/nativeCallService";
 
 export function useAuthActions() {
@@ -57,7 +57,7 @@ export function useAuthActions() {
     // notifications targeted at the logged-out user. Do this *before* the auth call clears
     // the JWT, otherwise the DELETE request loses its Authorization header.
     await unregisterPushTokenForCurrentDevice().catch(() => undefined);
-    await webrtcService.cleanup().catch(() => undefined);
+    await agoraVoiceService.cleanup().catch(() => undefined);
     nativeCallService.cleanupNativeCall();
     try {
       await AuthApi.logout();

@@ -35,12 +35,14 @@ export const CallsPage = () => {
       </FilterBar>
       <SectionCard title="Call logs">
         <DataTable
-          columns={["Date", "Owner", "Incident", "Status", "Duration", "Reason"]}
+          columns={["Date", "Owner", "Incident", "Vehicle", "Status", "Agora", "Duration", "Reason"]}
           rows={calls.map((call: AdminCall) => [
             new Date(call.createdAt).toLocaleString(),
             call.ownerUserId?.email ?? "-",
             call.incidentId?._id ?? "-",
+            call.incidentId?.carId?.registrationNumber ?? "-",
             <StatusBadge label={call.status || "pending"} tone={statusTone(call.status || "pending")} />,
+            call.agoraChannelName || "-",
             `${call.duration ?? 0}s`,
             call.rejectionReason || "-"
           ])}

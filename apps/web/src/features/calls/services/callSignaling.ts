@@ -22,6 +22,19 @@ export type IncomingCallPayload = {
   platform?: CallPlatform;
   createdAt?: string;
   callbackId?: string;
+  agoraChannelName?: string;
+  agoraUidCaller?: number;
+  agoraUidReceiver?: number;
+};
+
+export type AgoraJoinPayload = {
+  appId: string;
+  token: string;
+  channelName: string;
+  uid: number;
+  role: "publisher" | "subscriber";
+  expiresAt: string;
+  expiresInSeconds: number;
 };
 
 export type CallEndedPayload = {

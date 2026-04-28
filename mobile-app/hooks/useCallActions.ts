@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { waitForSocketConnection, getSocket } from "@/services/socket/socket";
 import { useCallStore } from "@/stores/call.store";
 import { CallEvents, type IncomingCall } from "@/types/call";
-import { webrtcService } from "@/services/calls/webrtcService";
+import { agoraVoiceService } from "@/services/agora/agoraVoiceService";
 import { nativeCallService } from "@/services/calls/nativeCallService";
 import { stopIncomingCallAlerting } from "@/features/calls/incomingCallNotificationHandler";
 import { checkMicrophonePermission } from "@/services/permissions/permissionService";
@@ -27,6 +27,7 @@ export function useCallActions() {
   const incoming = useCallStore((s) => s.incoming);
   const setStatus = useCallStore((s) => s.setStatus);
   const setActive = useCallStore((s) => s.setActive);
+  const markConnected = useCallStore((s) => s.markConnected);
   const markAudioConnected = useCallStore((s) => s.markAudioConnected);
   const setEndReason = useCallStore((s) => s.setEndReason);
   const reset = useCallStore((s) => s.reset);
@@ -69,31 +70,16 @@ export function useCallActions() {
       });
 
       const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
-      // Bind WebRTC signaling before REST accept emits `call_accepted`; otherwise the
-      // reporter can send an offer before this device has an offer listener attached.
-      const audioReady = await webrtcService
-        .initializeCall(
-          {
-            callId: liveIncoming.callId,
-            remoteSocketId: liveIncoming.reporterSocketId ?? null,
-            role: "callee"
-          },
-          {
-            onConnected: () => markAudioConnected(true),
-            onDisconnected: () => markAudioConnected(false),
-            onError: () => markAudioConnected(false)
-          }
-        )
-        .catch(() => false);
-
-      if (!audioReady) {
-        markAudioConnected(false);
-      }
       const acceptResult = await callsService.accept(liveIncoming.callId, platform, socket.id).catch(() => null);
       if (!acceptResult?.ok) {
-        await webrtcService.cleanup().catch(() => undefined);
         setStatus("failed");
         setEndReason("accept_failed");
+        return;
+      }
+      const agora = acceptResult.call?.agora;
+      if (!agora) {
+        setStatus("failed");
+        setEndReason("agora_token_missing");
         return;
       }
       const resolvedIncoming = acceptResult.call?.reporterSocketId
@@ -107,12 +93,28 @@ export function useCallActions() {
         callId: liveIncoming.callId,
         remoteSocketId: resolvedIncoming.reporterSocketId ?? null
       });
-      // REST `/accept` already transitions call state server-side and emits socket events.
-      // Emitting CALL_ACCEPT again from client can duplicate acceptance/signaling.
+      const audioReady = await agoraVoiceService.join(liveIncoming.callId, agora, {
+        onConnected: () => {
+          markAudioConnected(true);
+          setStatus("active");
+          markConnected();
+        },
+        onReconnecting: () => markAudioConnected(false),
+        onDisconnected: () => markAudioConnected(false),
+        onError: () => markAudioConnected(false)
+      });
+      if (!audioReady) {
+        await agoraVoiceService.cleanup().catch(() => undefined);
+        markAudioConnected(false);
+        setStatus("failed");
+        setEndReason("audio_unavailable");
+        return;
+      }
+      markConnected();
     } finally {
       acceptingCallId = null;
     }
-  }, [markAudioConnected, reset, setActive, setEndReason, setStatus]);
+  }, [markAudioConnected, markConnected, reset, setActive, setEndReason, setStatus]);
 
   const accept = useCallback(() => {
     void acceptIncoming(useCallStore.getState().incoming);
@@ -130,7 +132,7 @@ export function useCallActions() {
       }
       setEndReason(reason ?? "rejected");
       void stopIncomingCallAlerting();
-      webrtcService.cleanup().catch(() => undefined);
+      agoraVoiceService.cleanup().catch(() => undefined);
       reset();
     },
     [incoming, reset, setEndReason]
@@ -148,7 +150,7 @@ export function useCallActions() {
       }
       setEndReason(reason ?? "rejected");
       void stopIncomingCallAlerting();
-      webrtcService.cleanup().catch(() => undefined);
+      agoraVoiceService.cleanup().catch(() => undefined);
       reset();
     },
     [reset, setEndReason]
@@ -168,10 +170,11 @@ export function useCallActions() {
     }
     if (activeCallId) {
       nativeCallService.markCallEnded(activeCallId);
+      void callsService.end(activeCallId, "owner_ended").catch(() => undefined);
     }
     setEndReason("owner_ended");
     void stopIncomingCallAlerting();
-    webrtcService.cleanup().catch(() => undefined);
+    agoraVoiceService.cleanup().catch(() => undefined);
     reset();
   }, [incoming, reset, setEndReason]);
 

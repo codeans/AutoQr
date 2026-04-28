@@ -75,9 +75,14 @@ export interface AdminCall {
   createdAt: string;
   status?: string;
   duration?: number;
+  agoraChannelName?: string;
+  agoraUidCaller?: number;
+  agoraUidReceiver?: number;
+  agoraJoinedAt?: string;
+  agoraDisconnectedAt?: string;
   rejectionReason?: string;
   ownerUserId?: AdminUser;
-  incidentId?: { _id?: string };
+  incidentId?: { _id?: string; carId?: AdminCar };
 }
 
 export interface AdminCallback {

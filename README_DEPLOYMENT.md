@@ -67,7 +67,9 @@ Important variables in `.env`:
 - `MONGO_DATABASE=autoqr`
 - `VITE_API_URL=https://api.autoqr.de/api`
 - `VITE_SOCKET_URL=https://api.autoqr.de`
-- `VITE_WEBRTC_ICE_SERVERS=[{"urls":"stun:stun.l.google.com:19302"}]`
+- `VITE_AGORA_APP_ID=...`
+- `AGORA_APP_ID=...`
+- `AGORA_APP_CERTIFICATE=...`
 
 Notes:
 

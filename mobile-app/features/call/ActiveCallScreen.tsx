@@ -10,7 +10,7 @@ import { Text } from "@/components/ui";
 import { Avatar } from "@/components/ui/Avatar";
 import { colors, radius, spacing } from "@/theme";
 import { formatDuration, maskPhone } from "@/utils/format";
-import { webrtcService } from "@/services/calls/webrtcService";
+import { agoraVoiceService } from "@/services/agora/agoraVoiceService";
 import { CallControls } from "@/features/calls/CallControls";
 
 export function ActiveCallScreen() {
@@ -25,13 +25,12 @@ export function ActiveCallScreen() {
   const { end } = useCallActions();
   const [elapsed, setElapsed] = useState(0);
 
-  // Keep WebRTC mic state in sync with store toggle
   useEffect(() => {
-    webrtcService.toggleMute(micEnabled);
+    agoraVoiceService.toggleMute(micEnabled);
   }, [micEnabled]);
 
   useEffect(() => {
-    webrtcService.toggleSpeaker(speakerEnabled);
+    agoraVoiceService.toggleSpeaker(speakerEnabled);
   }, [speakerEnabled]);
 
   useEffect(() => {

@@ -7,7 +7,7 @@ layer, and admin-managed content as the web portal inside this monorepo.
 
 - Expo SDK 52 · Expo Router · TypeScript
 - Zustand · TanStack Query · React Hook Form · Zod
-- Socket.io client · WebRTC-ready peer manager
+- Socket.io client · Agora React Native voice SDK
 - Expo Notifications · Expo SecureStore · Reanimated
 
 ## Getting started
@@ -49,8 +49,7 @@ schemas/        Zod form schemas
 services/
   api/          Typed REST client + per-resource services
   socket/       Authenticated Socket.io singleton
-  webrtc/       PeerConnection abstraction (enable by installing
-                react-native-webrtc in a dev build)
+  agora/        Agora voice channel lifecycle and audio controls
   notifications/ Expo Notifications wiring
 stores/         Zustand stores (auth, call, app toasts)
 theme/          Colors, typography, spacing, shadows
@@ -65,18 +64,17 @@ The app talks to `@autoqr/api` via REST + Socket.io:
 - `POST /owner/tags/activate`
 - `GET /owner/incidents`, `GET /owner/incidents/:id`, `GET /owner/calls`
 - `GET /public/content/:slug` for CMS legal pages
-- Socket events: `call_ringing`, `call_accept`, `call_accepted`, `call_reject`,
-  `call_end`, WebRTC signaling — see `types/call.ts`
+- Socket events: `call:incoming`, `call_accepted`, `call_reject`, `call_end`,
+  `call_ended` — see `types/call.ts`
 
 Access tokens are kept in SecureStore and rotated through the
 `refresh` interceptor in `services/api/client.ts`.
 
-## WebRTC
+## Agora Voice
 
-`services/webrtc/peer.ts` is wired to a lazy `react-native-webrtc` loader.
-Install `react-native-webrtc` inside an Expo dev build or bare project to
-enable real audio — no other file has to change. Until then the call UI,
-signaling, and lifecycle already work end-to-end.
+Voice media is handled by `react-native-agora`. The backend issues short-lived
+Agora tokens; the app joins the provided channel after the owner accepts an
+incoming incident call.
 
 ## Design
 

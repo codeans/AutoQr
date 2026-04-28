@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
 import { useAuth } from "../../context/AuthContext";
-import { createOwnerCallSocket, signaling, type IncomingCallPayload } from "./services/callSignaling";
-import { useWebRtcAudioCall } from "./useWebRtcAudioCall";
+import { createOwnerCallSocket, signaling, type AgoraJoinPayload, type IncomingCallPayload } from "./services/callSignaling";
+import { useAgoraCall } from "../../hooks/useAgoraCall";
+import { api } from "../../lib/api";
 
 export type OwnerCallState =
   | "idle"
@@ -47,7 +48,6 @@ export const OwnerCallProvider = ({ children }: { children: React.ReactNode }) =
   const { user, token } = useAuth();
   const socketRef = useRef<Socket | null>(null);
   const [socketVersion, setSocketVersion] = useState(0);
-  const socket = socketRef.current;
 
   const [incoming, setIncoming] = useState<IncomingCallPayload | null>(null);
   const [activeCallId, setActiveCallId] = useState("");
@@ -56,18 +56,17 @@ export const OwnerCallProvider = ({ children }: { children: React.ReactNode }) =
   const [missed, setMissed] = useState<OwnerMissedEntry[]>([]);
 
   const {
-    status: webrtcStatus,
+    status: agoraStatus,
     seconds,
     muted,
     error,
     setError,
     toggleMute,
     remoteAudioRef,
-    acceptOffer,
-    addIce,
+    join,
     teardown,
     reset
-  } = useWebRtcAudioCall(socket);
+  } = useAgoraCall();
 
   useEffect(() => {
     if (!user || user.role !== "owner" || !token) {
@@ -117,20 +116,6 @@ export const OwnerCallProvider = ({ children }: { children: React.ReactNode }) =
       }
     };
 
-    const onWebRtcOffer = ({ offer, fromSocketId, callId }: { offer: RTCSessionDescriptionInit; fromSocketId: string; callId: string }) => {
-      setState("connecting");
-      acceptOffer(fromSocketId, offer, callId)
-        .then(() => setState("connected"))
-        .catch(() => {
-          setState("failed");
-          setError("Could not connect the call. Please try again.");
-        });
-    };
-
-    const onWebRtcCandidate = ({ candidate }: { candidate: RTCIceCandidateInit }) => {
-      void addIce(candidate);
-    };
-
     const onCallEnded = ({ callId }: { callId: string }) => {
       if (activeCallId === callId || incoming?.callId === callId) {
         setState("ended");
@@ -150,9 +135,8 @@ export const OwnerCallProvider = ({ children }: { children: React.ReactNode }) =
     sock.on("callback:incoming", onCallRinging);
     sock.on("call_ringing", onCallRinging);
     sock.on("call_cancelled", onCallCancelled);
+    sock.on("call:ended", onCallEnded);
     sock.on("call_ended", onCallEnded);
-    sock.on("webrtc_offer", onWebRtcOffer);
-    sock.on("webrtc_ice_candidate", onWebRtcCandidate);
 
     const connectTimer = window.setTimeout(() => {
       if (!sock.connected) sock.connect();
@@ -169,26 +153,40 @@ export const OwnerCallProvider = ({ children }: { children: React.ReactNode }) =
       sock.off("callback:incoming", onCallRinging);
       sock.off("call_ringing", onCallRinging);
       sock.off("call_cancelled", onCallCancelled);
+      sock.off("call:ended", onCallEnded);
       sock.off("call_ended", onCallEnded);
-      sock.off("webrtc_offer", onWebRtcOffer);
-      sock.off("webrtc_ice_candidate", onWebRtcCandidate);
     };
-  }, [acceptOffer, activeCallId, addIce, incoming?.callId, setError, socketVersion, teardown]);
+  }, [activeCallId, incoming?.callId, socketVersion, teardown]);
 
   useEffect(() => {
-    if (webrtcStatus === "connected") setState("connected");
-    if (webrtcStatus === "failed") setState("failed");
-    if (webrtcStatus === "permission_denied") {
+    if (agoraStatus === "connected") setState("connected");
+    if (agoraStatus === "failed") setState("failed");
+    if (agoraStatus === "permission_denied") {
       setState("failed");
     }
-  }, [webrtcStatus]);
+  }, [agoraStatus]);
 
   const acceptCall = useCallback(() => {
     const sock = socketRef.current;
     if (!sock || !incoming) return;
     setState("accepting");
-    signaling.accept(sock, incoming.callId);
-  }, [incoming]);
+    void api
+      .post<{ ok: boolean; call: { callId: string; agora?: AgoraJoinPayload } }>(`/calls/${incoming.callId}/accept`, {
+        platform: "web",
+        ownerSocketId: sock.id
+      })
+      .then(async ({ data }) => {
+        const agora = data.call.agora;
+        if (!agora) throw new Error("Missing Agora token");
+        setState("connecting");
+        await join(agora, { callId: incoming.callId });
+        setState("connected");
+      })
+      .catch((err) => {
+        setState("failed");
+        setError(err instanceof Error ? err.message : "Could not connect the call. Please try again.");
+      });
+  }, [incoming, join, setError]);
 
   const rejectCall = useCallback(
     (reason?: string) => {
@@ -222,7 +220,8 @@ export const OwnerCallProvider = ({ children }: { children: React.ReactNode }) =
   const endCall = useCallback(() => {
     const sock = socketRef.current;
     if (!sock || !activeCallId) return;
-    signaling.endCall(sock, activeCallId, incoming?.reporterSocketId, "owner_ended");
+    signaling.endCall(sock, activeCallId, undefined, "owner_ended");
+    void api.post("/calls/end", { callId: activeCallId, reason: "owner_ended" }).catch(() => undefined);
     teardown();
     setState("ended");
     window.setTimeout(() => {

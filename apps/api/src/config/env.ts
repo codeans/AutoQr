@@ -24,6 +24,8 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional().default(""),
   STRIPE_WEBHOOK_SECRET: z.string().optional().default(""),
   STRIPE_PRICE_EUR_CENTS: z.coerce.number().default(4900),
+  AGORA_APP_ID: z.string().optional().default(""),
+  AGORA_APP_CERTIFICATE: z.string().optional().default(""),
   PUBLIC_BASE_URL: z.string().url(),
   UPLOAD_MAX_MB: z.coerce.number().default(8),
   UPLOAD_DIR: z.string().default("uploads"),

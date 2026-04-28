@@ -7,7 +7,7 @@ Production-ready MERN monorepo starter for `autoqr.de` with:
 - Stripe one-time payment + payment webhook
 - Admin-only QR generation and lifecycle management
 - Socket.IO real-time notifications and call signaling
-- WebRTC browser audio call flow
+- Agora-powered voice calling for masked incident calls
 
 ## Tech stack
 
@@ -60,7 +60,7 @@ Deployment guide:
 - QR image/token stays admin-only and is not exposed in owner APIs.
 - Public scanner can report incident without account.
 - Owner receives real-time incident notifications.
-- Reporter and owner can establish browser audio call using Socket.IO + WebRTC.
+- Reporter and owner can establish masked voice calls through Agora RTC, with Socket.IO kept for call state sync.
 
 ## Important routes
 

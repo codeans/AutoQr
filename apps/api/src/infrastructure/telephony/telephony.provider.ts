@@ -22,7 +22,7 @@ export interface TelephonyProvider {
 }
 
 class LocalTelephonyProvider implements TelephonyProvider {
-  readonly name = "local-webrtc";
+  readonly name = "agora-voice";
   async initiateMaskedCall(request: MaskedCallRequest): Promise<MaskedCallSession> {
     const sessionId = `maskedcall-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     logger.info("telephony.masked_call.initiated", { sessionId, contextId: request.contextId });

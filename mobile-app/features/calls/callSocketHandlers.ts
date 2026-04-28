@@ -4,7 +4,7 @@ import { getSocket, registerSocketHandlers } from "@/services/socket/socket";
 import { useCallStore } from "@/stores/call.store";
 import { CallEvents, type IncomingCall } from "@/types/call";
 import { useAuthStore } from "@/stores/auth.store";
-import { webrtcService } from "@/services/calls/webrtcService";
+import { agoraVoiceService } from "@/services/agora/agoraVoiceService";
 import { nativeCallService } from "@/services/calls/nativeCallService";
 import { callsService } from "@/services/api/calls.service";
 import {
@@ -103,28 +103,7 @@ export function useCallSocketHandlers(): void {
       setStatus("active");
       markConnected();
 
-      const sameCall =
-        useCallStore.getState().activeCallId === payload.callId ||
-        useCallStore.getState().incoming?.callId === payload.callId;
-      if (webrtcService.isActive() && sameCall) {
-        if (remote) webrtcService.updateRemoteSocket(remote);
-        return;
-      }
-
-      webrtcService
-        .initializeCall(
-          { callId: payload.callId, remoteSocketId: remote, role: "callee" },
-          {
-            onConnected: () => {
-              markAudioConnected(true);
-              setStatus("active");
-              markConnected();
-            },
-            onDisconnected: () => markAudioConnected(false),
-            onError: () => markAudioConnected(false)
-          }
-        )
-        .catch(() => undefined);
+      if (agoraVoiceService.isActive()) markAudioConnected(true);
     };
 
     const onStarted = () => {
@@ -140,7 +119,7 @@ export function useCallSocketHandlers(): void {
       setEndReason(payload?.reason ?? "ended");
       const callId = payload?.callId ?? useCallStore.getState().activeCallId ?? useCallStore.getState().incoming?.callId;
       if (callId) nativeCallService.markCallEnded(callId);
-      webrtcService.cleanup().catch(() => undefined);
+      agoraVoiceService.cleanup().catch(() => undefined);
       reset();
       if (router.canGoBack()) {
         try {

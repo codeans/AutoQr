@@ -37,16 +37,21 @@ type CallMutationResponse = {
     reason?: string;
     ownerSocketId?: string;
     reporterSocketId?: string;
+    agora?: import("@/types/call").AgoraJoinPayload;
   };
 };
 
 export const callsService = {
   list: () => apiClient.get<{ calls: CallHistoryItem[] }>("/owner/calls"),
   get: (callId: string) => apiClient.get<{ call: import("@/types/call").IncomingCall }>(`/calls/${callId}`),
+  token: (payload: { callId: string; channelName?: string; uid?: number; role?: "publisher" | "subscriber" }) =>
+    apiClient.post<{ ok: boolean; agora: import("@/types/call").AgoraJoinPayload }>("/agora/token", payload),
   accept: (callId: string, platform: "ios" | "android" | "web", ownerSocketId?: string) =>
     apiClient.post<CallMutationResponse>(`/calls/${callId}/accept`, { platform, ownerSocketId }),
   decline: (callId: string, reason?: string) =>
     apiClient.post<CallMutationResponse>(`/calls/${callId}/decline`, reason ? { reason } : {}),
   missed: (callId: string, reason = "timeout") =>
-    apiClient.post<CallMutationResponse>(`/calls/${callId}/missed`, { reason })
+    apiClient.post<CallMutationResponse>(`/calls/${callId}/missed`, { reason }),
+  end: (callId: string, reason = "owner_ended") =>
+    apiClient.post<CallMutationResponse>("/calls/end", { callId, reason })
 };

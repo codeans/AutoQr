@@ -123,7 +123,6 @@
         }
       ],
       "expo-localization",
-      "@config-plugins/react-native-webrtc",
       "./plugins/withAndroidNativeCallFirebase"
     ],
     "experiments": {
@@ -133,6 +132,7 @@
       "apiBaseUrl": "https://api.autoqr.de/api",
       "socketUrl": "https://api.autoqr.de",
       "assetsBaseUrl": "https://api.autoqr.de",
+      "agoraAppId": "",
       "brand": {
         "name": "AutoQr",
         "shortName": "AutoQr",
