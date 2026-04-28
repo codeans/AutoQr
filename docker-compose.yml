@@ -59,6 +59,7 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL}
         VITE_SOCKET_URL: ${VITE_SOCKET_URL}
+        VITE_AGORA_APP_ID: ${VITE_AGORA_APP_ID}
         VITE_WEBRTC_ICE_SERVERS: ${VITE_WEBRTC_ICE_SERVERS}
     depends_on:
       backend:

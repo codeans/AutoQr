@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "834701729690",
+    "project_id": "autoqr-95c52",
+    "storage_bucket": "autoqr-95c52.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:834701729690:android:7fc451deee4e18c0cca423",
+        "android_client_info": {
+          "package_name": "de.autoqr.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCuWCLczClR7dKZ-br4vqUl1Mbm0fQyk98"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
