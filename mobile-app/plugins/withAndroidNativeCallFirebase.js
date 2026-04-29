@@ -55,6 +55,94 @@ function ensureIncomingCallStyle(contents) {
   return contents.replace("</resources>", `${style}</resources>`);
 }
 
+function ensureMainApplicationCallBridge(contents) {
+  if (contents.includes("add(AutoQrCallBridgePackage())")) return contents;
+  return contents.replace(
+    "PackageList(this).packages",
+    "PackageList(this).packages.apply {\n              add(AutoQrCallBridgePackage())\n            }"
+  );
+}
+
+function ensureMainActivityCallBridge(contents) {
+  if (contents.includes("ACTION_OPEN_ACCEPTED_CALL")) return contents;
+  const imports = `import android.content.Intent
+import android.util.Log
+
+import org.json.JSONObject
+`;
+  let next = contents;
+  if (!next.includes("import android.content.Intent")) {
+    next = next.replace("import android.os.Bundle\n", `import android.os.Bundle\n${imports}`);
+  }
+  const handler = `
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+    handleCallIntent(intent)
+  }
+
+  private fun handleCallIntent(intent: Intent?) {
+    val action = intent?.getStringExtra(EXTRA_ACTION) ?: return
+    if (action != ACTION_OPEN_ACCEPTED_CALL) return
+    val callId = intent.getStringExtra(EXTRA_CALL_ID) ?: return
+    val payload = JSONObject().apply {
+      put("callId", callId)
+      put("callerName", intent.getStringExtra(EXTRA_CALLER_NAME) ?: "")
+      put("handle", intent.getStringExtra(EXTRA_HANDLE) ?: "")
+      put("callActionToken", intent.getStringExtra(EXTRA_CALL_ACTION_TOKEN) ?: "")
+      put("acceptedFromNative", intent.getBooleanExtra(EXTRA_ACCEPTED_FROM_NATIVE, true))
+      put("source", intent.getStringExtra(EXTRA_SOURCE) ?: "intent")
+      put("acceptedAt", intent.getLongExtra(EXTRA_ACCEPTED_AT, System.currentTimeMillis()))
+      put("shouldOpenCallScreen", true)
+      put("incidentId", intent.getStringExtra(EXTRA_INCIDENT_ID) ?: "")
+      put("carLabel", intent.getStringExtra(EXTRA_CAR_LABEL) ?: "")
+      put("reporterPhone", intent.getStringExtra(EXTRA_REPORTER_PHONE) ?: "")
+      put("agoraAppId", intent.getStringExtra(EXTRA_AGORA_APP_ID) ?: "")
+      put("agoraToken", intent.getStringExtra(EXTRA_AGORA_TOKEN) ?: "")
+      put("agoraChannelName", intent.getStringExtra(EXTRA_AGORA_CHANNEL_NAME) ?: "")
+      put("channelName", intent.getStringExtra(EXTRA_AGORA_CHANNEL_NAME) ?: "")
+      put("agoraUid", intent.getStringExtra(EXTRA_AGORA_UID) ?: "")
+      put("agoraRole", intent.getStringExtra(EXTRA_AGORA_ROLE) ?: "")
+      put("agoraExpiresAt", intent.getStringExtra(EXTRA_AGORA_EXPIRES_AT) ?: "")
+      put("agoraExpiresInSeconds", intent.getStringExtra(EXTRA_AGORA_EXPIRES_IN_SECONDS) ?: "")
+    }
+    Log.i(TAG, "MainActivity received accepted call intent callId=$callId source=\${intent.getStringExtra(EXTRA_SOURCE)}")
+    intent.removeExtra(EXTRA_ACTION)
+    AutoQrCallBridgeModule.emitPendingAcceptedCall(payload)
+  }
+`;
+  next = next.replace("    super.onCreate(null)\n  }\n", "    super.onCreate(null)\n    handleCallIntent(intent)\n  }\n");
+  next = next.replace("\n  /**\n   * Returns the name of the main component", `${handler}\n  /**\n   * Returns the name of the main component`);
+  const companion = `
+    const val ACTION_OPEN_ACCEPTED_CALL = "de.autoqr.app.action.OPEN_ACCEPTED_CALL"
+    const val EXTRA_ACTION = "de.autoqr.app.extra.ACTION"
+    const val EXTRA_CALL_ID = "de.autoqr.app.extra.CALL_ID"
+    const val EXTRA_CALLER_NAME = "de.autoqr.app.extra.CALLER_NAME"
+    const val EXTRA_HANDLE = "de.autoqr.app.extra.HANDLE"
+    const val EXTRA_CALL_ACTION_TOKEN = "de.autoqr.app.extra.CALL_ACTION_TOKEN"
+    const val EXTRA_ACCEPTED_FROM_NATIVE = "de.autoqr.app.extra.ACCEPTED_FROM_NATIVE"
+    const val EXTRA_SOURCE = "de.autoqr.app.extra.SOURCE"
+    const val EXTRA_ACCEPTED_AT = "de.autoqr.app.extra.ACCEPTED_AT"
+    const val EXTRA_INCIDENT_ID = "de.autoqr.app.extra.INCIDENT_ID"
+    const val EXTRA_CAR_LABEL = "de.autoqr.app.extra.CAR_LABEL"
+    const val EXTRA_REPORTER_PHONE = "de.autoqr.app.extra.REPORTER_PHONE"
+    const val EXTRA_AGORA_APP_ID = "de.autoqr.app.extra.AGORA_APP_ID"
+    const val EXTRA_AGORA_TOKEN = "de.autoqr.app.extra.AGORA_TOKEN"
+    const val EXTRA_AGORA_CHANNEL_NAME = "de.autoqr.app.extra.AGORA_CHANNEL_NAME"
+    const val EXTRA_AGORA_UID = "de.autoqr.app.extra.AGORA_UID"
+    const val EXTRA_AGORA_ROLE = "de.autoqr.app.extra.AGORA_ROLE"
+    const val EXTRA_AGORA_EXPIRES_AT = "de.autoqr.app.extra.AGORA_EXPIRES_AT"
+    const val EXTRA_AGORA_EXPIRES_IN_SECONDS = "de.autoqr.app.extra.AGORA_EXPIRES_IN_SECONDS"
+    private const val TAG = "AutoQrMainActivity"
+`;
+  if (next.includes("companion object")) {
+    next = next.replace(/companion object\s*\{/, (match) => `${match}\n${companion}`);
+  } else {
+    next = next.replace("\n}\n", `\n  companion object {\n${companion}  }\n}\n`);
+  }
+  return next;
+}
+
 function getServiceSource(packageName) {
   return `package ${packageName}
 
@@ -284,7 +372,11 @@ const withAndroidNativeCallFirebase = (config) => {
         "IncomingCallForegroundService.kt",
         "IncomingCallActivity.kt",
         "IncomingCallActionReceiver.kt",
-        "NativeCallActionApi.kt"
+        "NativeCallActionApi.kt",
+        "HandledCallStore.kt",
+        "PendingAcceptedCallStore.kt",
+        "AutoQrCallBridgeModule.kt",
+        "AutoQrCallBridgePackage.kt"
       ];
       await Promise.all(
         files.map(async (file) => {
@@ -298,6 +390,12 @@ const withAndroidNativeCallFirebase = (config) => {
       const stylesPath = path.join(mod.modRequest.platformProjectRoot, "app/src/main/res/values/styles.xml");
       const styles = await fs.promises.readFile(stylesPath, "utf8");
       await fs.promises.writeFile(stylesPath, ensureIncomingCallStyle(styles));
+      const mainApplicationPath = path.join(javaDir, "MainApplication.kt");
+      const mainApplication = await fs.promises.readFile(mainApplicationPath, "utf8");
+      await fs.promises.writeFile(mainApplicationPath, ensureMainApplicationCallBridge(mainApplication));
+      const mainActivityPath = path.join(javaDir, "MainActivity.kt");
+      const mainActivity = await fs.promises.readFile(mainActivityPath, "utf8");
+      await fs.promises.writeFile(mainActivityPath, ensureMainActivityCallBridge(mainActivity));
       const rawDir = path.join(mod.modRequest.platformProjectRoot, "app/src/main/res/raw");
       await fs.promises.mkdir(rawDir, { recursive: true });
       await fs.promises.copyFile(

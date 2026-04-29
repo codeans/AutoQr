@@ -10,6 +10,7 @@ type Props = { status: CallStatus };
 const STYLE_BY_STATUS: Record<CallStatus, { label: string; bg: string; tint: string; icon: keyof typeof Ionicons.glyphMap }> = {
   ringing: { label: "Ringing", bg: colors.warningSoft, tint: colors.warning, icon: "call-outline" },
   accepted: { label: "Accepted", bg: colors.successSoft, tint: colors.success, icon: "call" },
+  active: { label: "Active", bg: colors.successSoft, tint: colors.success, icon: "call" },
   connected: { label: "Connected", bg: colors.successSoft, tint: colors.success, icon: "call" },
   ended: { label: "Ended", bg: colors.surfaceAlt, tint: colors.textSubtle, icon: "call-outline" },
   missed: { label: "Missed", bg: colors.dangerSoft, tint: colors.danger, icon: "call-outline" },

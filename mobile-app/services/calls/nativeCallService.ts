@@ -49,6 +49,11 @@ function hasNativeCallKeepModule(): boolean {
 
 function getCallKeep(): CallKeepModule | null {
   if (callKeepModule !== undefined) return callKeepModule;
+  if (Platform.OS === "android") {
+    callKeepModule = null;
+    callKeepEndReasons = null;
+    return null;
+  }
   // The package always exports a JS singleton; native methods read NativeModules.RNCallKeep,
   // which is missing in Expo Go. Treat as unavailable without loading the stub.
   if (Constants.appOwnership === "expo" || !hasNativeCallKeepModule()) {
@@ -108,7 +113,22 @@ function toIncomingCall(payload: any): IncomingCall | null {
     message: payload?.message,
     platform: payload?.platform,
     createdAt: payload?.createdAt,
-    expiresAt: payload?.expiresAt
+    expiresAt: payload?.expiresAt,
+    agoraChannelName: payload?.agoraChannelName ?? payload?.channelName,
+    agoraUidCaller: payload?.agoraUidCaller ? Number(payload.agoraUidCaller) : undefined,
+    agoraUidReceiver: payload?.agoraUidReceiver ? Number(payload.agoraUidReceiver) : undefined,
+    agora:
+      payload?.agoraToken && (payload?.channelName || payload?.agoraChannelName)
+        ? {
+            appId: String(payload?.agoraAppId ?? ""),
+            token: String(payload.agoraToken),
+            channelName: String(payload.channelName ?? payload.agoraChannelName),
+            uid: Number(payload.agoraUid ?? payload.agoraUidReceiver),
+            role: payload.agoraRole === "subscriber" ? "subscriber" : "publisher",
+            expiresAt: String(payload.agoraExpiresAt ?? ""),
+            expiresInSeconds: Number(payload.agoraExpiresInSeconds ?? 0)
+          }
+        : undefined
   };
 }
 

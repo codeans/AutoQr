@@ -48,6 +48,19 @@ const endCallSchema = z.object({
 const canAccept = (status: string) => status === "ringing" || status === "accepted" || status === "active" || status === "connected";
 const canFinalizeIncoming = (status: string) => status === "ringing" || status === "accepted";
 
+const agoraForNativePayload = (agora: ReturnType<typeof buildAgoraJoinPayload>, call: any) => ({
+  agoraAppId: agora.appId,
+  agoraToken: agora.token,
+  agoraChannelName: agora.channelName,
+  channelName: agora.channelName,
+  agoraUid: agora.uid,
+  agoraRole: agora.role,
+  agoraExpiresAt: agora.expiresAt,
+  agoraExpiresInSeconds: agora.expiresInSeconds,
+  agoraUidCaller: call.agoraUidCaller,
+  agoraUidReceiver: call.agoraUidReceiver
+});
+
 const createNativeCallActionToken = (callId: string, ownerUserId: unknown) =>
   jwt.sign(
     {
@@ -113,7 +126,7 @@ export const acceptCall = asyncHandler(async (req: Request, res: Response) => {
     await sendNativeCallStateToUser(
       String(call.ownerUserId),
       { callId: call.id, incidentId: String(call.incidentId) },
-      "CALL_ENDED"
+      "CALL_ACCEPTED"
     );
   }
 
@@ -169,7 +182,7 @@ export const nativeCallAction = asyncHandler(async (req: Request, res: Response)
       await sendNativeCallStateToUser(
         String(call.ownerUserId),
         { callId: call.id, incidentId: String(call.incidentId) },
-        "CALL_ENDED"
+        "CALL_ACCEPTED"
       );
     }
 
@@ -255,6 +268,7 @@ export const startCall = asyncHandler(async (req: Request, res: Response) => {
   await call.save();
 
   const agora = buildAgoraJoinPayload(call, "caller");
+  const receiverAgora = buildAgoraJoinPayload(call, "receiver");
   const incomingPayload = {
     callId: call.id,
     incidentId: String(call.incidentId),
@@ -265,7 +279,8 @@ export const startCall = asyncHandler(async (req: Request, res: Response) => {
     platform: call.reporterPlatform || "web",
     agoraChannelName: call.agoraChannelName,
     agoraUidCaller: call.agoraUidCaller,
-    agoraUidReceiver: call.agoraUidReceiver
+    agoraUidReceiver: call.agoraUidReceiver,
+    agora: receiverAgora
   };
   emitToUser(String(call.ownerUserId), "call:incoming", incomingPayload);
   emitToUser(String(call.ownerUserId), "call_ringing", incomingPayload);
@@ -294,7 +309,8 @@ export const startCall = asyncHandler(async (req: Request, res: Response) => {
       platform: call.reporterPlatform || "web",
       callActionToken: createNativeCallActionToken(call.id, call.ownerUserId),
       createdAt: createdAtIso,
-      expiresAt
+      expiresAt,
+      ...agoraForNativePayload(receiverAgora, call)
     };
 
     await sendNativeIncomingCallToUser(String(call.ownerUserId), nativePayload);
@@ -327,6 +343,10 @@ export const startCall = asyncHandler(async (req: Request, res: Response) => {
       callId: call.id,
       incidentId: String(call.incidentId),
       status: call.status,
+      channelName: agora.channelName,
+      agoraToken: agora.token,
+      caller: { agora },
+      receiver: { agora: receiverAgora },
       agora
     }
   });

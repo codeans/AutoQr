@@ -13,7 +13,12 @@ class IncomingCallActionReceiver : BroadcastReceiver() {
       action == IncomingCallForegroundService.ACTION_TIMEOUT ||
       action == IncomingCallForegroundService.ACTION_STOP
     ) {
-      IncomingCallForegroundService.startServiceWithExtras(context, intent)
+      val forwarded = Intent(intent).apply {
+        if (!hasExtra(IncomingCallForegroundService.EXTRA_ACCEPT_SOURCE)) {
+          putExtra(IncomingCallForegroundService.EXTRA_ACCEPT_SOURCE, "notification")
+        }
+      }
+      IncomingCallForegroundService.startServiceWithExtras(context, forwarded)
     }
   }
 }

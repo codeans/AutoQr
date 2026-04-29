@@ -22,9 +22,19 @@ type NativeCallPayload = {
   callActionToken?: string;
   createdAt?: string;
   expiresAt?: string;
+  agoraAppId?: string;
+  agoraToken?: string;
+  agoraChannelName?: string;
+  channelName?: string;
+  agoraUid?: number;
+  agoraUidCaller?: number;
+  agoraUidReceiver?: number;
+  agoraRole?: string;
+  agoraExpiresAt?: string;
+  agoraExpiresInSeconds?: number;
 };
 
-type NativeCallStateType = "INCOMING_CALL" | "MISSED_CALL" | "CALL_ENDED" | "call_missed" | "call_ended";
+type NativeCallStateType = "INCOMING_CALL" | "CALL_ACCEPTED" | "MISSED_CALL" | "CALL_ENDED" | "call_missed" | "call_ended";
 
 let apnProvider: apn.Provider | null | undefined;
 

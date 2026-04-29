@@ -11,8 +11,10 @@ import { callAlertService } from "@/services/calls/callAlertService";
 import {
   handleIncomingCall,
   isCallHandled,
+  markCallHandled,
   stopIncomingCallAlerting
 } from "./incomingCallNotificationHandler";
+import { pendingCallBridge } from "@/services/calls/pendingCallBridge";
 
 // If the ringing side hasn't progressed within this window, we treat the call as missed
 // locally — the server will also mark it missed on reporter disconnect, but this keeps
@@ -62,6 +64,10 @@ export function useCallSocketHandlers(): void {
         return;
       }
       if (lastIncomingCallIdRef.current === payload.callId || isCallHandled(payload.callId)) return;
+      if (pendingCallBridge.isHandledLocally(payload.callId)) {
+        console.info("[AutoQr] socket call:incoming ignored, already handled natively", { callId: payload.callId });
+        return;
+      }
       lastIncomingCallIdRef.current = payload.callId;
       clearRingingTimer();
       const incoming = normalizeIncoming(payload);
@@ -84,6 +90,7 @@ export function useCallSocketHandlers(): void {
 
     const onMissed = (payload: { callId: string; reason?: string }) => {
       clearRingingTimer();
+      markCallHandled(payload.callId, "missed");
       void stopIncomingCallAlerting();
       void nativeCallService.endIncomingCall(payload.callId);
       setEndReason(payload.reason ?? "missed");
@@ -93,6 +100,8 @@ export function useCallSocketHandlers(): void {
 
     const onAccepted = (payload: { callId: string; ownerSocketId?: string; reporterSocketId?: string }) => {
       clearRingingTimer();
+      markCallHandled(payload.callId, "accepted");
+      void pendingCallBridge.clearPending(payload.callId);
       void stopIncomingCallAlerting();
       const sock = getSocket();
       const selfId = sock?.id ?? "";
@@ -121,7 +130,11 @@ export function useCallSocketHandlers(): void {
       void stopIncomingCallAlerting();
       setEndReason(payload?.reason ?? "ended");
       const callId = payload?.callId ?? useCallStore.getState().activeCallId ?? useCallStore.getState().incoming?.callId;
-      if (callId) nativeCallService.markCallEnded(callId);
+      if (callId) {
+        markCallHandled(callId, "ended");
+        void pendingCallBridge.clearPending(callId);
+        nativeCallService.markCallEnded(callId);
+      }
       agoraVoiceService.cleanup().catch(() => undefined);
       reset();
       if (router.canGoBack()) {
@@ -147,7 +160,11 @@ export function useCallSocketHandlers(): void {
       }
       void stopIncomingCallAlerting();
       const callId = payload?.callId ?? state.incoming?.callId;
-      if (callId) void nativeCallService.endIncomingCall(callId);
+      if (callId) {
+        markCallHandled(callId, "ended");
+        void pendingCallBridge.clearPending(callId);
+        void nativeCallService.endIncomingCall(callId);
+      }
       setEndReason("reporter_cancelled");
       reset();
     };
@@ -156,7 +173,11 @@ export function useCallSocketHandlers(): void {
       clearRingingTimer();
       void stopIncomingCallAlerting();
       const callId = useCallStore.getState().incoming?.callId ?? useCallStore.getState().activeCallId;
-      if (callId) nativeCallService.markCallEnded(callId);
+      if (callId) {
+        markCallHandled(callId, "declined");
+        void pendingCallBridge.clearPending(callId);
+        nativeCallService.markCallEnded(callId);
+      }
       setEndReason("rejected");
       setStatus("declined");
       reset();

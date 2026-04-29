@@ -8,9 +8,11 @@ import { requestNotificationPermission as requestNotificationPermissionFromExpo 
 import { StorageKeys } from "@/constants/storage";
 import { secureStorage } from "@/utils/secureStorage";
 import { router } from "expo-router";
-import { handleIncomingCall, handleIncomingCallTap, isCallHandled } from "@/features/calls/incomingCallNotificationHandler";
+import { handleIncomingCall, handleIncomingCallTap, isCallHandled, markCallHandled } from "@/features/calls/incomingCallNotificationHandler";
 import { cleanupIncomingCall } from "@/features/calls/backgroundCallHandler";
+import { pendingCallBridge } from "@/services/calls/pendingCallBridge";
 import type { IncomingCall } from "@/types/call";
+import type { AgoraJoinPayload } from "@/types/call";
 
 type IncomingCallPayload = {
   type?: string;
@@ -31,6 +33,15 @@ type IncomingCallPayload = {
   expiresAt?: string;
   agoraChannel?: string;
   agoraChannelName?: string;
+  agoraAppId?: string;
+  agoraToken?: string;
+  channelName?: string;
+  agoraUid?: number | string;
+  agoraUidCaller?: number | string;
+  agoraUidReceiver?: number | string;
+  agoraRole?: "publisher" | "subscriber" | string;
+  agoraExpiresAt?: string;
+  agoraExpiresInSeconds?: number | string;
   incidentImages?: string[];
 };
 
@@ -90,7 +101,36 @@ function parseIncomingPayload(payload: Record<string, unknown>): IncomingCallPay
     expiresAt: typeof payload.expiresAt === "string" ? payload.expiresAt : undefined,
     agoraChannel: typeof payload.agoraChannel === "string" ? payload.agoraChannel : undefined,
     agoraChannelName: typeof payload.agoraChannelName === "string" ? payload.agoraChannelName : undefined,
+    agoraAppId: typeof payload.agoraAppId === "string" ? payload.agoraAppId : undefined,
+    agoraToken: typeof payload.agoraToken === "string" ? payload.agoraToken : undefined,
+    channelName: typeof payload.channelName === "string" ? payload.channelName : undefined,
+    agoraUid: typeof payload.agoraUid === "number" || typeof payload.agoraUid === "string" ? payload.agoraUid : undefined,
+    agoraUidCaller: typeof payload.agoraUidCaller === "number" || typeof payload.agoraUidCaller === "string" ? payload.agoraUidCaller : undefined,
+    agoraUidReceiver: typeof payload.agoraUidReceiver === "number" || typeof payload.agoraUidReceiver === "string" ? payload.agoraUidReceiver : undefined,
+    agoraRole: typeof payload.agoraRole === "string" ? payload.agoraRole : undefined,
+    agoraExpiresAt: typeof payload.agoraExpiresAt === "string" ? payload.agoraExpiresAt : undefined,
+    agoraExpiresInSeconds:
+      typeof payload.agoraExpiresInSeconds === "number" || typeof payload.agoraExpiresInSeconds === "string"
+        ? payload.agoraExpiresInSeconds
+        : undefined,
     incidentImages
+  };
+}
+
+function parseAgoraFromIncoming(incoming: IncomingCallPayload): AgoraJoinPayload | undefined {
+  if (!incoming.agoraToken) return undefined;
+  const channelName = incoming.channelName ?? incoming.agoraChannelName ?? incoming.agoraChannel;
+  if (!channelName) return undefined;
+  const uid = Number(incoming.agoraUid ?? incoming.agoraUidReceiver);
+  if (!Number.isFinite(uid) || uid <= 0) return undefined;
+  return {
+    appId: incoming.agoraAppId ?? "",
+    token: incoming.agoraToken,
+    channelName,
+    uid,
+    role: incoming.agoraRole === "subscriber" ? "subscriber" : "publisher",
+    expiresAt: incoming.agoraExpiresAt ?? "",
+    expiresInSeconds: Number(incoming.agoraExpiresInSeconds ?? 0)
   };
 }
 
@@ -103,6 +143,7 @@ function parseCallStatePayload(payload: Record<string, unknown>): CallStatePaylo
   // Accept legacy/alternate casing pushed by older clients.
   const allowed = new Set([
     "INCOMING_CALL",
+    "CALL_ACCEPTED",
     "MISSED_CALL",
     "CALL_ENDED",
     "call_missed",
@@ -111,7 +152,7 @@ function parseCallStatePayload(payload: Record<string, unknown>): CallStatePaylo
   if (!allowed.has(type)) {
     // Some backends may send lowercase or mixed case; normalize a bit.
     const normalized = type.toUpperCase();
-    if (!["INCOMING_CALL", "MISSED_CALL", "CALL_ENDED"].includes(normalized)) return null;
+    if (!["INCOMING_CALL", "CALL_ACCEPTED", "MISSED_CALL", "CALL_ENDED"].includes(normalized)) return null;
     return { type: normalized, callId, incidentId: typeof payload.incidentId === "string" ? payload.incidentId : undefined };
   }
 
@@ -137,6 +178,10 @@ async function handleCallStateFromPayload(payload: Record<string, unknown>): Pro
 
   if (parsedIncoming?.callId && (type === "INCOMING_CALL" || state?.type === "INCOMING_CALL")) {
     if (isCallHandled(parsedIncoming.callId)) return;
+    if (await pendingCallBridge.isHandled(parsedIncoming.callId)) {
+      console.info("[AutoQr] FCM INCOMING_CALL ignored, already handled natively", { callId: parsedIncoming.callId });
+      return;
+    }
     const normalizedPayload: Partial<IncomingCall> & { callId: string } = {
       callId: parsedIncoming.callId,
       incidentId: parsedIncoming.incidentId,
@@ -153,7 +198,11 @@ async function handleCallStateFromPayload(payload: Record<string, unknown>): Pro
       platform: parsedIncoming.platform,
       createdAt: parsedIncoming.createdAt,
       expiresAt: parsedIncoming.expiresAt,
-      incidentImages: parsedIncoming.incidentImages
+      incidentImages: parsedIncoming.incidentImages,
+      agoraChannelName: parsedIncoming.agoraChannelName ?? parsedIncoming.channelName ?? parsedIncoming.agoraChannel,
+      agoraUidCaller: parsedIncoming.agoraUidCaller ? Number(parsedIncoming.agoraUidCaller) : undefined,
+      agoraUidReceiver: parsedIncoming.agoraUidReceiver ? Number(parsedIncoming.agoraUidReceiver) : undefined,
+      agora: parseAgoraFromIncoming(parsedIncoming)
     };
     await handleIncomingCall(normalizedPayload);
     return;
@@ -162,9 +211,19 @@ async function handleCallStateFromPayload(payload: Record<string, unknown>): Pro
   if (!state) return;
 
   // Missed/end: stop ringtone + dismiss CallKeep UI.
+  if (state.type === "CALL_ACCEPTED") {
+    if (isRecentlyCleaned(state.callId)) return;
+    cleanedCallIds.set(state.callId, Date.now());
+    markCallHandled(state.callId, "accepted");
+    await cleanupIncomingCall(state.callId).catch(() => undefined);
+    return;
+  }
+
   if (state.type === "MISSED_CALL" || state.type === "CALL_ENDED" || state.type === "call_missed" || state.type === "call_ended") {
     if (isRecentlyCleaned(state.callId)) return;
     cleanedCallIds.set(state.callId, Date.now());
+    const outcome = state.type === "MISSED_CALL" || state.type === "call_missed" ? "missed" : "ended";
+    markCallHandled(state.callId, outcome);
     await cleanupIncomingCall(state.callId).catch(() => undefined);
 
     // When launched from a background FCM data message, navigate to history so UI is coherent.
@@ -295,7 +354,11 @@ export async function handleKilledAppLaunch(): Promise<void> {
       if (incoming?.callId) {
         await handleIncomingCallTap(incoming.callId, {
           ...incoming,
-          imageCount: typeof incoming.imageCount === "string" ? Number(incoming.imageCount) : incoming.imageCount
+          imageCount: typeof incoming.imageCount === "string" ? Number(incoming.imageCount) : incoming.imageCount,
+          agoraChannelName: incoming.agoraChannelName ?? incoming.channelName ?? incoming.agoraChannel,
+          agoraUidCaller: incoming.agoraUidCaller ? Number(incoming.agoraUidCaller) : undefined,
+          agoraUidReceiver: incoming.agoraUidReceiver ? Number(incoming.agoraUidReceiver) : undefined,
+          agora: parseAgoraFromIncoming(incoming)
         });
         return;
       }
@@ -319,7 +382,11 @@ export async function handleKilledAppLaunch(): Promise<void> {
   if (incoming?.callId) {
     await handleIncomingCallTap(incoming.callId, {
       ...incoming,
-      imageCount: typeof incoming.imageCount === "string" ? Number(incoming.imageCount) : incoming.imageCount
+      imageCount: typeof incoming.imageCount === "string" ? Number(incoming.imageCount) : incoming.imageCount,
+      agoraChannelName: incoming.agoraChannelName ?? incoming.channelName ?? incoming.agoraChannel,
+      agoraUidCaller: incoming.agoraUidCaller ? Number(incoming.agoraUidCaller) : undefined,
+      agoraUidReceiver: incoming.agoraUidReceiver ? Number(incoming.agoraUidReceiver) : undefined,
+      agora: parseAgoraFromIncoming(incoming)
     });
     return;
   }

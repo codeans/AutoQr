@@ -208,7 +208,10 @@ class IncomingCallActivity : AppCompatActivity() {
       addView(actionColumn("x", "Decline", Color.rgb(239, 68, 68)) {
         IncomingCallForegroundService.startServiceWithExtras(
           this@IncomingCallActivity,
-          Intent(intent).apply { action = IncomingCallForegroundService.ACTION_DECLINE }
+          Intent(intent).apply {
+            action = IncomingCallForegroundService.ACTION_DECLINE
+            putExtra(IncomingCallForegroundService.EXTRA_ACCEPT_SOURCE, "lockscreen")
+          }
         )
         finishAndRemoveTask()
       })
@@ -216,8 +219,12 @@ class IncomingCallActivity : AppCompatActivity() {
       addView(actionColumn("✓", "Accept", Color.rgb(34, 197, 94)) {
         IncomingCallForegroundService.startServiceWithExtras(
           this@IncomingCallActivity,
-          Intent(intent).apply { action = IncomingCallForegroundService.ACTION_ACCEPT }
+          Intent(intent).apply {
+            action = IncomingCallForegroundService.ACTION_ACCEPT
+            putExtra(IncomingCallForegroundService.EXTRA_ACCEPT_SOURCE, "lockscreen")
+          }
         )
+        moveTaskToBack(true)
         finishAndRemoveTask()
       })
     }

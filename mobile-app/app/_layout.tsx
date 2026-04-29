@@ -13,6 +13,7 @@ import { useBootstrap } from "@/hooks/useBootstrap";
 import { useSocket } from "@/hooks/useSocket";
 import { useCallSocketHandlers } from "@/features/calls/callSocketHandlers";
 import { useNativeCallHandlers } from "@/features/calls/useNativeCallHandlers";
+import { usePendingAcceptedCall } from "@/hooks/usePendingAcceptedCall";
 import { useNotificationSocketHandlers } from "@/features/notifications/notificationSocketHandlers";
 import { useNotificationHandlers } from "@/features/notifications/notificationHandlers";
 import { CallFloatingBanner } from "@/features/calls/CallFloatingBanner";
@@ -49,6 +50,7 @@ function AppGate() {
   useSocket();
   useCallSocketHandlers();
   useNativeCallHandlers();
+  usePendingAcceptedCall();
   useNotificationSocketHandlers();
   useNotificationHandlers();
 

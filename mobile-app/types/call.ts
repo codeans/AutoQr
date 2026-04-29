@@ -50,6 +50,7 @@ export type IncomingCall = {
   agoraChannelName?: string;
   agoraUidCaller?: number;
   agoraUidReceiver?: number;
+  agora?: AgoraJoinPayload;
 };
 
 export type ActiveCallState =

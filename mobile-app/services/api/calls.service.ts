@@ -3,6 +3,7 @@ import { apiClient } from "./client";
 export type CallStatus =
   | "ringing"
   | "accepted"
+  | "active"
   | "connected"
   | "ended"
   | "missed"

@@ -6,9 +6,10 @@ import { useCallStore } from "@/stores/call.store";
 import { CallEvents, type IncomingCall } from "@/types/call";
 import { agoraVoiceService } from "@/services/agora/agoraVoiceService";
 import { nativeCallService } from "@/services/calls/nativeCallService";
-import { stopIncomingCallAlerting } from "@/features/calls/incomingCallNotificationHandler";
+import { markCallHandled, stopIncomingCallAlerting } from "@/features/calls/incomingCallNotificationHandler";
 import { checkMicrophonePermission } from "@/services/permissions/permissionService";
 import { callsService } from "@/services/api/calls.service";
+import { pendingCallBridge } from "@/services/calls/pendingCallBridge";
 
 const isLiveCallStatus = (status?: string) => !status || status === "ringing" || status === "accepted" || status === "connected";
 let acceptingCallId: string | null = null;
@@ -17,7 +18,7 @@ async function refreshIncomingForAccept(incoming: IncomingCall): Promise<Incomin
   try {
     const { call } = await callsService.get(incoming.callId);
     if (!call?.callId || !isLiveCallStatus(call.status)) return null;
-    return { ...incoming, ...call };
+    return { ...incoming, ...call, agora: call.agora ?? incoming.agora };
   } catch {
     return incoming;
   }
@@ -37,12 +38,14 @@ export function useCallActions() {
     if (acceptingCallId === targetIncoming.callId) return;
     acceptingCallId = targetIncoming.callId;
     try {
+      markCallHandled(targetIncoming.callId, "accepted");
+      void pendingCallBridge.clearPending(targetIncoming.callId);
+      await stopIncomingCallAlerting();
       setStatus("connecting");
       const liveIncoming = await refreshIncomingForAccept(targetIncoming);
       if (!liveIncoming) {
         setStatus("missed");
         setEndReason("timeout");
-        await stopIncomingCallAlerting();
         reset();
         return;
       }
@@ -53,37 +56,27 @@ export function useCallActions() {
       if (micStatus !== "granted") {
         setStatus("failed");
         setEndReason("permission_denied");
-        await stopIncomingCallAlerting();
         router.push("/permissions/microphone");
         return;
       }
 
-      await stopIncomingCallAlerting();
-      const socket = await waitForSocketConnection();
-      if (!socket) {
-        setStatus("failed");
-        setEndReason("network_error");
-        await stopIncomingCallAlerting();
-        return;
-      }
+      const socket = await waitForSocketConnection().catch(() => null);
       setActive({
         callId: liveIncoming.callId,
         remoteSocketId: liveIncoming.reporterSocketId ?? null
       });
 
       const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
-      const acceptResult = await callsService.accept(liveIncoming.callId, platform, socket.id).catch(() => null);
+      const acceptResult = await callsService.accept(liveIncoming.callId, platform, socket?.id).catch(() => null);
       if (!acceptResult?.ok) {
         setStatus("failed");
         setEndReason("accept_failed");
-        await stopIncomingCallAlerting();
         return;
       }
-      const agora = acceptResult.call?.agora;
+      const agora = acceptResult.call?.agora ?? liveIncoming.agora;
       if (!agora) {
         setStatus("failed");
         setEndReason("agora_token_missing");
-        await stopIncomingCallAlerting();
         return;
       }
       const resolvedIncoming = acceptResult.call?.reporterSocketId
@@ -135,6 +128,8 @@ export function useCallActions() {
         socket.emit(CallEvents.CALL_REJECT, { callId: incoming.callId, reason });
       }
       if (incoming?.callId) {
+        markCallHandled(incoming.callId, "declined");
+        void pendingCallBridge.clearPending(incoming.callId);
         nativeCallService.rejectNativeCall(incoming.callId);
         void callsService.decline(incoming.callId, reason ?? "rejected").catch(() => undefined);
       }
@@ -153,6 +148,8 @@ export function useCallActions() {
         socket.emit(CallEvents.CALL_REJECT, { callId: targetIncoming.callId, reason });
       }
       if (targetIncoming?.callId) {
+        markCallHandled(targetIncoming.callId, "declined");
+        void pendingCallBridge.clearPending(targetIncoming.callId);
         nativeCallService.rejectNativeCall(targetIncoming.callId);
         void callsService.decline(targetIncoming.callId, reason ?? "rejected").catch(() => undefined);
       }
@@ -177,6 +174,8 @@ export function useCallActions() {
       });
     }
     if (activeCallId) {
+      markCallHandled(activeCallId, "ended");
+      void pendingCallBridge.clearPending(activeCallId);
       nativeCallService.markCallEnded(activeCallId);
       void callsService.end(activeCallId, "owner_ended").catch(() => undefined);
     }

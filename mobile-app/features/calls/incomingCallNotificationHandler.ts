@@ -1,10 +1,11 @@
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 import { router } from "expo-router";
 import type { IncomingCall } from "@/types/call";
 import { useCallStore } from "@/stores/call.store";
 import { callsService } from "@/services/api/calls.service";
 import { nativeCallService } from "@/services/calls/nativeCallService";
 import { callAlertService, SHOULD_VIBRATE_FOR_INCOMING_CALL } from "@/services/calls/callAlertService";
+import { pendingCallBridge, type HandledCallOutcome } from "@/services/calls/pendingCallBridge";
 
 const RINGING_TIMEOUT_MS = 45_000;
 const handledCallIds = new Map<string, number>();
@@ -28,7 +29,14 @@ function rememberCallId(callId: string): void {
 
 export function isCallHandled(callId: string | null | undefined): boolean {
   if (!callId) return false;
-  return handledCallIds.has(callId);
+  if (handledCallIds.has(callId)) return true;
+  return pendingCallBridge.isHandledLocally(callId);
+}
+
+export function markCallHandled(callId: string | null | undefined, outcome: HandledCallOutcome = "ended"): void {
+  if (!callId) return;
+  rememberCallId(callId);
+  void pendingCallBridge.markHandled(callId, outcome).catch(() => undefined);
 }
 
 export function ensureIncomingCallAppStateWatcher(): void {
@@ -69,7 +77,11 @@ function toIncomingCall(payload: Partial<IncomingCall> & { callId: string }): In
     message: payload.message,
     platform: payload.platform,
     createdAt: payload.createdAt,
-    expiresAt: payload.expiresAt
+    expiresAt: payload.expiresAt,
+    agoraChannelName: payload.agoraChannelName,
+    agoraUidCaller: payload.agoraUidCaller,
+    agoraUidReceiver: payload.agoraUidReceiver,
+    agora: payload.agora
   };
 }
 
@@ -101,6 +113,10 @@ async function restoreIncomingCall(callId: string): Promise<IncomingCall | null>
 export async function handleIncomingCall(payload: Partial<IncomingCall> & { callId: string }): Promise<void> {
   ensureIncomingCallAppStateWatcher();
   const incoming = toIncomingCall(payload);
+  if (await pendingCallBridge.isHandled(incoming.callId)) {
+    console.info("[AutoQr] ignoring incoming call already handled", { callId: incoming.callId });
+    return;
+  }
   const alreadyHandled = isCallHandled(incoming.callId);
   const current = useCallStore.getState().incoming?.callId;
   if (alreadyHandled && current === incoming.callId) return;
@@ -108,15 +124,17 @@ export async function handleIncomingCall(payload: Partial<IncomingCall> & { call
 
   useCallStore.getState().setIncoming(incoming);
   scheduleMissedTimeout(incoming.callId);
-  await nativeCallService.displayIncomingCall(incoming).catch(() => false);
+  const nativeDisplayed = await nativeCallService.displayIncomingCall(incoming).catch(() => false);
 
   if (appState === "active") {
     if (ringingCallId !== incoming.callId) {
       ringingCallId = incoming.callId;
-      if (SHOULD_VIBRATE_FOR_INCOMING_CALL) {
-        await callAlertService.startIncomingCallAlerts();
-      } else {
-        await callAlertService.startRingtone();
+      if (!nativeDisplayed && Platform.OS !== "android") {
+        if (SHOULD_VIBRATE_FOR_INCOMING_CALL) {
+          await callAlertService.startIncomingCallAlerts();
+        } else {
+          await callAlertService.startRingtone();
+        }
       }
     }
     router.push(`/calls/incoming/${incoming.callId}` as never);

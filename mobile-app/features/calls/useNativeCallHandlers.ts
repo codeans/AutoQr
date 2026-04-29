@@ -5,6 +5,8 @@ import { useCallStore } from "@/stores/call.store";
 import { useCallActions } from "@/hooks/useCallActions";
 import { callsService } from "@/services/api/calls.service";
 import { nativeCallService } from "@/services/calls/nativeCallService";
+import { markCallHandled } from "@/features/calls/incomingCallNotificationHandler";
+import { pendingCallBridge } from "@/services/calls/pendingCallBridge";
 import type { IncomingCall } from "@/types/call";
 
 async function hydrateIncoming(callId: string): Promise<IncomingCall | null> {
@@ -31,13 +33,20 @@ export function useNativeCallHandlers(): void {
 
     return nativeCallService.registerEventHandlers({
       onIncomingPayload: (incoming) => {
+        if (pendingCallBridge.isHandledLocally(incoming.callId)) return;
         useCallStore.getState().setIncoming(incoming);
       },
       onAnswer: (callId) => {
+        markCallHandled(callId, "accepted");
+        void pendingCallBridge.clearPending(callId);
         hydrateIncoming(callId)
           .then((incoming) => {
             if (!incoming) return;
-            router.push("/call/active");
+            try {
+              router.replace("/call/active");
+            } catch {
+              router.push("/call/active");
+            }
             return acceptIncoming(incoming);
           })
           .catch(() => undefined);

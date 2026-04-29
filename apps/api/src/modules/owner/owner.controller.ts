@@ -12,6 +12,7 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
 import { maskGermanPhone } from "@autoqr/shared";
 import { z } from "zod";
+import { buildAgoraJoinPayload, ensureAgoraFields } from "../../services/agora/agora.service.js";
 
 const sanitizeIncident = (incident: any) => {
   const doc = typeof incident?.toObject === "function" ? incident.toObject() : { ...incident };
@@ -50,6 +51,8 @@ const sanitizeCallForIncoming = (call: any) => {
         ? doc.createdAt
         : new Date().toISOString();
   const expiresAt = new Date(new Date(createdAtIso).getTime() + 45_000).toISOString();
+  ensureAgoraFields(call);
+  const receiverAgora = buildAgoraJoinPayload(call, "receiver");
 
   return {
     callId: String(doc._id),
@@ -69,7 +72,11 @@ const sanitizeCallForIncoming = (call: any) => {
     carLabel,
     imageCount: Array.isArray(incident?.images) ? incident.images.length : 0,
     message: incident?.message || "",
-    platform: doc.reporterPlatform || "web"
+    platform: doc.reporterPlatform || "web",
+    agoraChannelName: call.agoraChannelName,
+    agoraUidCaller: call.agoraUidCaller,
+    agoraUidReceiver: call.agoraUidReceiver,
+    agora: receiverAgora
   };
 };
 
@@ -141,6 +148,8 @@ export const callDetail = asyncHandler(async (req: Request, res: Response) => {
   const call = await CallSessionModel.findOne({ _id: callId, ownerUserId: req.auth!.userId })
     .populate({ path: "incidentId", select: "carId reporterPhone images message createdAt", populate: { path: "carId", select: "make model registrationNumber nickname" } });
   if (!call) throw new ApiError(404, "Call not found");
+  ensureAgoraFields(call);
+  if (call.isModified?.()) await call.save();
   res.json({ call: sanitizeCallForIncoming(call) });
 });
 

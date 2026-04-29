@@ -12,6 +12,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { maskPhone } from "@/utils/format";
 import { callsService } from "@/services/api/calls.service";
 import { callAlertService, SHOULD_VIBRATE_FOR_INCOMING_CALL } from "@/services/calls/callAlertService";
+import { pendingCallBridge } from "@/services/calls/pendingCallBridge";
 
 export function IncomingCallScreen() {
   const incoming = useCallStore((s) => s.incoming);
@@ -24,12 +25,21 @@ export function IncomingCallScreen() {
     const callId = typeof params.callId === "string" ? params.callId : "";
     if (!callId) return;
     if (incoming?.callId === callId) return;
+    if (pendingCallBridge.isHandledLocally(callId)) {
+      router.replace("/call/active");
+      return;
+    }
     callsService
       .get(callId)
       .then(({ call }) => {
         if (!call?.callId) return;
         if (call.status && call.status !== "ringing" && call.status !== "accepted" && call.status !== "connected") {
           useCallStore.getState().setStatus(call.status === "missed" ? "missed" : "ended");
+          return;
+        }
+        if (call.status === "accepted" || call.status === "connected") {
+          setIncoming(call);
+          router.replace("/call/active");
           return;
         }
         setIncoming(call);

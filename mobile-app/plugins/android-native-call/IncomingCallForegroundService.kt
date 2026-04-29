@@ -53,6 +53,11 @@ class IncomingCallForegroundService : Service() {
       Log.i(TAG, "Ignoring stale incoming call alert for recently stopped callId=$callId")
       return
     }
+    if (HandledCallStore.isHandled(this, callId)) {
+      val outcome = HandledCallStore.outcomeFor(this, callId)?.raw ?: "handled"
+      Log.i(TAG, "Ignoring incoming call already handled locally callId=$callId outcome=$outcome")
+      return
+    }
 
     val duplicate = activeAlertCallId == callId
     if (!duplicate && activeAlertCallId != null) {
@@ -84,15 +89,72 @@ class IncomingCallForegroundService : Service() {
   private fun acceptCall(intent: Intent) {
     val callId = intent.getStringExtra(EXTRA_CALL_ID) ?: activeCallId ?: return
     val token = intent.getStringExtra(EXTRA_ACTION_TOKEN) ?: activeActionToken
+    val callerName = intent.getStringExtra(EXTRA_CALLER_NAME)
+    val handle = intent.getStringExtra(EXTRA_HANDLE)
+    val incidentId = intent.getStringExtra(EXTRA_INCIDENT_ID)
+    val carLabel = intent.getStringExtra(EXTRA_CAR_LABEL)
+    val reporterPhone = intent.getStringExtra(EXTRA_REPORTER_PHONE)
+      ?: intent.getStringExtra("reporterPhone")
+      ?: intent.getStringExtra("reporterPhoneMasked")
+      ?: intent.getStringExtra("callerPhone")
+    val source = intent.getStringExtra(EXTRA_ACCEPT_SOURCE) ?: "native"
+    val agoraAppId = intent.getStringExtra(EXTRA_AGORA_APP_ID)
+    val agoraToken = intent.getStringExtra(EXTRA_AGORA_TOKEN)
+    val agoraChannelName = intent.getStringExtra(EXTRA_AGORA_CHANNEL_NAME)
+      ?: intent.getStringExtra(EXTRA_CHANNEL_NAME)
+    val agoraUid = intent.getStringExtra(EXTRA_AGORA_UID)
+    val agoraRole = intent.getStringExtra(EXTRA_AGORA_ROLE)
+    val agoraExpiresAt = intent.getStringExtra(EXTRA_AGORA_EXPIRES_AT)
+    val agoraExpiresInSeconds = intent.getStringExtra(EXTRA_AGORA_EXPIRES_IN_SECONDS)
+
+    Log.i(TAG, "Accept tapped callId=$callId source=$source")
+    HandledCallStore.markHandled(this, callId, HandledCallStore.Outcome.ACCEPTED)
+    PendingAcceptedCallStore.savePending(
+      context = this,
+      callId = callId,
+      callerName = callerName,
+      handle = handle,
+      actionToken = token,
+      incidentId = incidentId,
+      carLabel = carLabel,
+      reporterPhone = reporterPhone,
+      source = source,
+      shouldOpenCallScreen = true,
+      agoraAppId = agoraAppId,
+      agoraToken = agoraToken,
+      agoraChannelName = agoraChannelName,
+      agoraUid = agoraUid,
+      agoraRole = agoraRole,
+      agoraExpiresAt = agoraExpiresAt,
+      agoraExpiresInSeconds = agoraExpiresInSeconds
+    )
     stopCallAlert(callId, "accept")
     postNativeActionWithRetry(callId, "accept", token)
-    openReactCallScreen(callId, "accept")
+    launchAcceptedCallScreen(
+      callId = callId,
+      callerName = callerName,
+      handle = handle,
+      actionToken = token,
+      incidentId = incidentId,
+      carLabel = carLabel,
+      reporterPhone = reporterPhone,
+      source = source,
+      agoraAppId = agoraAppId,
+      agoraToken = agoraToken,
+      agoraChannelName = agoraChannelName,
+      agoraUid = agoraUid,
+      agoraRole = agoraRole,
+      agoraExpiresAt = agoraExpiresAt,
+      agoraExpiresInSeconds = agoraExpiresInSeconds
+    )
     stopSelf()
   }
 
   private fun declineCall(intent: Intent) {
     val callId = intent.getStringExtra(EXTRA_CALL_ID) ?: activeCallId ?: return
     val token = intent.getStringExtra(EXTRA_ACTION_TOKEN) ?: activeActionToken
+    HandledCallStore.markHandled(this, callId, HandledCallStore.Outcome.DECLINED)
+    PendingAcceptedCallStore.clearPendingForCallId(this, callId)
     stopCallAlert(callId, "decline")
     postNativeActionWithRetry(callId, "decline", token, "owner_rejected")
     stopSelf()
@@ -105,6 +167,8 @@ class IncomingCallForegroundService : Service() {
       return
     }
     val token = intent.getStringExtra(EXTRA_ACTION_TOKEN) ?: activeActionToken
+    HandledCallStore.markHandled(this, callId, HandledCallStore.Outcome.MISSED)
+    PendingAcceptedCallStore.clearPendingForCallId(this, callId)
     stopCallAlert(callId, "missed_timeout")
     postNativeActionWithRetry(callId, "missed", token, "timeout")
     showMissedCallNotification(intent)
@@ -138,7 +202,11 @@ class IncomingCallForegroundService : Service() {
     val contentIntent = PendingIntent.getActivity(
       this,
       callId.hashCode() + 3,
-      reactDeepLinkIntent(callId, null),
+      Intent(this, MainActivity::class.java).apply {
+        action = Intent.ACTION_MAIN
+        addCategory(Intent.CATEGORY_LAUNCHER)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+      },
       flags
     )
     val acceptIntent = PendingIntent.getBroadcast(
@@ -350,15 +418,65 @@ class IncomingCallForegroundService : Service() {
     })
   }
 
-  private fun openReactCallScreen(callId: String, action: String) {
-    startActivity(reactDeepLinkIntent(callId, action))
-  }
-
-  private fun reactDeepLinkIntent(callId: String, action: String?): Intent {
-    val suffix = if (action.isNullOrBlank()) "" else "?action=$action&nativeAction=pending"
-    return Intent(Intent.ACTION_VIEW, Uri.parse("autoqr://calls/incoming/${Uri.encode(callId)}$suffix")).apply {
-      setPackage(packageName)
-      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+  private fun launchAcceptedCallScreen(
+    callId: String,
+    callerName: String?,
+    handle: String?,
+    actionToken: String?,
+    incidentId: String?,
+    carLabel: String?,
+    reporterPhone: String?,
+    source: String,
+    agoraAppId: String?,
+    agoraToken: String?,
+    agoraChannelName: String?,
+    agoraUid: String?,
+    agoraRole: String?,
+    agoraExpiresAt: String?,
+    agoraExpiresInSeconds: String?
+  ) {
+    val acceptedAt = System.currentTimeMillis()
+    val intent = Intent(this, MainActivity::class.java).apply {
+      action = Intent.ACTION_MAIN
+      addCategory(Intent.CATEGORY_LAUNCHER)
+      addFlags(
+        Intent.FLAG_ACTIVITY_NEW_TASK or
+          Intent.FLAG_ACTIVITY_CLEAR_TOP or
+          Intent.FLAG_ACTIVITY_SINGLE_TOP or
+          Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+      )
+      putExtra(MainActivity.EXTRA_ACTION, MainActivity.ACTION_OPEN_ACCEPTED_CALL)
+      putExtra(MainActivity.EXTRA_CALL_ID, callId)
+      putExtra(MainActivity.EXTRA_CALLER_NAME, callerName ?: "")
+      putExtra(MainActivity.EXTRA_HANDLE, handle ?: "")
+      putExtra(MainActivity.EXTRA_CALL_ACTION_TOKEN, actionToken ?: "")
+      putExtra(MainActivity.EXTRA_ACCEPTED_FROM_NATIVE, true)
+      putExtra(MainActivity.EXTRA_SOURCE, source)
+      putExtra(MainActivity.EXTRA_ACCEPTED_AT, acceptedAt)
+      putExtra(MainActivity.EXTRA_INCIDENT_ID, incidentId ?: "")
+      putExtra(MainActivity.EXTRA_CAR_LABEL, carLabel ?: "")
+      putExtra(MainActivity.EXTRA_REPORTER_PHONE, reporterPhone ?: "")
+      putExtra(MainActivity.EXTRA_AGORA_APP_ID, agoraAppId ?: "")
+      putExtra(MainActivity.EXTRA_AGORA_TOKEN, agoraToken ?: "")
+      putExtra(MainActivity.EXTRA_AGORA_CHANNEL_NAME, agoraChannelName ?: "")
+      putExtra(MainActivity.EXTRA_AGORA_UID, agoraUid ?: "")
+      putExtra(MainActivity.EXTRA_AGORA_ROLE, agoraRole ?: "")
+      putExtra(MainActivity.EXTRA_AGORA_EXPIRES_AT, agoraExpiresAt ?: "")
+      putExtra(MainActivity.EXTRA_AGORA_EXPIRES_IN_SECONDS, agoraExpiresInSeconds ?: "")
+    }
+    try {
+      startActivity(intent)
+      Log.i(TAG, "Launched MainActivity with accepted call callId=$callId source=$source")
+    } catch (err: Exception) {
+      Log.w(TAG, "Failed to launch MainActivity, falling back to deep link callId=$callId", err)
+      val fallback = Intent(Intent.ACTION_VIEW, Uri.parse("autoqr://call/active?callId=${Uri.encode(callId)}&acceptedFromNative=1&source=${Uri.encode(source)}")).apply {
+        setPackage(packageName)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+      }
+      try {
+        startActivity(fallback)
+      } catch (_: Exception) {
+      }
     }
   }
 
@@ -448,6 +566,18 @@ class IncomingCallForegroundService : Service() {
     const val EXTRA_NATIVE_ACTION = "nativeAction"
     const val EXTRA_NATIVE_ACTION_SUCCESS = "nativeActionSuccess"
     const val EXTRA_NATIVE_ACTION_HTTP_STATUS = "nativeActionHttpStatus"
+    const val EXTRA_INCIDENT_ID = "incidentId"
+    const val EXTRA_CAR_LABEL = "carLabel"
+    const val EXTRA_REPORTER_PHONE = "reporterPhone"
+    const val EXTRA_ACCEPT_SOURCE = "acceptSource"
+    const val EXTRA_AGORA_APP_ID = "agoraAppId"
+    const val EXTRA_AGORA_TOKEN = "agoraToken"
+    const val EXTRA_AGORA_CHANNEL_NAME = "agoraChannelName"
+    const val EXTRA_CHANNEL_NAME = "channelName"
+    const val EXTRA_AGORA_UID = "agoraUid"
+    const val EXTRA_AGORA_ROLE = "agoraRole"
+    const val EXTRA_AGORA_EXPIRES_AT = "agoraExpiresAt"
+    const val EXTRA_AGORA_EXPIRES_IN_SECONDS = "agoraExpiresInSeconds"
     private const val TAG = "AutoQrIncomingCall"
     private const val INCOMING_CHANNEL_ID = "incoming-calls-autoqr-v2"
     private const val MISSED_CHANNEL_ID = "calls"
