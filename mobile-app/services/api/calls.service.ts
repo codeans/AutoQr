@@ -45,6 +45,7 @@ type CallMutationResponse = {
 export const callsService = {
   list: () => apiClient.get<{ calls: CallHistoryItem[] }>("/owner/calls"),
   get: (callId: string) => apiClient.get<{ call: import("@/types/call").IncomingCall }>(`/calls/${callId}`),
+  recoverActive: () => apiClient.get<{ ok: boolean; call: import("@/types/call").IncomingCall | null }>("/calls/active/recover"),
   token: (payload: { callId: string; channelName?: string; uid?: number; role?: "publisher" | "subscriber" }) =>
     apiClient.post<{ ok: boolean; agora: import("@/types/call").AgoraJoinPayload }>("/agora/token", payload),
   accept: (callId: string, platform: "ios" | "android" | "web", ownerSocketId?: string) =>

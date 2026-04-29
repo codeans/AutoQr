@@ -24,6 +24,9 @@ const nativeCallActionSchema = z.object({
   reason: z.string().max(200).optional(),
   platform: z.enum(["android", "ios"]).optional().default("android")
 });
+const nativeCallStateSchema = z.object({
+  actionToken: z.string().min(1)
+});
 
 const startCallSchema = z.object({
   ownerUserId: z.string().min(1),
@@ -223,6 +226,36 @@ export const nativeCallAction = asyncHandler(async (req: Request, res: Response)
   }
 
   res.json({ ok: true, call: { callId: call.id, status: call.status, reason: call.endReason } });
+});
+
+export const nativeCallState = asyncHandler(async (req: Request, res: Response) => {
+  const payload = nativeCallStateSchema.parse(req.body ?? {});
+  const callId = req.params.callId || req.body?.callId;
+  if (!callId) throw new ApiError(400, "Missing callId");
+
+  let claims: { scope?: string; callId?: string; ownerUserId?: string };
+  try {
+    claims = jwt.verify(payload.actionToken, env.JWT_ACCESS_SECRET) as typeof claims;
+  } catch {
+    throw new ApiError(401, "Invalid call action token");
+  }
+  if (claims.scope !== "native_call_action" || claims.callId !== callId || !claims.ownerUserId) {
+    throw new ApiError(401, "Invalid call action token");
+  }
+
+  const call = await CallSessionModel.findOne({ _id: callId, ownerUserId: claims.ownerUserId });
+  if (!call) throw new ApiError(404, "Call not found");
+
+  const shouldRing = call.status === "ringing";
+  res.json({
+    ok: true,
+    call: {
+      callId: call.id,
+      incidentId: String(call.incidentId),
+      status: call.status,
+      shouldRing
+    }
+  });
 });
 
 export const issueAgoraToken = asyncHandler(async (req: Request, res: Response) => {
@@ -447,4 +480,72 @@ export const endCall = asyncHandler(async (req: Request, res: Response) => {
     "CALL_ENDED"
   );
   res.json({ ok: true, call: { ...endPayload, status: call.status } });
+});
+
+export const recoverActiveCall = asyncHandler(async (req: Request, res: Response) => {
+  const ownerUserId = req.auth?.userId;
+  if (!ownerUserId) throw new ApiError(401, "Unauthorized");
+
+  const call = await CallSessionModel.findOne({
+    ownerUserId,
+    status: { $in: ["ringing", "accepted", "active", "connected"] }
+  })
+    .sort({ updatedAt: -1 })
+    .populate({
+      path: "incidentId",
+      select: "carId reporterPhone images message createdAt",
+      populate: { path: "carId", select: "make model registrationNumber nickname" }
+    });
+
+  if (!call) {
+    return res.json({ ok: true, call: null });
+  }
+
+  ensureAgoraFields(call);
+  if (call.isModified?.()) await call.save();
+
+  const receiverAgora = buildAgoraJoinPayload(call, "receiver");
+  const incident = call.incidentId as any;
+  const car = incident?.carId;
+  const phone = call.reporterPhone || incident?.reporterPhone || "";
+  const vehiclePlate = car?.registrationNumber || "";
+  const carLabel = car
+    ? [car.nickname, [car.make, car.model].filter(Boolean).join(" ")].filter(Boolean).join(" · ") || vehiclePlate
+    : "";
+
+  const createdAtIso =
+    call.createdAt instanceof Date
+      ? call.createdAt.toISOString()
+      : typeof call.createdAt === "string"
+        ? call.createdAt
+        : new Date().toISOString();
+  const expiresAt = new Date(new Date(createdAtIso).getTime() + 45_000).toISOString();
+
+  return res.json({
+    ok: true,
+    call: {
+      callId: String(call._id),
+      incidentId: String(incident?._id ?? call.incidentId),
+      vehicleId: car?._id ? String(car._id) : "",
+      vehiclePlate,
+      callerPhone: phone,
+      incidentImages: Array.isArray(incident?.images) ? incident.images : [],
+      ownerId: String(call.ownerUserId),
+      status: call.status,
+      createdAt: createdAtIso,
+      expiresAt,
+      reporterSocketId: call.reporterSessionId || "",
+      reporterPhone: phone,
+      reporterPhoneMasked: phone ? maskGermanPhone(phone) : "",
+      carId: car?._id ? String(car._id) : "",
+      carLabel,
+      imageCount: Array.isArray(incident?.images) ? incident.images.length : 0,
+      message: incident?.message || "",
+      platform: call.reporterPlatform || "web",
+      agoraChannelName: call.agoraChannelName,
+      agoraUidCaller: call.agoraUidCaller,
+      agoraUidReceiver: call.agoraUidReceiver,
+      agora: receiverAgora
+    }
+  });
 });

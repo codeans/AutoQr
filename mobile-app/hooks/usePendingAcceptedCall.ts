@@ -140,4 +140,32 @@ export function usePendingAcceptedCall(): void {
       unsubscribeActionResult();
     };
   }, [acceptIncoming, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    let mounted = true;
+    void (async () => {
+      try {
+        const state = useCallStore.getState();
+        if (state.status === "connecting" || state.status === "active") return;
+        const { call } = await callsService.recoverActive();
+        if (!mounted || !call?.callId) return;
+        if (TERMINAL_STATUSES.has(String(call.status ?? "").toLowerCase())) return;
+        useCallStore.getState().setIncoming(call);
+        try {
+          router.replace("/call/active");
+        } catch {
+          // ignore navigation race
+        }
+        await acceptIncoming(call);
+      } catch {
+        // best-effort recovery only
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [acceptIncoming, status]);
 }

@@ -13,9 +13,28 @@ class AutoQrMessagingService : ExpoFirebaseMessagingService() {
         if (HandledCallStore.isHandled(this, callId)) {
           val outcome = HandledCallStore.outcomeFor(this, callId)?.raw ?: "handled"
           Log.i(TAG, "Ignoring duplicate INCOMING_CALL push callId=$callId outcome=$outcome")
+        } else if (callId.isNullOrBlank()) {
+          Log.w(TAG, "Ignoring INCOMING_CALL without callId")
         } else {
-          Log.i(TAG, "Push received INCOMING_CALL callId=$callId")
-          IncomingCallForegroundService.startIncomingCall(this, remoteMessage.data)
+          val actionToken = remoteMessage.data["callActionToken"]
+          NativeCallActionApi.fetchState(callId, actionToken) { shouldRing, status, _ ->
+            val allowByStatus = status == null || status.equals("ringing", ignoreCase = true)
+            val allowRing = (shouldRing ?: allowByStatus) && allowByStatus
+            if (!allowRing) {
+              val outcome = when (status?.lowercase()) {
+                "accepted" -> HandledCallStore.Outcome.ACCEPTED
+                "declined" -> HandledCallStore.Outcome.DECLINED
+                "missed" -> HandledCallStore.Outcome.MISSED
+                else -> HandledCallStore.Outcome.ENDED
+              }
+              HandledCallStore.markHandled(this, callId, outcome)
+              IncomingCallForegroundService.stopIncomingCall(this, callId)
+              Log.i(TAG, "Ignoring INCOMING_CALL after backend status check callId=$callId status=$status shouldRing=$shouldRing")
+            } else {
+              Log.i(TAG, "Push received INCOMING_CALL callId=$callId status=$status shouldRing=$shouldRing")
+              IncomingCallForegroundService.startIncomingCall(this, remoteMessage.data)
+            }
+          }
         }
       }
       "CALL_ACCEPTED", "MISSED_CALL", "CALL_ENDED", "call_missed", "call_ended" -> {

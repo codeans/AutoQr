@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
-import { acceptCall, declineCall, endCall, issueAgoraToken, markCallMissed, nativeCallAction, startCall } from "./calls.controller.js";
+import { acceptCall, declineCall, endCall, issueAgoraToken, markCallMissed, nativeCallAction, nativeCallState, recoverActiveCall, startCall } from "./calls.controller.js";
 
 export const callsRouter = Router();
 
@@ -8,10 +8,12 @@ callsRouter.post("/start", startCall);
 callsRouter.post("/end", endCall);
 callsRouter.post("/:callId/end", endCall);
 callsRouter.post("/:callId/native-action", nativeCallAction);
+callsRouter.post("/:callId/native-state", nativeCallState);
 callsRouter.post("/token", issueAgoraToken);
 callsRouter.post("/agora/token", issueAgoraToken);
 
 callsRouter.use(requireAuth, requireRole("owner"));
+callsRouter.get("/active/recover", recoverActiveCall);
 callsRouter.post("/accept", acceptCall);
 callsRouter.post("/decline", declineCall);
 callsRouter.post("/:callId/accept", acceptCall);
