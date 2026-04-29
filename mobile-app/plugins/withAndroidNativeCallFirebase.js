@@ -12,6 +12,8 @@ const GOOGLE_SERVICES_CLASSPATH = "classpath('com.google.gms:google-services:4.4
 const GOOGLE_SERVICES_PLUGIN = 'apply plugin: "com.google.gms.google-services"';
 const FIREBASE_BOM = 'implementation(platform("com.google.firebase:firebase-bom:34.12.0"))';
 const FIREBASE_MESSAGING = 'implementation("com.google.firebase:firebase-messaging")';
+const AUTOQR_API_BUILDCONFIG = 'buildConfigField "String", "AUTOQR_API_BASE_URL", "\\"${findProperty(\'autoqr.apiBaseUrl\') ?: \'https://api.autoqr.de/api\'}\\""';
+const NATIVE_TEMPLATE_DIR = path.join(__dirname, "android-native-call");
 
 function addOnce(contents, needle, insertAfter) {
   if (contents.includes(needle)) return contents;
@@ -23,6 +25,34 @@ function addOnce(contents, needle, insertAfter) {
 
 function removeApplicationService(application, serviceName) {
   application.service = (application.service ?? []).filter((service) => service?.$?.["android:name"] !== serviceName);
+}
+
+function removeApplicationActivity(application, activityName) {
+  application.activity = (application.activity ?? []).filter((activity) => activity?.$?.["android:name"] !== activityName);
+}
+
+function removeApplicationReceiver(application, receiverName) {
+  application.receiver = (application.receiver ?? []).filter((receiver) => receiver?.$?.["android:name"] !== receiverName);
+}
+
+function addPermission(manifest, permissionName) {
+  manifest["uses-permission"] = manifest["uses-permission"] ?? [];
+  const exists = manifest["uses-permission"].some((permission) => permission?.$?.["android:name"] === permissionName);
+  if (!exists) {
+    manifest["uses-permission"].push({ $: { "android:name": permissionName } });
+  }
+}
+
+function ensureIncomingCallStyle(contents) {
+  if (contents.includes('name="Theme.AutoQr.IncomingCall"')) return contents;
+  const style = `  <style name="Theme.AutoQr.IncomingCall" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <item name="android:windowNoTitle">true</item>
+    <item name="android:windowActionBar">false</item>
+    <item name="android:windowDisablePreview">true</item>
+    <item name="android:colorAccent">#16A34A</item>
+  </style>
+`;
+  return contents.replace("</resources>", `${style}</resources>`);
 }
 
 function getServiceSource(packageName) {
@@ -156,6 +186,12 @@ const withAndroidNativeCallFirebase = (config) => {
     if (!contents.includes(FIREBASE_MESSAGING)) {
       contents = contents.replace(FIREBASE_BOM, `${FIREBASE_BOM}\n    ${FIREBASE_MESSAGING}`);
     }
+    if (!contents.includes("AUTOQR_API_BASE_URL")) {
+      contents = contents.replace(
+        'buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL"',
+        `${AUTOQR_API_BUILDCONFIG}\n        buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL"`
+      );
+    }
     mod.modResults.contents = contents;
     return mod;
   });
@@ -164,10 +200,21 @@ const withAndroidNativeCallFirebase = (config) => {
     const manifest = mod.modResults.manifest;
     manifest.$ = manifest.$ ?? {};
     manifest.$["xmlns:tools"] = manifest.$["xmlns:tools"] ?? "http://schemas.android.com/tools";
+    [
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.USE_FULL_SCREEN_INTENT",
+      "android.permission.WAKE_LOCK",
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_PHONE_CALL",
+      "android.permission.VIBRATE"
+    ].forEach((permission) => addPermission(manifest, permission));
 
     const application = AndroidConfig.Manifest.getMainApplicationOrThrow(mod.modResults);
     removeApplicationService(application, "expo.modules.notifications.service.ExpoFirebaseMessagingService");
     removeApplicationService(application, ".AutoQrMessagingService");
+    removeApplicationService(application, ".IncomingCallForegroundService");
+    removeApplicationReceiver(application, ".IncomingCallActionReceiver");
+    removeApplicationActivity(application, ".IncomingCallActivity");
 
     application.service = application.service ?? [];
     application.service.push({
@@ -196,6 +243,33 @@ const withAndroidNativeCallFirebase = (config) => {
         }
       ]
     });
+    application.service.push({
+      $: {
+        "android:name": ".IncomingCallForegroundService",
+        "android:exported": "false",
+        "android:foregroundServiceType": "phoneCall"
+      }
+    });
+    application.receiver = application.receiver ?? [];
+    application.receiver.push({
+      $: {
+        "android:name": ".IncomingCallActionReceiver",
+        "android:exported": "false"
+      }
+    });
+    application.activity = application.activity ?? [];
+    application.activity.push({
+      $: {
+        "android:name": ".IncomingCallActivity",
+        "android:excludeFromRecents": "true",
+        "android:exported": "false",
+        "android:launchMode": "singleTask",
+        "android:noHistory": "true",
+        "android:showOnLockScreen": "true",
+        "android:theme": "@style/Theme.AutoQr.IncomingCall",
+        "android:turnScreenOn": "true"
+      }
+    });
 
     return mod;
   });
@@ -203,14 +277,27 @@ const withAndroidNativeCallFirebase = (config) => {
   config = withDangerousMod(config, [
     "android",
     async (mod) => {
-      const servicePath = path.join(
-        mod.modRequest.platformProjectRoot,
-        "app/src/main/java",
-        ...androidPackage.split("."),
-        "AutoQrMessagingService.kt"
+      const javaDir = path.join(mod.modRequest.platformProjectRoot, "app/src/main/java", ...androidPackage.split("."));
+      await fs.promises.mkdir(javaDir, { recursive: true });
+      const files = [
+        "AutoQrMessagingService.kt",
+        "IncomingCallForegroundService.kt",
+        "IncomingCallActivity.kt",
+        "IncomingCallActionReceiver.kt",
+        "NativeCallActionApi.kt"
+      ];
+      await Promise.all(
+        files.map(async (file) => {
+          const source = await fs.promises.readFile(path.join(NATIVE_TEMPLATE_DIR, file), "utf8");
+          await fs.promises.writeFile(
+            path.join(javaDir, file),
+            source.replace(/^package\s+[\w.]+/m, `package ${androidPackage}`)
+          );
+        })
       );
-      await fs.promises.mkdir(path.dirname(servicePath), { recursive: true });
-      await fs.promises.writeFile(servicePath, getServiceSource(androidPackage));
+      const stylesPath = path.join(mod.modRequest.platformProjectRoot, "app/src/main/res/values/styles.xml");
+      const styles = await fs.promises.readFile(stylesPath, "utf8");
+      await fs.promises.writeFile(stylesPath, ensureIncomingCallStyle(styles));
       return mod;
     }
   ]);

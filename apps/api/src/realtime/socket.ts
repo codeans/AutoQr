@@ -27,6 +27,17 @@ let ioInstance: Server | null = null;
 const RINGING_TIMEOUT_MS = 45_000;
 const REPORTER_DISCONNECT_GRACE_MS = 12_000;
 
+const createNativeCallActionToken = (callId: string, ownerUserId: unknown) =>
+  jwt.sign(
+    {
+      scope: "native_call_action",
+      callId,
+      ownerUserId: String(ownerUserId)
+    },
+    env.JWT_ACCESS_SECRET,
+    { expiresIn: "2m" }
+  );
+
 const addOnlineUserSocket = (userId: string, socketId: string) => {
   const sockets = onlineUsers.get(userId) ?? new Set<string>();
   sockets.add(socketId);
@@ -343,6 +354,7 @@ export const createSocketServer = (server: HttpServer) => {
           agoraChannelName: ringingPayload.agoraChannelName || "",
           agoraUidCaller: ringingPayload.agoraUidCaller || 0,
           agoraUidReceiver: ringingPayload.agoraUidReceiver || 0,
+          callActionToken: createNativeCallActionToken(call.id, call.ownerUserId),
           createdAt: createdAtIso,
           expiresAt
         };
@@ -364,7 +376,8 @@ export const createSocketServer = (server: HttpServer) => {
             agoraUidReceiver: ringingPayload.agoraUidReceiver || 0,
             type: "INCOMING_CALL"
           },
-          forcePush: true,
+          forcePush: false,
+          skipPush: true,
           channelId: "incoming-calls",
           priority: "high",
           ttl: Math.ceil(RINGING_TIMEOUT_MS / 1000)

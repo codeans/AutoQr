@@ -16,6 +16,8 @@ export type RealtimeNotificationInput = {
   forcePush?: boolean;
   /** Skip persistence; only send realtime + push. */
   skipPersist?: boolean;
+  /** Persist/socket only. Used when another native channel already owns delivery. */
+  skipPush?: boolean;
   channelId?: ChannelId;
   priority?: "default" | "high";
   ttl?: number;
@@ -72,7 +74,7 @@ export const publishNotification = async (input: RealtimeNotificationInput) => {
 
   const online = isUserOnline(input.userId);
   const shouldPush = input.forcePush ?? !online;
-  if (shouldPush) {
+  if (shouldPush && !input.skipPush) {
     await sendPushToUser(input.userId, {
       title: input.title,
       body: input.body,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -20,7 +20,11 @@ import { useAuthStore } from "@/stores/auth.store";
 import { registerExpoPushToken, setBadgeCount } from "@/services/notifications/notificationService";
 import { useNotificationStore } from "@/stores/notification.store";
 import { notificationsService } from "@/services/api/notifications.service";
-import { getAllPermissionStates, hasCriticalPermissions } from "@/services/permissions/permissionService";
+import {
+  getAllPermissionStates,
+  hasCriticalPermissions,
+  requestPermission
+} from "@/services/permissions/permissionService";
 import { usePermissionStore } from "@/stores/permissionStore";
 import {
   handleForegroundMessage,
@@ -51,10 +55,12 @@ function AppGate() {
   const status = useAuthStore((s) => s.status);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
   const hydratedPermissions = usePermissionStore((s) => s.hydrated);
+  const lastCheckedAt = usePermissionStore((s) => s.lastCheckedAt);
   const setPermissionStatuses = usePermissionStore((s) => s.setStatuses);
   const setOnboardingCompleted = usePermissionStore((s) => s.setOnboardingCompleted);
   const [splashDone, setSplashDone] = useState(false);
   const [i18nReady, setI18nReady] = useState(false);
+  const firstLaunchPromptDoneRef = useRef(false);
 
   useEffect(() => {
     initI18n()
@@ -104,6 +110,33 @@ function AppGate() {
       })
       .catch(() => undefined);
   }, [hydratedPermissions, setOnboardingCompleted, setPermissionStatuses, status]);
+
+  // Ask critical permissions immediately on first authenticated app launch.
+  useEffect(() => {
+    if (status !== "authenticated" || !hydratedPermissions) return;
+    if (lastCheckedAt) return;
+    if (firstLaunchPromptDoneRef.current) return;
+    firstLaunchPromptDoneRef.current = true;
+
+    void (async () => {
+      const baseline = await getAllPermissionStates();
+      setPermissionStatuses(baseline);
+
+      const next = { ...baseline };
+      if (next.notifications !== "granted" && next.notifications !== "blocked") {
+        next.notifications = await requestPermission("notifications");
+        setPermissionStatuses({ notifications: next.notifications });
+      }
+      if (next.microphone !== "granted" && next.microphone !== "blocked") {
+        next.microphone = await requestPermission("microphone");
+        setPermissionStatuses({ microphone: next.microphone });
+      }
+
+      if (hasCriticalPermissions(next)) {
+        setOnboardingCompleted(true);
+      }
+    })().catch(() => undefined);
+  }, [hydratedPermissions, lastCheckedAt, setOnboardingCompleted, setPermissionStatuses, status]);
 
   // Refresh unread count + push token on foreground
   useEffect(() => {

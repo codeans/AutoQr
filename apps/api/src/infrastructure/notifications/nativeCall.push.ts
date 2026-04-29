@@ -19,6 +19,7 @@ type NativeCallPayload = {
   imageCount?: number;
   message?: string;
   platform?: string;
+  callActionToken?: string;
   createdAt?: string;
   expiresAt?: string;
 };

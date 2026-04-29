@@ -18,6 +18,13 @@ const callActionSchema = z.object({
   ownerSocketId: z.string().min(1).optional()
 });
 
+const nativeCallActionSchema = z.object({
+  action: z.enum(["accept", "decline", "missed"]),
+  actionToken: z.string().min(1),
+  reason: z.string().max(200).optional(),
+  platform: z.enum(["android", "ios"]).optional().default("android")
+});
+
 const startCallSchema = z.object({
   ownerUserId: z.string().min(1),
   incidentId: z.string().min(1),
@@ -40,6 +47,17 @@ const endCallSchema = z.object({
 
 const canAccept = (status: string) => status === "ringing" || status === "accepted" || status === "active" || status === "connected";
 const canFinalizeIncoming = (status: string) => status === "ringing" || status === "accepted";
+
+const createNativeCallActionToken = (callId: string, ownerUserId: unknown) =>
+  jwt.sign(
+    {
+      scope: "native_call_action",
+      callId,
+      ownerUserId: String(ownerUserId)
+    },
+    env.JWT_ACCESS_SECRET,
+    { expiresIn: "2m" }
+  );
 
 const loadOwnerCall = async (req: Request) => {
   const ownerUserId = req.auth?.userId;
@@ -95,6 +113,82 @@ export const acceptCall = asyncHandler(async (req: Request, res: Response) => {
   }
 
   res.json({ ok: true, call: result });
+});
+
+export const nativeCallAction = asyncHandler(async (req: Request, res: Response) => {
+  const payload = nativeCallActionSchema.parse(req.body ?? {});
+  const callId = req.params.callId || req.body?.callId;
+  if (!callId) throw new ApiError(400, "Missing callId");
+
+  let claims: { scope?: string; callId?: string; ownerUserId?: string };
+  try {
+    claims = jwt.verify(payload.actionToken, env.JWT_ACCESS_SECRET) as typeof claims;
+  } catch {
+    throw new ApiError(401, "Invalid call action token");
+  }
+  if (claims.scope !== "native_call_action" || claims.callId !== callId || !claims.ownerUserId) {
+    throw new ApiError(401, "Invalid call action token");
+  }
+
+  const call = await CallSessionModel.findOne({ _id: callId, ownerUserId: claims.ownerUserId });
+  if (!call) throw new ApiError(404, "Call not found");
+
+  if (payload.action === "accept") {
+    if (!canAccept(call.status)) {
+      return res.json({ ok: true, call: { callId: call.id, status: call.status } });
+    }
+
+    const wasRinging = call.status === "ringing";
+    ensureAgoraFields(call);
+    call.status = "accepted";
+    call.ownerPlatform = payload.platform ?? call.ownerPlatform ?? "android";
+    if (!call.startedAt) call.startedAt = new Date();
+    if (!call.agoraJoinedAt) call.agoraJoinedAt = new Date();
+    await call.save();
+
+    if (wasRinging) {
+      const ownerSocketId = getPreferredUserSocketId(String(call.ownerUserId));
+      const acceptedPayload = {
+        callId: call.id,
+        ownerSocketId,
+        reporterSocketId: call.reporterSessionId || "",
+        agoraChannelName: call.agoraChannelName,
+        agoraUidCaller: call.agoraUidCaller,
+        agoraUidReceiver: call.agoraUidReceiver
+      };
+      emitToIncidentRoom(String(call.incidentId), "call:accepted", acceptedPayload);
+      emitToIncidentRoom(String(call.incidentId), "call_accepted", acceptedPayload);
+      emitToIncidentRoom(String(call.incidentId), "call_started", { callId: call.id });
+      emitToUser(String(call.ownerUserId), "call:accepted", { callId: call.id });
+    }
+
+    return res.json({ ok: true, call: { callId: call.id, status: call.status } });
+  }
+
+  if (!canFinalizeIncoming(call.status)) {
+    return res.json({ ok: true, call: { callId: call.id, status: call.status } });
+  }
+
+  call.status = payload.action === "missed" ? "missed" : "declined";
+  call.endedAt = new Date();
+  call.agoraDisconnectedAt = call.endedAt;
+  call.endReason = payload.reason ?? (payload.action === "missed" ? "timeout" : "owner_rejected");
+  if (payload.action === "decline") call.rejectionReason = payload.reason ?? "Owner rejected";
+  await call.save();
+
+  if (payload.action === "missed") {
+    emitToIncidentRoom(String(call.incidentId), "call:missed", { callId: call.id, reason: call.endReason });
+    emitToIncidentRoom(String(call.incidentId), "call_missed", { callId: call.id, reason: call.endReason });
+    emitToUser(String(call.ownerUserId), "call:missed", { callId: call.id, reason: call.endReason });
+    emitToUser(String(call.ownerUserId), "call_missed", { callId: call.id, reason: call.endReason });
+  } else {
+    emitToIncidentRoom(String(call.incidentId), "call:declined", { callId: call.id, reason: call.rejectionReason });
+    emitToIncidentRoom(String(call.incidentId), "call_rejected", { callId: call.id, reason: call.rejectionReason });
+    emitToUser(String(call.ownerUserId), "call:declined", { callId: call.id, reason: call.rejectionReason });
+    emitToUser(String(call.ownerUserId), "call_ended", { callId: call.id, duration: 0, reason: call.endReason });
+  }
+
+  res.json({ ok: true, call: { callId: call.id, status: call.status, reason: call.endReason } });
 });
 
 export const issueAgoraToken = asyncHandler(async (req: Request, res: Response) => {
@@ -177,6 +271,7 @@ export const startCall = asyncHandler(async (req: Request, res: Response) => {
       imageCount: 0,
       message: "",
       platform: call.reporterPlatform || "web",
+      callActionToken: createNativeCallActionToken(call.id, call.ownerUserId),
       createdAt: createdAtIso,
       expiresAt
     };
@@ -189,7 +284,8 @@ export const startCall = asyncHandler(async (req: Request, res: Response) => {
       body: "Someone is trying to contact you about your vehicle.",
       relatedEntityId: String(call.incidentId),
       data: { ...nativePayload, type: "INCOMING_CALL" },
-      forcePush: true,
+      forcePush: false,
+      skipPush: true,
       channelId: "incoming-calls",
       priority: "high",
       ttl: 45
