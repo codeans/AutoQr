@@ -9,7 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
-import android.media.Ringtone
+import android.media.AudioManager
+import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -22,10 +23,11 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import java.util.concurrent.ConcurrentHashMap
 
 class IncomingCallForegroundService : Service() {
   private val handler = Handler(Looper.getMainLooper())
-  private var ringtone: Ringtone? = null
+  private var mediaPlayer: MediaPlayer? = null
   private var wakeLock: PowerManager.WakeLock? = null
   private var activeCallId: String? = null
   private var activeActionToken: String? = null
@@ -39,7 +41,7 @@ class IncomingCallForegroundService : Service() {
       ACTION_ACCEPT -> acceptCall(intent)
       ACTION_DECLINE -> declineCall(intent)
       ACTION_TIMEOUT -> timeoutCall(intent)
-      ACTION_STOP -> stopCall(intent.getStringExtra(EXTRA_CALL_ID))
+      ACTION_STOP -> stopCall(intent.getStringExtra(EXTRA_CALL_ID), "remote_stop")
       else -> Log.d(TAG, "Ignoring empty incoming call service command")
     }
     return START_NOT_STICKY
@@ -47,6 +49,16 @@ class IncomingCallForegroundService : Service() {
 
   private fun showIncomingCall(intent: Intent) {
     val callId = intent.getStringExtra(EXTRA_CALL_ID) ?: return
+    if (wasRecentlyStopped(callId)) {
+      Log.i(TAG, "Ignoring stale incoming call alert for recently stopped callId=$callId")
+      return
+    }
+
+    val duplicate = activeAlertCallId == callId
+    if (!duplicate && activeAlertCallId != null) {
+      stopCallAlert(activeAlertCallId, "replaced_by_new_call", markStopped = false)
+    }
+
     activeCallId = callId
     activeActionToken = intent.getStringExtra(EXTRA_ACTION_TOKEN)
     createIncomingChannel()
@@ -60,49 +72,58 @@ class IncomingCallForegroundService : Service() {
         startForeground(NOTIFICATION_ID, notification)
       }
     } catch (err: Exception) {
-      Log.w(TAG, "startForeground failed; falling back to notify", err)
+      Log.w(TAG, "startForeground failed; falling back to notify callId=$callId", err)
       getNotificationManager().notify(NOTIFICATION_ID, notification)
     }
 
-    startRinging()
-    scheduleTimeout(intent)
-    Log.i(TAG, "Incoming native call displayed: $callId")
+    startCallAlert(callId)
+    if (!duplicate) scheduleTimeout(intent)
+    Log.i(TAG, "Incoming native call displayed callId=$callId duplicate=$duplicate tokenPresent=${!activeActionToken.isNullOrBlank()}")
   }
 
   private fun acceptCall(intent: Intent) {
     val callId = intent.getStringExtra(EXTRA_CALL_ID) ?: activeCallId ?: return
-    NativeCallActionApi.postAction(callId, "accept", intent.getStringExtra(EXTRA_ACTION_TOKEN) ?: activeActionToken)
-    stopRingingAndNotification()
+    val token = intent.getStringExtra(EXTRA_ACTION_TOKEN) ?: activeActionToken
+    stopCallAlert(callId, "accept")
+    postNativeActionWithRetry(callId, "accept", token)
     openReactCallScreen(callId, "accept")
     stopSelf()
   }
 
   private fun declineCall(intent: Intent) {
     val callId = intent.getStringExtra(EXTRA_CALL_ID) ?: activeCallId ?: return
-    NativeCallActionApi.postAction(callId, "decline", intent.getStringExtra(EXTRA_ACTION_TOKEN) ?: activeActionToken, "owner_rejected")
-    stopRingingAndNotification()
+    val token = intent.getStringExtra(EXTRA_ACTION_TOKEN) ?: activeActionToken
+    stopCallAlert(callId, "decline")
+    postNativeActionWithRetry(callId, "decline", token, "owner_rejected")
     stopSelf()
   }
 
   private fun timeoutCall(intent: Intent) {
     val callId = intent.getStringExtra(EXTRA_CALL_ID) ?: activeCallId ?: return
-    NativeCallActionApi.postAction(callId, "missed", intent.getStringExtra(EXTRA_ACTION_TOKEN) ?: activeActionToken, "timeout")
-    stopRingingAndNotification()
+    if (activeAlertCallId != callId) {
+      Log.i(TAG, "Ignoring timeout for inactive callId=$callId active=$activeAlertCallId")
+      return
+    }
+    val token = intent.getStringExtra(EXTRA_ACTION_TOKEN) ?: activeActionToken
+    stopCallAlert(callId, "missed_timeout")
+    postNativeActionWithRetry(callId, "missed", token, "timeout")
     showMissedCallNotification(intent)
     stopSelf()
   }
 
-  private fun stopCall(callId: String?) {
-    if (callId == null || activeCallId == null || callId == activeCallId) {
-      stopRingingAndNotification()
+  private fun stopCall(callId: String?, reason: String) {
+    if (callId == null || activeCallId == null || callId == activeCallId || callId == activeAlertCallId) {
+      stopCallAlert(callId ?: activeCallId, reason)
       stopSelf()
+    } else {
+      Log.i(TAG, "Ignoring stop for non-active callId=$callId active=$activeCallId alert=$activeAlertCallId")
     }
   }
 
   private fun buildIncomingNotification(intent: Intent): Notification {
     val callId = intent.getStringExtra(EXTRA_CALL_ID) ?: ""
     val callerName = intent.getStringExtra(EXTRA_CALLER_NAME) ?: "AutoQr incident call"
-    val handle = intent.getStringExtra(EXTRA_HANDLE) ?: "AutoQr caller"
+    val handle = intent.getStringExtra(EXTRA_HANDLE) ?: "Incoming vehicle assistance call"
     val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     val fullScreenIntent = PendingIntent.getActivity(
       this,
@@ -142,7 +163,7 @@ class IncomingCallForegroundService : Service() {
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       .setOngoing(true)
       .setAutoCancel(false)
-      .setOnlyAlertOnce(false)
+      .setOnlyAlertOnce(true)
       .setSound(ringtoneUri())
       .setVibrate(VIBRATION_PATTERN)
       .setContentIntent(contentIntent)
@@ -188,22 +209,58 @@ class IncomingCallForegroundService : Service() {
     handler.postDelayed(timeoutRunnable!!, RINGING_TIMEOUT_MS)
   }
 
-  private fun startRinging() {
+  private fun startCallAlert(callId: String) {
+    if (activeAlertCallId == callId && (mediaPlayer?.isPlaying == true || isVibrating)) {
+      Log.i(TAG, "Call alert already active callId=$callId")
+      return
+    }
+    if (activeAlertCallId != null && activeAlertCallId != callId) {
+      stopCallAlert(activeAlertCallId, "start_new_call", markStopped = false)
+    }
+
+    activeAlertCallId = callId
+    val ringerMode = try {
+      getSystemService(AudioManager::class.java).ringerMode
+    } catch (_: Exception) {
+      AudioManager.RINGER_MODE_NORMAL
+    }
+
+    if (ringerMode == AudioManager.RINGER_MODE_NORMAL) {
+      startRingtone(callId)
+    } else {
+      Log.i(TAG, "Skipping ringtone due to ringerMode=$ringerMode callId=$callId")
+    }
+
+    if (ringerMode != AudioManager.RINGER_MODE_SILENT) {
+      startVibration(callId)
+    } else {
+      Log.i(TAG, "Skipping vibration due to silent mode callId=$callId")
+    }
+    Log.i(TAG, "Call alert started callId=$callId ringtone=${mediaPlayer?.isPlaying == true} vibrating=$isVibrating")
+  }
+
+  private fun startRingtone(callId: String) {
     try {
-      if (ringtone?.isPlaying == true) return
+      releaseMediaPlayer()
       val attrs = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
         .build()
-      ringtone = RingtoneManager.getRingtone(this, ringtoneUri()).apply {
-        audioAttributes = attrs
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) isLooping = true
-        play()
+      mediaPlayer = MediaPlayer().apply {
+        setAudioAttributes(attrs)
+        setDataSource(this@IncomingCallForegroundService, ringtoneUri())
+        isLooping = true
+        prepare()
+        start()
       }
+      Log.i(TAG, "Ringtone started callId=$callId uri=${ringtoneUri()}")
     } catch (err: Exception) {
-      Log.w(TAG, "Unable to start ringtone", err)
+      Log.w(TAG, "Unable to start ringtone callId=$callId", err)
+      releaseMediaPlayer()
     }
+  }
 
+  private fun startVibration(callId: String) {
     try {
       val vibrator = vibrator()
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -212,31 +269,85 @@ class IncomingCallForegroundService : Service() {
         @Suppress("DEPRECATION")
         vibrator.vibrate(VIBRATION_PATTERN, 0)
       }
+      isVibrating = true
+      Log.i(TAG, "Vibration started callId=$callId")
     } catch (err: Exception) {
-      Log.w(TAG, "Unable to start vibration", err)
+      isVibrating = false
+      Log.w(TAG, "Unable to start vibration callId=$callId", err)
     }
   }
 
-  private fun stopRingingAndNotification() {
+  private fun stopCallAlert(callId: String?, reason: String, markStopped: Boolean = true) {
+    val targetCallId = callId ?: activeAlertCallId ?: activeCallId
     timeoutRunnable?.let { handler.removeCallbacks(it) }
     timeoutRunnable = null
-    try {
-      ringtone?.stop()
-    } catch (_: Exception) {
-    }
-    ringtone = null
+    releaseMediaPlayer()
     try {
       vibrator().cancel()
-    } catch (_: Exception) {
+    } catch (err: Exception) {
+      Log.w(TAG, "Unable to cancel vibration callId=$targetCallId", err)
+    }
+    isVibrating = false
+    if (markStopped && !targetCallId.isNullOrBlank()) rememberStopped(targetCallId)
+    if (targetCallId == null || targetCallId == activeAlertCallId) activeAlertCallId = null
+    if (targetCallId == null || targetCallId == activeCallId) {
+      activeCallId = null
+      activeActionToken = null
     }
     getNotificationManager().cancel(NOTIFICATION_ID)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-      stopForeground(STOP_FOREGROUND_REMOVE)
-    } else {
-      @Suppress("DEPRECATION")
-      stopForeground(true)
+    if (!targetCallId.isNullOrBlank()) {
+      getNotificationManager().cancel(targetCallId.hashCode())
+      broadcastCallUiClose(targetCallId, reason)
+    }
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+      } else {
+        @Suppress("DEPRECATION")
+        stopForeground(true)
+      }
+    } catch (_: Exception) {
     }
     releaseWakeLock()
+    Log.i(TAG, "Call alert stopped callId=$targetCallId reason=$reason")
+  }
+
+  private fun releaseMediaPlayer() {
+    val player = mediaPlayer ?: return
+    try {
+      if (player.isPlaying) player.stop()
+    } catch (_: Exception) {
+    }
+    try {
+      player.release()
+    } catch (_: Exception) {
+    }
+    mediaPlayer = null
+  }
+
+  private fun postNativeActionWithRetry(callId: String, action: String, actionToken: String?, reason: String? = null) {
+    NativeCallActionApi.postAction(callId, action, actionToken, reason) { success, httpStatus ->
+      Log.i(TAG, "Native action result callId=$callId action=$action success=$success httpStatus=$httpStatus")
+      broadcastNativeActionResult(callId, action, success, httpStatus)
+    }
+  }
+
+  private fun broadcastNativeActionResult(callId: String, action: String, success: Boolean, httpStatus: Int?) {
+    sendBroadcast(Intent(ACTION_NATIVE_ACTION_RESULT).apply {
+      setPackage(packageName)
+      putExtra(EXTRA_CALL_ID, callId)
+      putExtra(EXTRA_NATIVE_ACTION, action)
+      putExtra(EXTRA_NATIVE_ACTION_SUCCESS, success)
+      if (httpStatus != null) putExtra(EXTRA_NATIVE_ACTION_HTTP_STATUS, httpStatus)
+    })
+  }
+
+  private fun broadcastCallUiClose(callId: String, reason: String) {
+    sendBroadcast(Intent(ACTION_CLOSE_INCOMING_UI).apply {
+      setPackage(packageName)
+      putExtra(EXTRA_CALL_ID, callId)
+      putExtra(EXTRA_STOP_REASON, reason)
+    })
   }
 
   private fun openReactCallScreen(callId: String, action: String) {
@@ -244,7 +355,7 @@ class IncomingCallForegroundService : Service() {
   }
 
   private fun reactDeepLinkIntent(callId: String, action: String?): Intent {
-    val suffix = if (action.isNullOrBlank()) "" else "?action=$action"
+    val suffix = if (action.isNullOrBlank()) "" else "?action=$action&nativeAction=pending"
     return Intent(Intent.ACTION_VIEW, Uri.parse("autoqr://calls/incoming/${Uri.encode(callId)}$suffix")).apply {
       setPackage(packageName)
       addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -279,7 +390,7 @@ class IncomingCallForegroundService : Service() {
       .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
       .build()
     val channel = NotificationChannel(INCOMING_CHANNEL_ID, "Incoming calls", NotificationManager.IMPORTANCE_HIGH).apply {
-      description = "Incoming AutoQr incident calls"
+      description = "Incoming AutoQr vehicle assistance calls"
       lockscreenVisibility = Notification.VISIBILITY_PUBLIC
       enableVibration(true)
       vibrationPattern = VIBRATION_PATTERN
@@ -298,7 +409,7 @@ class IncomingCallForegroundService : Service() {
   }
 
   private fun ringtoneUri(): Uri {
-    val id = resources.getIdentifier("autoqr_ringtone", "raw", packageName)
+    val id = resources.getIdentifier("autoqr_incoming_call", "raw", packageName)
     return if (id == 0) RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE) else Uri.parse("android.resource://$packageName/$id")
   }
 
@@ -317,7 +428,7 @@ class IncomingCallForegroundService : Service() {
   private fun getNotificationManager(): NotificationManager = getSystemService(NotificationManager::class.java)
 
   override fun onDestroy() {
-    stopRingingAndNotification()
+    stopCallAlert(activeCallId ?: activeAlertCallId, "service_destroyed")
     super.onDestroy()
   }
 
@@ -327,17 +438,42 @@ class IncomingCallForegroundService : Service() {
     const val ACTION_DECLINE = "de.autoqr.app.action.DECLINE_CALL"
     const val ACTION_TIMEOUT = "de.autoqr.app.action.TIMEOUT_CALL"
     const val ACTION_STOP = "de.autoqr.app.action.STOP_CALL"
+    const val ACTION_CLOSE_INCOMING_UI = "de.autoqr.app.action.CLOSE_INCOMING_CALL_UI"
+    const val ACTION_NATIVE_ACTION_RESULT = "de.autoqr.app.action.NATIVE_CALL_ACTION_RESULT"
     const val EXTRA_CALL_ID = "callId"
     const val EXTRA_CALLER_NAME = "callerName"
     const val EXTRA_HANDLE = "handle"
     const val EXTRA_ACTION_TOKEN = "callActionToken"
+    const val EXTRA_STOP_REASON = "stopReason"
+    const val EXTRA_NATIVE_ACTION = "nativeAction"
+    const val EXTRA_NATIVE_ACTION_SUCCESS = "nativeActionSuccess"
+    const val EXTRA_NATIVE_ACTION_HTTP_STATUS = "nativeActionHttpStatus"
     private const val TAG = "AutoQrIncomingCall"
-    private const val INCOMING_CHANNEL_ID = "incoming-calls"
+    private const val INCOMING_CHANNEL_ID = "incoming-calls-autoqr-v2"
     private const val MISSED_CHANNEL_ID = "calls"
     private const val NOTIFICATION_ID = 62471
     private const val MISSED_NOTIFICATION_OFFSET = 50_000
     private const val RINGING_TIMEOUT_MS = 45_000L
+    private const val STOPPED_CALL_TTL_MS = 10 * 60_000L
     private val VIBRATION_PATTERN = longArrayOf(0, 900, 700, 900, 700)
+    @Volatile private var activeAlertCallId: String? = null
+    @Volatile private var isVibrating = false
+    private val stoppedCallIds = ConcurrentHashMap<String, Long>()
+
+    private fun pruneStopped() {
+      val now = System.currentTimeMillis()
+      stoppedCallIds.entries.removeIf { now - it.value > STOPPED_CALL_TTL_MS }
+    }
+
+    private fun rememberStopped(callId: String) {
+      pruneStopped()
+      stoppedCallIds[callId] = System.currentTimeMillis()
+    }
+
+    private fun wasRecentlyStopped(callId: String): Boolean {
+      pruneStopped()
+      return stoppedCallIds.containsKey(callId)
+    }
 
     fun startIncomingCall(context: Context, data: Map<String, String>) {
       val callId = data["callId"] ?: data["uuid"] ?: return
@@ -345,7 +481,7 @@ class IncomingCallForegroundService : Service() {
         action = ACTION_SHOW
         putExtra(EXTRA_CALL_ID, callId)
         putExtra(EXTRA_CALLER_NAME, data["callerName"] ?: data["carLabel"] ?: "AutoQr incident call")
-        putExtra(EXTRA_HANDLE, data["handle"] ?: data["reporterPhoneMasked"] ?: data["reporterPhone"] ?: data["callerPhone"] ?: "AutoQr caller")
+        putExtra(EXTRA_HANDLE, data["handle"] ?: data["reporterPhoneMasked"] ?: data["reporterPhone"] ?: data["callerPhone"] ?: "Incoming vehicle assistance call")
         putExtra(EXTRA_ACTION_TOKEN, data["callActionToken"])
         data.forEach { (key, value) -> putExtra(key, value) }
       }

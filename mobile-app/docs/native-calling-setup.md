@@ -15,9 +15,9 @@ This app now uses a native-first incoming call path:
 ## Android Native Requirements
 
 - FCM data payload with `type=INCOMING_CALL` and `priority=high`
-- Notification channel `incoming-calls` with MAX importance
+- Notification channel `incoming-calls-autoqr-v2` with high importance
 - Category `CALL`, full-screen intent, ringtone, vibration
-- Accept/Decline actions routed via deep links
+- Accept/Decline actions routed through `IncomingCallForegroundService` before React Native opens
 
 Manifest/runtime permissions in `app.json`:
 
@@ -28,6 +28,17 @@ Manifest/runtime permissions in `app.json`:
 - `USE_FULL_SCREEN_INTENT`
 - `FOREGROUND_SERVICE`
 - `FOREGROUND_SERVICE_MICROPHONE`
+
+## Android Ringtone
+
+The native Android incoming-call service uses:
+
+- Source asset: `mobile-app/assets/sounds/autoqr_incoming_call.wav`
+- Android raw resource: `mobile-app/android/app/src/main/res/raw/autoqr_incoming_call.wav`
+- Notification channel: `incoming-calls-autoqr-v2`
+- Audio usage: `AudioAttributes.USAGE_NOTIFICATION_RINGTONE`
+
+The config plugin copies the WAV asset into `res/raw` during prebuild, so the app does not fall back to a random/default ringtone after regeneration. Android notification channel sound is sticky once a channel is created; changing the sound again requires a new channel id or clearing the app's notification channel settings on the device.
 
 ## iOS CallKit / VoIP Setup
 

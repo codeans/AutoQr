@@ -86,7 +86,7 @@ class AutoQrMessagingService : ExpoFirebaseMessagingService() {
     val callerName = data["callerName"] ?: data["carLabel"] ?: "AutoQr incident call"
     val handle = data["handle"] ?: data["reporterPhone"] ?: data["callerPhone"] ?: "AutoQr caller"
     val notificationManager = getSystemService(NotificationManager::class.java)
-    val channelId = "incoming-calls"
+    val channelId = "incoming-calls-autoqr-v2"
     val soundUri = ringtoneUri()
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -298,6 +298,12 @@ const withAndroidNativeCallFirebase = (config) => {
       const stylesPath = path.join(mod.modRequest.platformProjectRoot, "app/src/main/res/values/styles.xml");
       const styles = await fs.promises.readFile(stylesPath, "utf8");
       await fs.promises.writeFile(stylesPath, ensureIncomingCallStyle(styles));
+      const rawDir = path.join(mod.modRequest.platformProjectRoot, "app/src/main/res/raw");
+      await fs.promises.mkdir(rawDir, { recursive: true });
+      await fs.promises.copyFile(
+        path.join(mod.modRequest.projectRoot, "assets/sounds/autoqr_incoming_call.wav"),
+        path.join(rawDir, "autoqr_incoming_call.wav")
+      );
       return mod;
     }
   ]);

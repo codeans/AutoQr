@@ -8,7 +8,7 @@ import { ApiError } from "../../utils/apiError.js";
 import { emitToIncidentRoom, emitToUser, emitToUserExcept, getPreferredUserSocketId } from "../../realtime/socket.js";
 import { buildAgoraJoinPayload, ensureAgoraFields, authorizeAgoraTokenRequest } from "../../services/agora/agora.service.js";
 import { env } from "../../config/env.js";
-import { sendNativeIncomingCallToUser } from "../../infrastructure/notifications/nativeCall.push.js";
+import { sendNativeCallStateToUser, sendNativeIncomingCallToUser } from "../../infrastructure/notifications/nativeCall.push.js";
 import { publishNotification } from "../../infrastructure/notifications/realtime.notifications.js";
 import { maskGermanPhone } from "@autoqr/shared";
 
@@ -110,6 +110,11 @@ export const acceptCall = asyncHandler(async (req: Request, res: Response) => {
     if (ownerSocketId) {
       emitToUserExcept(String(call.ownerUserId), ownerSocketId, "call_cancelled", { callId: call.id });
     }
+    await sendNativeCallStateToUser(
+      String(call.ownerUserId),
+      { callId: call.id, incidentId: String(call.incidentId) },
+      "CALL_ENDED"
+    );
   }
 
   res.json({ ok: true, call: result });
@@ -159,7 +164,13 @@ export const nativeCallAction = asyncHandler(async (req: Request, res: Response)
       emitToIncidentRoom(String(call.incidentId), "call:accepted", acceptedPayload);
       emitToIncidentRoom(String(call.incidentId), "call_accepted", acceptedPayload);
       emitToIncidentRoom(String(call.incidentId), "call_started", { callId: call.id });
-      emitToUser(String(call.ownerUserId), "call:accepted", { callId: call.id });
+      emitToUser(String(call.ownerUserId), "call:accepted", acceptedPayload);
+      emitToUser(String(call.ownerUserId), "call_accepted", acceptedPayload);
+      await sendNativeCallStateToUser(
+        String(call.ownerUserId),
+        { callId: call.id, incidentId: String(call.incidentId) },
+        "CALL_ENDED"
+      );
     }
 
     return res.json({ ok: true, call: { callId: call.id, status: call.status } });
@@ -181,11 +192,21 @@ export const nativeCallAction = asyncHandler(async (req: Request, res: Response)
     emitToIncidentRoom(String(call.incidentId), "call_missed", { callId: call.id, reason: call.endReason });
     emitToUser(String(call.ownerUserId), "call:missed", { callId: call.id, reason: call.endReason });
     emitToUser(String(call.ownerUserId), "call_missed", { callId: call.id, reason: call.endReason });
+    await sendNativeCallStateToUser(
+      String(call.ownerUserId),
+      { callId: call.id, incidentId: String(call.incidentId) },
+      "MISSED_CALL"
+    );
   } else {
     emitToIncidentRoom(String(call.incidentId), "call:declined", { callId: call.id, reason: call.rejectionReason });
     emitToIncidentRoom(String(call.incidentId), "call_rejected", { callId: call.id, reason: call.rejectionReason });
     emitToUser(String(call.ownerUserId), "call:declined", { callId: call.id, reason: call.rejectionReason });
     emitToUser(String(call.ownerUserId), "call_ended", { callId: call.id, duration: 0, reason: call.endReason });
+    await sendNativeCallStateToUser(
+      String(call.ownerUserId),
+      { callId: call.id, incidentId: String(call.incidentId) },
+      "CALL_ENDED"
+    );
   }
 
   res.json({ ok: true, call: { callId: call.id, status: call.status, reason: call.endReason } });
@@ -333,6 +354,11 @@ export const declineCall = asyncHandler(async (req: Request, res: Response) => {
     duration: 0,
     reason: call.endReason
   });
+  await sendNativeCallStateToUser(
+    String(call.ownerUserId),
+    { callId: call.id, incidentId: String(call.incidentId) },
+    "CALL_ENDED"
+  );
 
   res.json({ ok: true, call: { callId: call.id, status: call.status, reason: call.endReason } });
 });
@@ -354,6 +380,11 @@ export const markCallMissed = asyncHandler(async (req: Request, res: Response) =
   emitToIncidentRoom(String(call.incidentId), "call_missed", { callId: call.id, reason: call.endReason });
   emitToUser(String(call.ownerUserId), "call:missed", { callId: call.id, reason: call.endReason });
   emitToUser(String(call.ownerUserId), "call_missed", { callId: call.id, reason: call.endReason });
+  await sendNativeCallStateToUser(
+    String(call.ownerUserId),
+    { callId: call.id, incidentId: String(call.incidentId) },
+    "MISSED_CALL"
+  );
 
   res.json({ ok: true, call: { callId: call.id, status: call.status, reason: call.endReason } });
 });
@@ -390,5 +421,10 @@ export const endCall = asyncHandler(async (req: Request, res: Response) => {
   emitToUser(String(call.ownerUserId), "call_ended", endPayload);
   emitToIncidentRoom(String(call.incidentId), "call:ended", endPayload);
   emitToIncidentRoom(String(call.incidentId), "call_ended", endPayload);
+  await sendNativeCallStateToUser(
+    String(call.ownerUserId),
+    { callId: call.id, incidentId: String(call.incidentId) },
+    "CALL_ENDED"
+  );
   res.json({ ok: true, call: { ...endPayload, status: call.status } });
 });

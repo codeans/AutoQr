@@ -483,6 +483,16 @@ export const createSocketServer = (server: HttpServer) => {
       if (getOnlineUserSockets(String(call.ownerUserId)).size > 0) {
         ioInstance?.to(`user:${call.ownerUserId}`).emit("call_cancelled", { callId: call.id });
       }
+      try {
+        const { sendNativeCallStateToUser } = await import("../infrastructure/notifications/nativeCall.push.js");
+        await sendNativeCallStateToUser(
+          String(call.ownerUserId),
+          { callId: call.id, incidentId: String(call.incidentId) },
+          "CALL_ENDED"
+        );
+      } catch (err) {
+        logger.warn("call.cancel.native_state_failed", { callId: call.id, err: (err as Error)?.message });
+      }
       socket.emit("call_cancelled", { callId: call.id });
     });
 
@@ -522,6 +532,16 @@ export const createSocketServer = (server: HttpServer) => {
       });
       socket.to(`user:${auth.userId}`).emit("call_cancelled", { callId: call.id });
       socket.emit("call_started", { callId: call.id });
+      try {
+        const { sendNativeCallStateToUser } = await import("../infrastructure/notifications/nativeCall.push.js");
+        await sendNativeCallStateToUser(
+          String(call.ownerUserId),
+          { callId: call.id, incidentId: String(call.incidentId) },
+          "CALL_ENDED"
+        );
+      } catch (err) {
+        logger.warn("call.accept.native_state_failed", { callId: call.id, err: (err as Error)?.message });
+      }
     });
 
     socket.on("call_reject", async (payload) => {
@@ -543,6 +563,17 @@ export const createSocketServer = (server: HttpServer) => {
       await call.save();
       ioInstance?.to(`incident:${String(call.incidentId)}`).emit("call:declined", { callId: call.id, reason: call.rejectionReason });
       ioInstance?.to(`incident:${String(call.incidentId)}`).emit("call_rejected", { callId: call.id, reason: call.rejectionReason });
+      ioInstance?.to(`user:${String(call.ownerUserId)}`).emit("call_ended", { callId: call.id, duration: 0, reason: call.endReason });
+      try {
+        const { sendNativeCallStateToUser } = await import("../infrastructure/notifications/nativeCall.push.js");
+        await sendNativeCallStateToUser(
+          String(call.ownerUserId),
+          { callId: call.id, incidentId: String(call.incidentId) },
+          "CALL_ENDED"
+        );
+      } catch (err) {
+        logger.warn("call.reject.native_state_failed", { callId: call.id, err: (err as Error)?.message });
+      }
     });
 
     socket.on("call_end", async (payload) => {
