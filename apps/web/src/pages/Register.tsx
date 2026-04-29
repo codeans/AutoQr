@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "../components/marketing/shared/Button";
 import { Container } from "../components/marketing/shared/Container";
@@ -8,10 +8,12 @@ import { useAuth } from "../context/AuthContext";
 
 export const RegisterPage = () => {
   const { t } = useTranslation();
-  const { requestOtp, verifyOtp } = useAuth();
+  const { requestWhatsAppOtp, verifyWhatsAppOtp } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const redirect = params.get("redirect") ?? "/setup-qr";
   const [step, setStep] = useState<"details" | "verify">("details");
-  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", password: "", confirmPassword: "" });
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState<string | undefined>();
   const [pending, setPending] = useState(false);
@@ -22,7 +24,7 @@ export const RegisterPage = () => {
     setError("");
     setPending(true);
     try {
-      const res = await requestOtp(form.phone, "signup");
+      const res = await requestWhatsAppOtp(form.phone, "signup");
       setDevCode(res.devCode);
       setStep("verify");
     } catch (err: any) {
@@ -37,13 +39,15 @@ export const RegisterPage = () => {
     setError("");
     setPending(true);
     try {
-      await verifyOtp({
+      if (form.password.length < 8) throw new Error("Password must be at least 8 characters.");
+      if (form.password !== form.confirmPassword) throw new Error("Passwords do not match.");
+      await verifyWhatsAppOtp({
         phone: form.phone,
         code,
         purpose: "signup",
-        signup: { name: form.name, email: form.email, address: form.address }
+        signup: { name: form.name, email: form.email, address: form.address, password: form.password }
       });
-      navigate("/dashboard");
+      navigate(redirect);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? t("auth.errorVerificationFailed"));
     } finally {
@@ -118,6 +122,28 @@ export const RegisterPage = () => {
                   minLength={4}
                   value={form.address}
                   onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
+                />
+              </FieldGroup>
+              <FieldGroup>
+                <FieldLabel htmlFor="password">{t("auth.passwordLabel")}</FieldLabel>
+                <TextField
+                  id="password"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={form.password}
+                  onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+                />
+              </FieldGroup>
+              <FieldGroup>
+                <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
+                <TextField
+                  id="confirmPassword"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm((p) => ({ ...p, confirmPassword: e.target.value }))}
                 />
               </FieldGroup>
               {error && errorBox(error, true)}

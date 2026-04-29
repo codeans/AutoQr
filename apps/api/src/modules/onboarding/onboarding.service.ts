@@ -48,6 +48,7 @@ export const startPlanOrder = async (args: {
     existingPending.amount = plan.priceCents / 100;
     existingPending.currency = plan.currency;
     existingPending.tagQuantity = plan.tagsIncluded;
+    existingPending.orderStatus = "pending_payment";
     await existingPending.save();
     return { order: existingPending, created: false };
   }
@@ -60,7 +61,7 @@ export const startPlanOrder = async (args: {
     currency: plan.currency,
     tagQuantity: plan.tagsIncluded,
     paymentStatus: "pending",
-    orderStatus: "created",
+    orderStatus: "pending_payment",
     shippingAddress: args.shippingAddress as any
   });
 

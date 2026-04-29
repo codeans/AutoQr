@@ -36,8 +36,10 @@ export const registerPushToken = asyncHandler(async (req: Request, res: Response
           token: body.token,
           platform: body.platform,
           tokenType: body.tokenType,
+          enabled: true,
           deviceId: body.deviceId ?? "",
           appVersion: body.appVersion ?? "",
+          lastSeen: new Date(),
           createdAt: new Date(),
           lastUsedAt: new Date()
         }
@@ -51,7 +53,20 @@ export const registerPushToken = asyncHandler(async (req: Request, res: Response
 export const registerFcmToken = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.auth?.userId;
   if (!userId) throw new ApiError(401, "Unauthorized");
-  const body = z.object({ token: z.string().min(10).max(300), appVersion: z.string().max(40).optional() }).parse(req.body);
+  const body = z
+    .object({
+      token: z.string().min(10).max(300),
+      platform: z.enum(["android", "ios", "web"]).optional().default("android"),
+      deviceId: z.string().max(200).optional().default(""),
+      appVersion: z.string().max(40).optional().default(""),
+      enabled: z.boolean().optional().default(true)
+    })
+    .parse(req.body);
+
+  if (body.platform !== "android") {
+    // This endpoint is for FCM tokens; only Android is supported in the current flow.
+    throw new ApiError(400, "Invalid platform for FCM token");
+  }
 
   await UserModel.updateMany(
     { "pushTokens.token": body.token },
@@ -65,7 +80,10 @@ export const registerFcmToken = asyncHandler(async (req: Request, res: Response)
           token: body.token,
           platform: "android",
           tokenType: "fcm",
+          enabled: body.enabled ?? true,
+          deviceId: body.deviceId ?? "",
           appVersion: body.appVersion ?? "",
+          lastSeen: new Date(),
           createdAt: new Date(),
           lastUsedAt: new Date()
         }
@@ -73,6 +91,17 @@ export const registerFcmToken = asyncHandler(async (req: Request, res: Response)
     }
   );
   logger.info("mobile.fcm_token.registered", { userId });
+  res.json({ ok: true });
+});
+
+export const unregisterFcmToken = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.auth?.userId;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  const body = unregisterPushTokenSchema.parse(req.body);
+  await UserModel.updateOne(
+    { _id: userId },
+    { $pull: { pushTokens: { token: body.token, tokenType: "fcm" } } }
+  );
   res.json({ ok: true });
 });
 

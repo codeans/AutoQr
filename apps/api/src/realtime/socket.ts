@@ -246,7 +246,6 @@ export const createSocketServer = (server: HttpServer) => {
         socket.emit("call_requested", {
           callId: existingLiveCall.id,
           status: existingLiveCall.status || "ringing",
-          ownerOnline: getOnlineUserSockets(ownerUserId).size > 0,
           delivery: "existing_session",
           agora
         });
@@ -292,7 +291,6 @@ export const createSocketServer = (server: HttpServer) => {
         socket.emit("call_requested", {
           callId: racedCall.id,
           status: racedCall.status || "ringing",
-          ownerOnline: getOnlineUserSockets(ownerUserId).size > 0,
           delivery: "existing_session",
           agora
         });
@@ -311,7 +309,7 @@ export const createSocketServer = (server: HttpServer) => {
       const ownerOnline = getOnlineUserSockets(ownerUserId).size > 0;
       const ringingPayload = await buildIncomingCallPayload(call, incidentId, socket.id);
       const callerAgora = buildAgoraJoinPayload(call, "caller");
-      socket.emit("call_requested", { callId: call.id, status: "ringing", ownerOnline, delivery: ownerOnline ? "socket_push" : "push", agora: callerAgora });
+      socket.emit("call_requested", { callId: call.id, status: "ringing", delivery: ownerOnline ? "socket_push" : "push", agora: callerAgora });
       if (ownerOnline) {
         ioInstance?.to(`user:${ownerUserId}`).emit("call:incoming", ringingPayload);
         ioInstance?.to(`user:${ownerUserId}`).emit("call_ringing", ringingPayload);
@@ -406,6 +404,19 @@ export const createSocketServer = (server: HttpServer) => {
             channelId: "calls",
             forcePush: true
           });
+
+          // For killed/backgrounded Android clients we also send a raw FCM data message
+          // so the native full-screen notification and CallKeep UI get dismissed.
+          try {
+            const { sendNativeCallStateToUser } = await import("../infrastructure/notifications/nativeCall.push.js");
+            await sendNativeCallStateToUser(
+              String(ownerUserId),
+              { callId: String(latest._id), incidentId: String(incidentId) },
+              "MISSED_CALL"
+            );
+          } catch (err) {
+            logger.warn("call.ringing_timeout_fcm_failed", { callId: call.id, err: (err as Error)?.message });
+          }
         } catch (err) {
           logger.warn("call.ringing_timeout_failed", { callId: call.id, err: (err as Error)?.message });
         }

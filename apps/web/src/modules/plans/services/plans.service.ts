@@ -11,6 +11,24 @@ export const fetchPlan = async (slug: string): Promise<Plan> => {
   return data.plan;
 };
 
+export const publicCheckout = async (payload: {
+  planId: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  shippingAddress: {
+    line1: string;
+    line2?: string;
+    city: string;
+    postalCode: string;
+    country: string;
+  };
+  note?: string;
+}): Promise<{ url?: string }> => {
+  const { data } = await api.post(`/payments/public-checkout`, payload);
+  return data as { url?: string };
+};
+
 export const startPlan = async (payload: {
   planId: string;
   shippingAddress: {

@@ -8,6 +8,9 @@ import { ApiError } from "../../utils/apiError.js";
 import { emitToIncidentRoom, emitToUser, emitToUserExcept, getPreferredUserSocketId } from "../../realtime/socket.js";
 import { buildAgoraJoinPayload, ensureAgoraFields, authorizeAgoraTokenRequest } from "../../services/agora/agora.service.js";
 import { env } from "../../config/env.js";
+import { sendNativeIncomingCallToUser } from "../../infrastructure/notifications/nativeCall.push.js";
+import { publishNotification } from "../../infrastructure/notifications/realtime.notifications.js";
+import { maskGermanPhone } from "@autoqr/shared";
 
 const callActionSchema = z.object({
   reason: z.string().max(200).optional(),
@@ -137,7 +140,7 @@ export const startCall = asyncHandler(async (req: Request, res: Response) => {
   await call.save();
 
   const agora = buildAgoraJoinPayload(call, "caller");
-  emitToUser(String(call.ownerUserId), "call:incoming", {
+  const incomingPayload = {
     callId: call.id,
     incidentId: String(call.incidentId),
     ownerId: String(call.ownerUserId),
@@ -148,7 +151,58 @@ export const startCall = asyncHandler(async (req: Request, res: Response) => {
     agoraChannelName: call.agoraChannelName,
     agoraUidCaller: call.agoraUidCaller,
     agoraUidReceiver: call.agoraUidReceiver
-  });
+  };
+  emitToUser(String(call.ownerUserId), "call:incoming", incomingPayload);
+  emitToUser(String(call.ownerUserId), "call_ringing", incomingPayload);
+
+  try {
+    const createdAtIso =
+      call.createdAt instanceof Date
+        ? call.createdAt.toISOString()
+        : typeof call.createdAt === "string"
+          ? call.createdAt
+          : new Date().toISOString();
+    const expiresAt = new Date(new Date(createdAtIso).getTime() + 45_000).toISOString();
+    const nativePayload = {
+      callId: call.id,
+      incidentId: String(call.incidentId),
+      vehicleId: "",
+      vehiclePlate: "",
+      callerPhone: call.reporterPhone || "",
+      reporterSocketId: call.reporterSessionId || "",
+      reporterPhone: call.reporterPhone || "",
+      reporterPhoneMasked: call.reporterPhone ? maskGermanPhone(call.reporterPhone) : "",
+      carId: "",
+      carLabel: "AutoQr incident call",
+      imageCount: 0,
+      message: "",
+      platform: call.reporterPlatform || "web",
+      createdAt: createdAtIso,
+      expiresAt
+    };
+
+    await sendNativeIncomingCallToUser(String(call.ownerUserId), nativePayload);
+    await publishNotification({
+      userId: String(call.ownerUserId),
+      type: "INCOMING_CALL",
+      title: "Incoming AutoQr Call",
+      body: "Someone is trying to contact you about your vehicle.",
+      relatedEntityId: String(call.incidentId),
+      data: { ...nativePayload, type: "INCOMING_CALL" },
+      forcePush: true,
+      channelId: "incoming-calls",
+      priority: "high",
+      ttl: 45
+    });
+    call.pushStatus = "sent";
+    call.pushSentAt = new Date();
+    call.pushError = "";
+    await call.save();
+  } catch (err) {
+    call.pushStatus = "failed";
+    call.pushError = (err as Error)?.message || "push_failed";
+    await call.save();
+  }
 
   res.status(201).json({
     ok: true,

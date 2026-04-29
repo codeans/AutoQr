@@ -13,10 +13,10 @@ import type { OwnerTag } from "../services/owner.service";
 
 const statusTone: Record<string, "neutral" | "success" | "warning" | "danger" | "info"> = {
   activated: "success",
-  in_stock: "neutral",
-  assigned_to_order: "info",
-  shipped: "info",
-  delivered: "info",
+  generated: "neutral",
+  printed: "info",
+  dispatched: "info",
+  unlinked: "info",
   disabled: "danger",
   lost: "danger"
 };

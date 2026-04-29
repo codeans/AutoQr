@@ -16,7 +16,6 @@ import {
 import { useAuthStore } from "@/stores/auth.store";
 import { useCarsQuery } from "@/hooks/useCarsQuery";
 import { useIncidentsQuery } from "@/hooks/useIncidentsQuery";
-import { useSocket } from "@/hooks/useSocket";
 import { useNotificationStore } from "@/stores/notification.store";
 import { formatRelative, carLabel } from "@/utils/format";
 import { colors, radius, spacing } from "@/theme";
@@ -42,7 +41,6 @@ export function DashboardScreen() {
     isLoading: incidentsLoading,
     refetch: refetchIncidents
   } = useIncidentsQuery();
-  const { connected } = useSocket();
   const unreadNotifications = useNotificationStore((s) => s.unreadCount);
 
   const primaryCar = useMemo(
@@ -67,17 +65,6 @@ export function DashboardScreen() {
             <Text variant="display">{user?.name ?? (t("dashboard.there") as string)}</Text>
           </View>
           <View style={styles.heroActions}>
-            <View style={styles.realtimeDot}>
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: connected ? colors.success : colors.warning }
-                ]}
-              />
-              <Text variant="caption" muted>
-                {connected ? (t("dashboard.live") as string) : (t("dashboard.offline") as string)}
-              </Text>
-            </View>
             <Pressable
               onPress={() => router.push("/notifications")}
               hitSlop={10}
@@ -294,16 +281,6 @@ function ActionRow({
 const styles = StyleSheet.create({
   hero: { marginBottom: spacing.xl },
   heroTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  realtimeDot: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    borderRadius: radius.pill
-  },
-  dot: { width: 8, height: 8, borderRadius: 4 },
   heroActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   bellBtn: {
     width: 40,

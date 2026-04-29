@@ -1,18 +1,16 @@
-import { AppState, type AppStateStatus, Vibration } from "react-native";
+import { AppState, type AppStateStatus } from "react-native";
 import { router } from "expo-router";
-import { Audio } from "expo-av";
 import type { IncomingCall } from "@/types/call";
 import { useCallStore } from "@/stores/call.store";
 import { callsService } from "@/services/api/calls.service";
 import { nativeCallService } from "@/services/calls/nativeCallService";
+import { callAlertService, SHOULD_VIBRATE_FOR_INCOMING_CALL } from "@/services/calls/callAlertService";
 
 const RINGING_TIMEOUT_MS = 45_000;
-const VIBRATION_PATTERN = [0, 450, 220, 450, 220, 650];
 const handledCallIds = new Map<string, number>();
 
 let appState: AppStateStatus = AppState.currentState;
 let appStateSub: { remove: () => void } | null = null;
-let ringtone: Audio.Sound | null = null;
 let ringingTimeout: ReturnType<typeof setTimeout> | null = null;
 let ringingCallId: string | null = null;
 
@@ -37,30 +35,10 @@ export function ensureIncomingCallAppStateWatcher(): void {
   if (appStateSub) return;
   appStateSub = AppState.addEventListener("change", (nextState) => {
     appState = nextState;
-  });
-}
-
-async function startForegroundRingtone(): Promise<void> {
-  try {
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      allowsRecordingIOS: false,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: false
-    });
-    if (ringtone) {
-      await ringtone.replayAsync();
-      return;
+    if (nextState !== "active") {
+      void callAlertService.cleanupCallAlerts();
     }
-    const created = await Audio.Sound.createAsync(
-      require("@/assets/sounds/autoqr_ringtone.wav"),
-      { isLooping: true, volume: 1, shouldPlay: true }
-    );
-    ringtone = created.sound;
-  } catch {
-    // Gracefully continue when audio asset cannot be loaded.
-  }
-  Vibration.vibrate(VIBRATION_PATTERN, true);
+  });
 }
 
 export async function stopIncomingCallAlerting(): Promise<void> {
@@ -68,16 +46,7 @@ export async function stopIncomingCallAlerting(): Promise<void> {
     clearTimeout(ringingTimeout);
     ringingTimeout = null;
   }
-  Vibration.cancel();
-  try {
-    if (ringtone) {
-      await ringtone.stopAsync();
-      await ringtone.unloadAsync();
-      ringtone = null;
-    }
-  } catch {
-    ringtone = null;
-  }
+  await callAlertService.stopIncomingCallAlerts();
   ringingCallId = null;
 }
 
@@ -144,7 +113,11 @@ export async function handleIncomingCall(payload: Partial<IncomingCall> & { call
   if (appState === "active") {
     if (ringingCallId !== incoming.callId) {
       ringingCallId = incoming.callId;
-      await startForegroundRingtone();
+      if (SHOULD_VIBRATE_FOR_INCOMING_CALL) {
+        await callAlertService.startIncomingCallAlerts();
+      } else {
+        await callAlertService.startRingtone();
+      }
     }
     router.push(`/calls/incoming/${incoming.callId}` as never);
   }

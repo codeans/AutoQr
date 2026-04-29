@@ -84,7 +84,7 @@
           "icon": "./assets/icons/notification-icon.png",
           "color": "#1D4ED8",
           "sounds": [
-            "./assets/sounds/autoqr_ringtone.wav"
+            "./assets/sounds/autoqr_incoming_call.mp3"
           ]
         }
       ],

@@ -6,7 +6,9 @@ const activationRecordSchema = new Schema(
     serial: { type: String, required: true, index: true },
     activationCode: { type: String, required: true, index: true },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    carId: { type: Schema.Types.ObjectId, ref: "Car", required: true },
+    // Car activations set carId; key activations set keyId.
+    carId: { type: Schema.Types.ObjectId, ref: "Car", required: false },
+    keyId: { type: Schema.Types.ObjectId, ref: "Key", required: false },
     outcome: {
       type: String,
       enum: ["success", "invalid_code", "already_used", "disabled", "rate_limited", "error"],

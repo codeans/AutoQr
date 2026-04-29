@@ -4,7 +4,11 @@ const incidentSchema = new Schema(
   {
     qrCodeId: { type: Schema.Types.ObjectId, ref: "QRCode", index: true },
     tagId: { type: Schema.Types.ObjectId, ref: "Tag", index: true },
-    carId: { type: Schema.Types.ObjectId, ref: "Car", required: true, index: true },
+    // Car incidents link to `carId`, key incidents link to `keyId`.
+    carId: { type: Schema.Types.ObjectId, ref: "Car", required: false, index: true },
+    keyId: { type: Schema.Types.ObjectId, ref: "Key", required: false, index: true },
+    // Kept for fast branching in UI and admin logs.
+    linkedAssetType: { type: String, enum: ["car", "keys"], default: "car", index: true },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     reporterName: { type: String, default: "" },
     reporterPhone: { type: String, required: true },

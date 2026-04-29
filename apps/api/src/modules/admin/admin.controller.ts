@@ -12,7 +12,6 @@ import { TagModel } from "../../models/Tag.js";
 import { UserModel } from "../../models/User.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiError } from "../../utils/apiError.js";
-import { fulfillPaidOrder } from "../payments/payment.service.js";
 import { z } from "zod";
 
 const userStatusSchema = z.object({
@@ -37,7 +36,7 @@ const incidentUpdateSchema = z.object({
 });
 
 const shipmentUpdateSchema = z.object({
-  status: z.enum(["packed", "dispatched", "delivered"]),
+  status: z.enum(["printed", "dispatched", "unlinked"]),
   courier: z.string().max(200).optional(),
   trackingNumber: z.string().max(200).optional(),
   notes: z.string().max(2000).optional()
@@ -128,11 +127,40 @@ export const markOrderComplete = asyncHandler(async (req: Request, res: Response
   const order = await OrderModel.findById(req.params.id);
   if (!order) throw new ApiError(404, "Order not found");
 
-  const transactionId = `admin-manual-${order.id}`;
-  await fulfillPaidOrder(order.id, transactionId, { source: "admin_manual_complete", adminId: req.auth!.userId });
+  if (order.paymentStatus !== "success") {
+    throw new ApiError(400, "Order must be paid before dispatch.");
+  }
+
+  // Assign physical QR inventory (still unlinked). Customers activate the QR later using their activation code.
+  const tagQuantity = order.tagQuantity ?? 1;
+  const available = await TagModel.find({ status: "generated" })
+    .limit(tagQuantity)
+    .lean();
+
+  if (available.length <= 0) throw new ApiError(400, "No available QR inventory for dispatch");
+
+  const ids = available.map((t: any) => t._id);
+  await TagModel.updateMany(
+    { _id: { $in: ids } },
+    {
+      $set: {
+        status: "dispatched",
+        dispatchedAt: new Date(),
+        orderId: order.id,
+        // keep unlinked: only set owner/asset on activation
+        ownerUserId: null,
+        linkedAssetType: null,
+        carId: null,
+        keyId: null
+      }
+    }
+  );
+
+  order.orderStatus = "processing";
+  await order.save();
 
   const updatedOrder = await OrderModel.findById(order.id).populate("userId", "name email").populate("carId");
-  await audit(req.auth!.userId, "order_marked_complete", "order", order.id, { transactionId });
+  await audit(req.auth!.userId, "order_dispatched_assigned_qr", "order", order.id, { assignedCount: ids.length });
   res.json({ order: updatedOrder });
 });
 
@@ -197,7 +225,7 @@ export const listCallbacks = asyncHandler(async (_req: Request, res: Response) =
 });
 
 export const shipments = asyncHandler(async (_req: Request, res: Response) => {
-  const tags = await TagModel.find({ status: { $in: ["assigned_to_order", "shipped", "delivered"] } })
+  const tags = await TagModel.find({ status: { $in: ["printed", "dispatched", "unlinked"] } })
     .populate("ownerUserId", "name address phone email")
     .populate("orderId")
     .sort({ updatedAt: -1 });
@@ -208,15 +236,15 @@ export const updateShipment = asyncHandler(async (req: Request, res: Response) =
   const payload = shipmentUpdateSchema.parse(req.body);
   const status = payload.status;
   const tagStatusMap: Record<string, string> = {
-    packed: "assigned_to_order",
-    dispatched: "shipped",
-    delivered: "delivered"
+    printed: "printed",
+    dispatched: "dispatched",
+    unlinked: "unlinked"
   };
   const updates: Record<string, unknown> = {
-    status: tagStatusMap[status] ?? "assigned_to_order"
+    status: tagStatusMap[status] ?? "printed"
   };
-  if (status === "dispatched") updates.shippedAt = new Date();
-  if (status === "delivered") updates.deliveredAt = new Date();
+  if (status === "dispatched") updates.dispatchedAt = new Date();
+  if (status === "unlinked") updates.unlinkedAt = new Date();
 
   const tag = await TagModel.findByIdAndUpdate(
     req.params.id,
@@ -227,9 +255,9 @@ export const updateShipment = asyncHandler(async (req: Request, res: Response) =
 
   if (tag.orderId) {
     const orderStatusMap: Record<string, string> = {
-      packed: "fulfillment_in_progress",
-      dispatched: "fulfillment_in_progress",
-      delivered: "delivered"
+      printed: "processing",
+      dispatched: "dispatched",
+      unlinked: "delivered"
     };
     await OrderModel.updateOne(
       { _id: tag.orderId },
@@ -240,7 +268,7 @@ export const updateShipment = asyncHandler(async (req: Request, res: Response) =
           "fulfillment.trackingNumber": payload.trackingNumber ?? "",
           "fulfillment.notes": payload.notes ?? "",
           ...(status === "dispatched" ? { "fulfillment.shippedAt": new Date() } : {}),
-          ...(status === "delivered" ? { "fulfillment.deliveredAt": new Date() } : {})
+          ...(status === "unlinked" ? { "fulfillment.deliveredAt": new Date() } : {})
         }
       }
     );

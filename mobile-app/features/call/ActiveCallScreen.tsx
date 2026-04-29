@@ -12,6 +12,8 @@ import { colors, radius, spacing } from "@/theme";
 import { formatDuration, maskPhone } from "@/utils/format";
 import { agoraVoiceService } from "@/services/agora/agoraVoiceService";
 import { CallControls } from "@/features/calls/CallControls";
+import { callAlertService } from "@/services/calls/callAlertService";
+import { inCallService } from "@/services/calls/inCallService";
 
 export function ActiveCallScreen() {
   const incoming = useCallStore((s) => s.incoming);
@@ -31,7 +33,18 @@ export function ActiveCallScreen() {
 
   useEffect(() => {
     agoraVoiceService.toggleSpeaker(speakerEnabled);
+    inCallService.setSpeakerMode(speakerEnabled);
   }, [speakerEnabled]);
+
+  useEffect(() => {
+    if (status === "active") {
+      inCallService.startInCallMode(speakerEnabled);
+      return;
+    }
+    if (status === "idle" || status === "ended" || status === "missed" || status === "declined" || status === "failed") {
+      inCallService.stopInCallMode();
+    }
+  }, [status]);
 
   useEffect(() => {
     // When the signalling says we've started, reflect that immediately so the timer begins.
@@ -50,10 +63,24 @@ export function ActiveCallScreen() {
 
   useEffect(() => {
     if (status === "idle" || status === "ended" || status === "missed" || status === "declined") {
+      void callAlertService.cleanupCallAlerts();
       if (router.canGoBack()) router.back();
       else router.replace("/(tabs)/dashboard");
     }
   }, [status]);
+
+  useEffect(() => {
+    if (status === "connecting" || status === "active") {
+      void callAlertService.cleanupCallAlerts();
+    }
+  }, [status]);
+
+  useEffect(() => {
+    return () => {
+      inCallService.cleanupInCallMode();
+      void callAlertService.cleanupCallAlerts();
+    };
+  }, []);
 
   const connectionLabel = (() => {
     if (status === "connecting") return "Connecting…";
@@ -104,6 +131,9 @@ export function ActiveCallScreen() {
         onToggleMic={toggleMic}
         onToggleSpeaker={toggleSpeaker}
       />
+      <Text variant="caption" muted align="center" style={{ marginBottom: spacing.lg }}>
+        Audio route: {speakerEnabled ? "Speaker" : "Earpiece"}
+      </Text>
 
       <View style={styles.endWrap}>
         <Pressable onPress={end} hitSlop={12} style={styles.endCircle}>

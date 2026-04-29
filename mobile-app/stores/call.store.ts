@@ -1,5 +1,8 @@
 import { create } from "zustand";
+import { Platform } from "react-native";
 import type { ActiveCallState, IncomingCall } from "@/types/call";
+
+const DEFAULT_SPEAKER_ENABLED = Platform.OS === "android";
 
 type CallState = {
   status: ActiveCallState;
@@ -19,6 +22,7 @@ type CallState = {
   markAudioConnected: (connected: boolean) => void;
   toggleMic: () => void;
   toggleSpeaker: () => void;
+  setSpeakerEnabled: (enabled: boolean) => void;
   setEndReason: (reason: string | null) => void;
   reset: () => void;
 };
@@ -31,7 +35,7 @@ export const useCallStore = create<CallState>((set) => ({
   startedAt: null,
   ringingStartedAt: null,
   micEnabled: true,
-  speakerEnabled: false,
+  speakerEnabled: DEFAULT_SPEAKER_ENABLED,
   audioConnected: false,
   endReason: null,
   setIncoming: (incoming) =>
@@ -48,6 +52,7 @@ export const useCallStore = create<CallState>((set) => ({
   markAudioConnected: (connected) => set({ audioConnected: connected }),
   toggleMic: () => set((s) => ({ micEnabled: !s.micEnabled })),
   toggleSpeaker: () => set((s) => ({ speakerEnabled: !s.speakerEnabled })),
+  setSpeakerEnabled: (enabled) => set({ speakerEnabled: enabled }),
   setEndReason: (endReason) => set({ endReason }),
   reset: () =>
     set({
@@ -58,7 +63,7 @@ export const useCallStore = create<CallState>((set) => ({
       startedAt: null,
       ringingStartedAt: null,
       micEnabled: true,
-      speakerEnabled: false,
+      speakerEnabled: DEFAULT_SPEAKER_ENABLED,
       audioConnected: false,
       endReason: null
     })

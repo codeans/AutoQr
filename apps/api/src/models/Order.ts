@@ -2,17 +2,23 @@ import mongoose, { Schema } from "mongoose";
 
 const orderSchema = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    // `userId` is optional for public checkout. We only attach QR inventory on activation.
+    userId: { type: Schema.Types.ObjectId, ref: "User", index: true },
     planId: { type: Schema.Types.ObjectId, ref: "Plan", index: true },
     planSnapshot: { type: Schema.Types.Mixed, default: null },
     carId: { type: Schema.Types.ObjectId, ref: "Car", index: true },
     amount: { type: Number, required: true },
     currency: { type: String, default: "EUR" },
+    stripePaymentId: { type: String, default: "", index: true },
+    selectedPlan: { type: String, default: "" },
+    customerName: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    email: { type: String, default: "" },
     paymentStatus: { type: String, enum: ["pending", "success", "failed", "refunded"], default: "pending", index: true },
     orderStatus: {
       type: String,
-      enum: ["created", "paid", "cancelled", "fulfillment_in_progress", "delivered"],
-      default: "created",
+      enum: ["pending_payment", "paid", "processing", "dispatched", "delivered", "cancelled", "refunded"],
+      default: "pending_payment",
       index: true
     },
     invoiceNumber: { type: String, default: "" },
@@ -27,6 +33,10 @@ const orderSchema = new Schema(
       postalCode: { type: String, default: "" },
       country: { type: String, default: "" }
     },
+    // Convenience fields (duplicated from `shippingAddress`) for simpler admin filtering.
+    city: { type: String, default: "" },
+    postalCode: { type: String, default: "" },
+    country: { type: String, default: "" },
     fulfillment: {
       courier: { type: String, default: "" },
       trackingNumber: { type: String, default: "" },

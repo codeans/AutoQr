@@ -136,7 +136,7 @@ export const de = {
     welcomeBack: "Willkommen zurück",
     there: "dort",
     live: "Live",
-    offline: "Offline",
+    offline: "Echtzeit",
     summary: {
       vehicles: "Fahrzeuge",
       activeTags: "Aktive QR-Codes",

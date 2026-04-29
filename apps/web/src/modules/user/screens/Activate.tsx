@@ -28,9 +28,14 @@ export const ActivateScreen = () => {
   const [step, setStep] = useState<Step>(1);
   const [cars, setCars] = useState<OwnerCar[]>([]);
   const [mode, setMode] = useState<"existing" | "new">("new");
+  const [assetType, setAssetType] = useState<"car" | "keys">("car");
   const [code, setCode] = useState("");
   const [carId, setCarId] = useState("");
   const [plateImage, setPlateImage] = useState<File | null>(null);
+  const [keyLabel, setKeyLabel] = useState("");
+  const [keyType, setKeyType] = useState("");
+  const [keyDescription, setKeyDescription] = useState("");
+  const [returnInstructions, setReturnInstructions] = useState("");
   const [form, setForm] = useState({
     registrationNumber: "",
     make: "",
@@ -70,37 +75,64 @@ export const ActivateScreen = () => {
     e.preventDefault();
     setError("");
     setSuccess("");
-    if (mode === "new" && !form.registrationNumber.trim()) {
+    if (assetType === "car" && mode === "new" && !form.registrationNumber.trim()) {
       setError("Registration number is required.");
       return;
     }
     setPending(true);
     try {
-      const carPayload =
-        mode === "new"
-          ? {
-              ...form,
-              year: form.year === "" ? undefined : Number(form.year)
-            }
-          : undefined;
+      if (assetType === "car") {
+        const carPayload =
+          mode === "new"
+            ? {
+                ...form,
+                year: form.year === "" ? undefined : Number(form.year)
+              }
+            : undefined;
 
-      if (plateImage) {
-        await ownerService.activateTagWithImage({
-          activationCode: code.trim().toUpperCase(),
-          carId: mode === "existing" ? carId : undefined,
-          carPayload,
-          plateImage
-        });
+        if (plateImage) {
+          await ownerService.activateTagWithImage({
+            activationCode: code.trim().toUpperCase(),
+            carId: mode === "existing" ? carId : undefined,
+            carPayload,
+            plateImage
+          });
+        } else {
+          await ownerService.activateTag({
+            activationCode: code.trim().toUpperCase(),
+            carId: mode === "existing" ? carId : undefined,
+            carPayload
+          });
+        }
+
+        setSuccess("Your car QR is now active and permanently linked to your car.");
+        setStep(3);
+        setTimeout(() => navigate("/dashboard/tags"), 1800);
       } else {
+        if (!keyLabel.trim()) {
+          setError("Key label is required.");
+          return;
+        }
+        if (!keyType.trim()) {
+          setError("Key type is required.");
+          return;
+        }
+
         await ownerService.activateTag({
           activationCode: code.trim().toUpperCase(),
-          carId: mode === "existing" ? carId : undefined,
-          carPayload
+          assetType: "keys",
+          keyPayload: {
+            label: keyLabel.trim(),
+            keyType: keyType.trim(),
+            description: keyDescription.trim() || undefined,
+            returnInstructions: returnInstructions.trim() || undefined
+          }
         });
+
+        setSuccess("Your QR is now active and permanently linked to your keys.");
+        setStep(3);
+        setTimeout(() => navigate("/dashboard/tags"), 1800);
       }
-      setSuccess("Your car QR is now active and permanently linked to your car.");
-      setStep(3);
-      setTimeout(() => navigate("/dashboard/tags"), 1800);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? "Activation failed. Check the code and try again.");
     } finally {
@@ -111,14 +143,14 @@ export const ActivateScreen = () => {
   return (
     <div className="space-y-6">
       <SectionTitle
-        title="Activate your car QR"
-        subtitle="Enter the one-time activation code printed on your physical QR sticker, then link it to a car. Once activated, the code becomes unusable and the QR stays permanently bound to that car."
+        title="Activate your QR"
+        subtitle="Enter the one-time activation code printed on your physical QR sticker, then link it to a car or keys. Once activated, the code becomes unusable."
       />
 
       <Card className="space-y-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-8">
           <StepDot step={1} active={step === 1} done={step > 1} label="Enter activation code" />
-          <StepDot step={2} active={step === 2} done={step > 2} label="Add car details" />
+          <StepDot step={2} active={step === 2} done={step > 2} label="Add details" />
           <StepDot step={3} active={false} done={step === 3} label="Activated" />
         </div>
       </Card>
@@ -158,7 +190,28 @@ export const ActivateScreen = () => {
               <p className="mt-1 font-mono text-base font-semibold text-slate-900">{code}</p>
             </div>
 
-            {cars.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                className={`rounded-xl border px-4 py-2 text-sm font-semibold ${
+                  assetType === "car" ? "border-slate-900 bg-white text-slate-900" : "border-slate-200 bg-slate-50 text-slate-600"
+                }`}
+                onClick={() => setAssetType("car")}
+              >
+                Car
+              </button>
+              <button
+                type="button"
+                className={`rounded-xl border px-4 py-2 text-sm font-semibold ${
+                  assetType === "keys" ? "border-slate-900 bg-white text-slate-900" : "border-slate-200 bg-slate-50 text-slate-600"
+                }`}
+                onClick={() => setAssetType("keys")}
+              >
+                Keys
+              </button>
+            </div>
+
+            {assetType === "car" && cars.length > 0 && (
               <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 text-sm">
                 <button
                   type="button"
@@ -177,82 +230,143 @@ export const ActivateScreen = () => {
               </div>
             )}
 
-            {mode === "existing" ? (
-              <div>
-                <label className="text-sm font-medium text-slate-700">Car</label>
-                <Select value={carId} onChange={(e) => setCarId(e.target.value)} className="mt-1">
-                  {cars.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.nickname || c.registrationNumber} {c.make ? `— ${c.make} ${c.model ?? ""}` : ""}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            ) : (
+            {assetType === "car" && (
+              <>
+                {mode === "existing" ? (
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Car</label>
+                    <Select value={carId} onChange={(e) => setCarId(e.target.value)} className="mt-1">
+                      {cars.map((c) => (
+                        <option key={c._id} value={c._id}>
+                          {c.nickname || c.registrationNumber} {c.make ? `— ${c.make} ${c.model ?? ""}` : ""}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="text-sm font-medium text-slate-700">
+                      Registration number *
+                      <Input
+                        required
+                        className="mt-1"
+                        placeholder="e.g. B-AQ 1234"
+                        value={form.registrationNumber}
+                        onChange={(e) => setForm((p) => ({ ...p, registrationNumber: e.target.value }))}
+                      />
+                    </label>
+                    <label className="text-sm font-medium text-slate-700">
+                      Make
+                      <Input
+                        className="mt-1"
+                        placeholder="e.g. Volkswagen"
+                        value={form.make}
+                        onChange={(e) => setForm((p) => ({ ...p, make: e.target.value }))}
+                      />
+                    </label>
+                    <label className="text-sm font-medium text-slate-700">
+                      Model
+                      <Input
+                        className="mt-1"
+                        placeholder="e.g. Golf"
+                        value={form.model}
+                        onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))}
+                      />
+                    </label>
+                    <label className="text-sm font-medium text-slate-700">
+                      Colour
+                      <Input
+                        className="mt-1"
+                        value={form.color}
+                        onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))}
+                      />
+                    </label>
+                    <label className="text-sm font-medium text-slate-700">
+                      Year
+                      <Input
+                        className="mt-1"
+                        type="number"
+                        value={form.year}
+                        onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))}
+                      />
+                    </label>
+                    <label className="text-sm font-medium text-slate-700">
+                      Nickname
+                      <Input
+                        className="mt-1"
+                        placeholder="e.g. Family car"
+                        value={form.nickname}
+                        onChange={(e) => setForm((p) => ({ ...p, nickname: e.target.value }))}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Front image with number plate (optional)</label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    className="mt-1"
+                    onChange={(e) => setPlateImage(e.target.files?.[0] ?? null)}
+                  />
+                  {plateImage && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      {plateImage.name} · {(plateImage.size / 1024).toFixed(1)} KB
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {assetType === "keys" && (
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="text-sm font-medium text-slate-700">
-                  Registration number *
+                  Key label *
                   <Input
                     required
                     className="mt-1"
-                    placeholder="e.g. B-AQ 1234"
-                    value={form.registrationNumber}
-                    onChange={(e) => setForm((p) => ({ ...p, registrationNumber: e.target.value }))}
+                    placeholder="e.g. Home keys"
+                    value={keyLabel}
+                    onChange={(e) => setKeyLabel(e.target.value)}
                   />
                 </label>
                 <label className="text-sm font-medium text-slate-700">
-                  Make
-                  <Input className="mt-1" placeholder="e.g. Volkswagen" value={form.make} onChange={(e) => setForm((p) => ({ ...p, make: e.target.value }))} />
-                </label>
-                <label className="text-sm font-medium text-slate-700">
-                  Model
-                  <Input className="mt-1" placeholder="e.g. Golf" value={form.model} onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))} />
-                </label>
-                <label className="text-sm font-medium text-slate-700">
-                  Colour
-                  <Input className="mt-1" value={form.color} onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))} />
-                </label>
-                <label className="text-sm font-medium text-slate-700">
-                  Year
+                  Key type *
                   <Input
+                    required
                     className="mt-1"
-                    type="number"
-                    value={form.year}
-                    onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))}
+                    placeholder="e.g. metal key / key fob"
+                    value={keyType}
+                    onChange={(e) => setKeyType(e.target.value)}
                   />
                 </label>
                 <label className="text-sm font-medium text-slate-700">
-                  Nickname
+                  Description
                   <Input
                     className="mt-1"
-                    placeholder="e.g. Family car"
-                    value={form.nickname}
-                    onChange={(e) => setForm((p) => ({ ...p, nickname: e.target.value }))}
+                    placeholder="Optional details"
+                    value={keyDescription}
+                    onChange={(e) => setKeyDescription(e.target.value)}
+                  />
+                </label>
+                <label className="text-sm font-medium text-slate-700">
+                  Return instructions
+                  <Input
+                    className="mt-1"
+                    placeholder="Optional return instructions"
+                    value={returnInstructions}
+                    onChange={(e) => setReturnInstructions(e.target.value)}
                   />
                 </label>
               </div>
             )}
 
-            <div>
-              <label className="text-sm font-medium text-slate-700">Front image with number plate (optional)</label>
-              <Input
-                type="file"
-                accept="image/*"
-                className="mt-1"
-                onChange={(e) => setPlateImage(e.target.files?.[0] ?? null)}
-              />
-              {plateImage && (
-                <p className="mt-1 text-xs text-slate-500">
-                  {plateImage.name} · {(plateImage.size / 1024).toFixed(1)} KB
-                </p>
-              )}
-            </div>
-
             {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
             <div className="flex flex-wrap gap-3">
               <Button type="submit" disabled={pending}>
-                {pending ? "Activating…" : "Activate and bind to car"}
+                {pending ? "Activating…" : assetType === "car" ? "Activate and bind to car" : "Activate and link keys"}
               </Button>
               <button
                 type="button"

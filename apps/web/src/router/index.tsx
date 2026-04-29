@@ -12,6 +12,7 @@ import { LoginPage } from "../pages/Login";
 import { OrderPage } from "../pages/Order";
 import { PricingPage } from "../pages/Pricing";
 import { RegisterPage } from "../pages/Register";
+import { SetupQrPage } from "../pages/SetupQr";
 import { UseCasesPage } from "../pages/UseCases";
 import { PartnerPage } from "../pages/Partner";
 import { HelpCenterPage } from "../pages/HelpCenter";
@@ -58,6 +59,7 @@ import { PlansScreen } from "../modules/plans/screens/Plans";
 import { PlanDetailScreen } from "../modules/plans/screens/PlanDetail";
 import { OnboardingScreen } from "../modules/plans/screens/Onboarding";
 import { OnboardingSuccessScreen } from "../modules/plans/screens/OnboardingSuccess";
+import { PublicCheckoutScreen } from "../modules/plans/screens/PublicCheckout";
 import { ScanLandingScreen } from "../modules/scan/screens/ScanLanding";
 import { ReporterCallScreen } from "../features/calls/ReporterCallScreen";
 import { currentLocale, setLocale } from "../i18n";
@@ -110,9 +112,12 @@ const publicRoutes = (
     <Route path="contact" element={<ContactPage />} />
     <Route path="login" element={<LoginPage />} />
     <Route path="register" element={<RegisterPage />} />
+    <Route path="setup-qr" element={<SetupQrPage />} />
 
     <Route path="plans" element={<PlansScreen />} />
     <Route path="plans/:slug" element={<PlanDetailScreen />} />
+
+    <Route path="checkout/:slug" element={<PublicCheckoutScreen />} />
 
     <Route path="shop" element={<Navigate to="/plans" replace />} />
     <Route path="shop/:slug" element={<Navigate to="/plans" replace />} />

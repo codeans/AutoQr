@@ -30,6 +30,38 @@ The app defaults to the production API at `https://api.autoqr.de`. Override
 - `npm run prebuild` — generate native projects (`ios/`, `android/`)
 - `npm run typecheck` — project-wide TS check
 
+## Native-only workflow (No Expo Go)
+
+For production calling and background/killed incoming calls, use native builds only.
+
+Android:
+
+```bash
+cd mobile-app
+npm run android:native:debug
+npm run android:native:install
+```
+
+iOS:
+
+```bash
+cd mobile-app
+npm run ios:native
+```
+
+Release builds:
+
+```bash
+npm run android:native:release
+npm run ios:native:release
+```
+
+Notes:
+
+- Expo Go is not supported for call validation.
+- This app still uses Expo modules (`expo-notifications`, `expo-router`, etc.), but runtime is native (`android/` + `ios/` projects).
+- Regenerate native projects only when plugin/config changes require it: `npm run prebuild`.
+
 ## Structure
 
 ```

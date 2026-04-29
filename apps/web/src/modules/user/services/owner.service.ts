@@ -7,6 +7,8 @@ export type OwnerTag = {
   activationCode: string;
   status: string;
   carId?: string;
+  keyId?: string;
+  linkedAssetType?: "car" | "keys" | null;
   activatedAt?: string;
   lastScanAt?: string;
   scanCount?: number;
@@ -69,8 +71,16 @@ export const ownerService = {
   },
   activateTag: async (payload: {
     activationCode: string;
+    assetType?: "car" | "keys";
     carId?: string;
     carPayload?: CarPayload;
+    keyPayload?: {
+      label: string;
+      keyType: string;
+      description?: string;
+      returnInstructions?: string;
+      image?: string;
+    };
   }) => {
     const { data } = await api.post("/owner/tags/activate", payload);
     return data;

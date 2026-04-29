@@ -1,5 +1,6 @@
 import { env } from "../../config/env.js";
 import { ensureStripe } from "../../infrastructure/payment/stripe.client.js";
+import { PlanModel } from "../../models/Plan.js";
 import { OrderModel } from "../../models/Order.js";
 import { PaymentModel } from "../../models/Payment.js";
 import { TagModel } from "../../models/Tag.js";
@@ -30,6 +31,91 @@ export const createCheckoutSession = async (orderId: string, userId: string) => 
   await PaymentModel.create({
     orderId: order.id,
     userId,
+    provider: "stripe",
+    transactionId: session.id,
+    amount: order.amount,
+    status: "pending",
+    rawResponse: session
+  });
+
+  return session;
+};
+
+export const createPublicCheckoutSession = async (args: {
+  planId: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  shippingAddress: {
+    line1: string;
+    line2?: string;
+    city: string;
+    postalCode: string;
+    country: string;
+  };
+  note?: string;
+}) => {
+  const plan = await PlanModel.findById(args.planId);
+  if (!plan || plan.status !== "active") throw new ApiError(404, "Plan not available");
+
+  const snapshot = {
+    planId: plan.id,
+    code: plan.code,
+    slug: plan.slug,
+    name: plan.name,
+    priceCents: plan.priceCents,
+    currency: plan.currency,
+    tagsIncluded: plan.tagsIncluded,
+    tier: plan.tier
+  };
+
+  const order = await OrderModel.create({
+    planId: plan.id,
+    planSnapshot: snapshot,
+    selectedPlan: plan.slug,
+    amount: plan.priceCents / 100,
+    currency: plan.currency,
+    tagQuantity: plan.tagsIncluded,
+    paymentStatus: "pending",
+    orderStatus: "pending_payment",
+    customerName: args.fullName,
+    phone: args.phone,
+    email: args.email,
+    shippingAddress: {
+      fullName: args.fullName,
+      phone: args.phone,
+      line1: args.shippingAddress.line1,
+      line2: args.shippingAddress.line2 ?? "",
+      city: args.shippingAddress.city,
+      postalCode: args.shippingAddress.postalCode,
+      country: args.shippingAddress.country
+    },
+    fulfillment: {
+      notes: args.note ?? ""
+    }
+  });
+
+  const stripe = ensureStripe();
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    payment_method_types: ["card"],
+    line_items: [
+      {
+        price_data: {
+          currency: (order.currency ?? "eur").toLowerCase(),
+          product_data: { name: `AutoQR — ${plan.name}` },
+          unit_amount: plan.priceCents
+        },
+        quantity: 1
+      }
+    ],
+    metadata: { orderId: order.id },
+    success_url: `${env.CLIENT_URL}/onboard/success?orderId=${order.id}&public=1`,
+    cancel_url: `${env.CLIENT_URL}/onboard/success?orderId=${order.id}&public=1&cancelled=1`
+  });
+
+  await PaymentModel.create({
+    orderId: order.id,
     provider: "stripe",
     transactionId: session.id,
     amount: order.amount,
@@ -71,13 +157,6 @@ export const fulfillPaidOrder = async (orderId: string, transactionId: string, r
     }
   }
 
-  const tagQuantity = (order as any).tagQuantity ?? 1;
-  const available = await TagModel.find({ status: "in_stock" }).limit(tagQuantity);
-  if (available.length > 0) {
-    const ids = available.map((t: any) => t._id);
-    await TagModel.updateMany(
-      { _id: { $in: ids } },
-      { $set: { status: "assigned_to_order", orderId: order.id, ownerUserId: order.userId } }
-    );
-  }
+  // Important: QR inventory must remain unlinked until the customer activates it.
+  // Admin dispatch will assign physical QR inventory to this order later.
 };

@@ -42,7 +42,7 @@ export const ShipmentsPage = () => {
     setDraft((prev) => ({
       ...prev,
       [id]: {
-        status: prev[id]?.status || "packed",
+        status: prev[id]?.status || "printed",
         courier: prev[id]?.courier || "",
         trackingNumber: prev[id]?.trackingNumber || "",
         notes: prev[id]?.notes || "",
@@ -52,7 +52,7 @@ export const ShipmentsPage = () => {
   };
 
   const save = async (id: string) => {
-    const payload = draft[id] || { status: "packed", courier: "", trackingNumber: "", notes: "" };
+    const payload = draft[id] || { status: "printed", courier: "", trackingNumber: "", notes: "" };
     await adminService.updateShipment(id, payload);
     await refetch();
   };
@@ -64,7 +64,7 @@ export const ShipmentsPage = () => {
     <div className="space-y-5">
       <PageHeader title="Car tag shipments" subtitle="Dispatch car QR stickers to car owners — courier data, tracking numbers, and progress updates." />
       <div className="grid gap-4 md:grid-cols-4">
-        {["assigned_to_order", "shipped", "delivered", "activated"].map((status) => (
+        {["printed", "dispatched", "unlinked", "activated"].map((status) => (
           <StatsCard key={status} title={status.replace(/_/g, " ")} value={shipments.filter((item) => item.status === status).length} />
         ))}
       </div>
@@ -95,8 +95,8 @@ export const ShipmentsPage = () => {
               <Input placeholder="Notes" value={draft[tag._id]?.notes ?? tag.orderId?.fulfillment?.notes ?? ""} onChange={(e) => setDraftField(tag._id, "notes", e.target.value)} />
             </div>,
             <div key={`act-${tag._id}`} className="space-y-2">
-              <Select value={draft[tag._id]?.status || "packed"} onChange={(e) => setDraftField(tag._id, "status", e.target.value)}>
-                {["packed", "dispatched", "delivered"].map((status) => (
+              <Select value={draft[tag._id]?.status || "printed"} onChange={(e) => setDraftField(tag._id, "status", e.target.value)}>
+                {["printed", "dispatched", "unlinked"].map((status) => (
                   <option key={status} value={status}>
                     {status}
                   </option>

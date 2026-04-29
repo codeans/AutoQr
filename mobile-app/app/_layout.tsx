@@ -22,6 +22,11 @@ import { useNotificationStore } from "@/stores/notification.store";
 import { notificationsService } from "@/services/api/notifications.service";
 import { getAllPermissionStates, hasCriticalPermissions } from "@/services/permissions/permissionService";
 import { usePermissionStore } from "@/stores/permissionStore";
+import {
+  handleForegroundMessage,
+  registerFCMToken
+} from "@/services/notifications/fcmService";
+import { handleKilledAppIncomingCall, registerDeviceForCalls } from "@/features/calls/backgroundCallHandler";
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -63,6 +68,8 @@ function AppGate() {
     }
     if (status === "authenticated") {
       registerExpoPushToken().catch(() => undefined);
+      registerFCMToken().catch(() => undefined);
+      registerDeviceForCalls().catch(() => undefined);
       notificationsService
         .unreadCount()
         .then(({ count }) => {
@@ -76,6 +83,15 @@ function AppGate() {
       setBadgeCount(0).catch(() => undefined);
     }
   }, [status, setUnreadCount]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const unsubscribe = handleForegroundMessage();
+    handleKilledAppIncomingCall().catch(() => undefined);
+    return () => {
+      unsubscribe?.();
+    };
+  }, [status]);
 
   useEffect(() => {
     if (status !== "authenticated" || !hydratedPermissions) return;
@@ -95,6 +111,8 @@ function AppGate() {
       if (next !== "active") return;
       if (useAuthStore.getState().status !== "authenticated") return;
       registerExpoPushToken().catch(() => undefined);
+      registerFCMToken().catch(() => undefined);
+      handleKilledAppIncomingCall().catch(() => undefined);
       getAllPermissionStates()
         .then((fresh) => {
           usePermissionStore.getState().setStatuses(fresh);

@@ -23,6 +23,8 @@ type NativeCallPayload = {
   expiresAt?: string;
 };
 
+type NativeCallStateType = "INCOMING_CALL" | "MISSED_CALL" | "CALL_ENDED" | "call_missed" | "call_ended";
+
 let apnProvider: apn.Provider | null | undefined;
 
 function getApnProvider(): apn.Provider | null {
@@ -42,18 +44,25 @@ function getApnProvider(): apn.Provider | null {
   return apnProvider;
 }
 
-function serializePayload(payload: NativeCallPayload): Record<string, string> {
+function serializeCallStatePayload(payload: NativeCallPayload, stateType: NativeCallStateType): Record<string, string> {
   const uuid = callUuidFromId(payload.callId);
   const base: Record<string, string> = {
     uuid,
     callId: payload.callId,
     incidentId: payload.incidentId,
-    callerName: payload.carLabel || "AutoQr incident call",
-    handle: payload.reporterPhoneMasked || payload.reporterPhone || payload.callerPhone || "AutoQr caller",
-    type: "INCOMING_CALL"
+    type: stateType
   };
+
+  // Incoming calls need callerName/handle for the Android full-screen notification UX.
+  if (stateType === "INCOMING_CALL") {
+    base.callerName = payload.carLabel || "AutoQr incident call";
+    base.handle = payload.reporterPhoneMasked || payload.reporterPhone || payload.callerPhone || "AutoQr caller";
+  }
+
   Object.entries(payload).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
+    // Keep the stateType we set above; everything else is caller-provided data.
+    if (key === "callId" || key === "incidentId") return;
     base[key] = String(value);
   });
   return base;
@@ -68,7 +77,7 @@ async function sendVoipPush(tokens: string[], payload: NativeCallPayload): Promi
   notification.topic = topic;
   notification.priority = 10;
   notification.expiry = Math.floor(Date.now() / 1000) + 45;
-  notification.payload = serializePayload(payload);
+  notification.payload = serializeCallStatePayload(payload, "INCOMING_CALL");
   const notificationWithHeaders = notification as apn.Notification & { headers: () => Record<string, string | number> };
   const originalHeaders = notificationWithHeaders.headers.bind(notification);
   notificationWithHeaders.headers = () => ({
@@ -82,9 +91,9 @@ async function sendVoipPush(tokens: string[], payload: NativeCallPayload): Promi
   }
 }
 
-async function sendFcmPush(tokens: string[], payload: NativeCallPayload): Promise<void> {
+async function sendFcmPush(tokens: string[], payload: NativeCallPayload, stateType: NativeCallStateType): Promise<void> {
   if (tokens.length === 0 || !ensureFirebaseAdmin()) return;
-  const data = serializePayload(payload);
+  const data = serializeCallStatePayload(payload, stateType);
   const result = await firebaseAdmin.messaging().sendEachForMulticast({
     tokens,
     data,
@@ -103,18 +112,25 @@ async function sendFcmPush(tokens: string[], payload: NativeCallPayload): Promis
   }
 }
 
-export async function sendNativeIncomingCallToUser(userId: string, payload: NativeCallPayload): Promise<void> {
+export async function sendNativeCallStateToUser(userId: string, payload: NativeCallPayload, stateType: NativeCallStateType): Promise<void> {
   try {
     const user = await UserModel.findById(userId).select("pushTokens notificationPreferences").lean();
     if (!user || user.notificationPreferences?.push === false) return;
     const tokens = Array.isArray(user.pushTokens) ? user.pushTokens : [];
     const voipTokens = tokens.filter((t: any) => t?.tokenType === "voip" && t?.platform === "ios").map((t: any) => t.token).filter(Boolean);
     const fcmTokens = tokens.filter((t: any) => t?.tokenType === "fcm" && t?.platform === "android").map((t: any) => t.token).filter(Boolean);
-    await Promise.all([
-      sendVoipPush(voipTokens, payload),
-      sendFcmPush(fcmTokens, payload)
-    ]);
+
+    if (stateType === "INCOMING_CALL") {
+      await Promise.all([sendVoipPush(voipTokens, payload), sendFcmPush(fcmTokens, payload, stateType)]);
+      return;
+    }
+
+    await sendFcmPush(fcmTokens, payload, stateType);
   } catch (err) {
     logger.warn("native_call.push_failed", { userId, err: (err as Error).message });
   }
+}
+
+export async function sendNativeIncomingCallToUser(userId: string, payload: NativeCallPayload): Promise<void> {
+  await sendNativeCallStateToUser(userId, payload, "INCOMING_CALL");
 }

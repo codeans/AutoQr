@@ -7,6 +7,7 @@ import {
   type IRtcEngine,
   type IRtcEngineEventHandler
 } from "react-native-agora";
+import { Platform } from "react-native";
 import { config } from "@/constants/config";
 import { callsService } from "@/services/api/calls.service";
 import type { AgoraJoinPayload } from "@/types/call";
@@ -80,6 +81,13 @@ export const agoraVoiceService = {
       engine.setClientRole(ClientRoleType.ClientRoleBroadcaster);
       engine.enableAudio();
       engine.enableLocalAudio(true);
+      if (Platform.OS === "android") {
+        // Prefer phone-like behavior (earpiece) by default while keeping speaker toggle available.
+        (engine as unknown as { setDefaultAudioRouteToSpeakerphone?: (enabled: boolean) => void })
+          .setDefaultAudioRouteToSpeakerphone?.(false);
+        engine.setEnableSpeakerphone(false);
+      }
+      (engine as unknown as { muteAllRemoteAudioStreams?: (mute: boolean) => void }).muteAllRemoteAudioStreams?.(false);
       engine.joinChannel(agora.token, agora.channelName, agora.uid, {
         channelProfile: ChannelProfileType.ChannelProfileCommunication,
         clientRoleType: ClientRoleType.ClientRoleBroadcaster,

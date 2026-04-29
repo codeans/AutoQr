@@ -77,7 +77,10 @@ export const sendPushToUser = async (
     if (!user) return;
     if (user.notificationPreferences?.push === false) return;
     const tokens: string[] = Array.isArray(user.pushTokens)
-      ? user.pushTokens.map((t: any) => t?.token).filter((t: unknown): t is string => typeof t === "string" && t.length > 0)
+      ? user.pushTokens
+          .filter((t: any) => t?.tokenType === "expo")
+          .map((t: any) => t?.token)
+          .filter((t: unknown): t is string => typeof t === "string" && t.length > 0)
       : [];
     if (tokens.length === 0) return;
 
@@ -86,7 +89,7 @@ export const sendPushToUser = async (
       title: params.title,
       body: params.body,
       data: params.data,
-      sound: params.sound ?? (params.channelId === "incoming-calls" ? "autoqr_ringtone.wav" : "default"),
+      sound: params.sound ?? (params.channelId === "incoming-calls" ? "autoqr_incoming_call.mp3" : "default"),
       channelId: params.channelId ?? "default",
       priority: params.priority ?? "high",
       ttl: params.ttl

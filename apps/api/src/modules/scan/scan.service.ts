@@ -9,6 +9,7 @@ import { ApiError } from "../../utils/apiError.js";
 import { dispatchNotification } from "../../infrastructure/notifications/notification.service.js";
 import { emitIncidentCreated } from "../../realtime/socket.js";
 import { notifyAllEmergencyContacts } from "../emergency/emergency.service.js";
+import { KeyModel } from "../../models/Key.js";
 
 const severityByReason: Record<string, "info" | "urgent" | "emergency"> = {
   wrong_parking: "info",
@@ -38,28 +39,63 @@ export const resolveLandingByToken = async (publicToken: string) => {
   if (tag.status === "disabled" || tag.status === "lost") {
     return { tag: { serial: tag.serial, status: tag.status }, activated: false };
   }
-  if (tag.status !== "activated" || !tag.carId) {
+  if (tag.status !== "activated") {
     return {
       tag: { serial: tag.serial, status: tag.status },
       activated: false,
-      message: "This car tag has not been activated yet."
+      message: "QR Code Not Activated Yet"
     };
   }
-  const car = await CarModel.findById(tag.carId).lean();
+
+  const assetType = tag.linkedAssetType ?? (tag.carId ? "car" : tag.keyId ? "keys" : null);
+
+  if (assetType === "car") {
+    if (!tag.carId) throw new ApiError(400, "Activated tag missing car link");
+    const car = await CarModel.findById(tag.carId).lean();
+    return {
+      activated: true,
+      tag: { id: tag.id, serial: tag.serial, status: tag.status },
+      assetType: "car",
+      car: car
+        ? {
+            id: (car as any)._id,
+            nickname: (car as any).nickname,
+            make: (car as any).make,
+            model: (car as any).model,
+            color: (car as any).color,
+            displayMessage: (car as any).displayMessage,
+            maskedRegistration: maskRegistration((car as any).registrationNumber)
+          }
+        : null
+    };
+  }
+
+  if (assetType === "keys") {
+    if (!tag.keyId) throw new ApiError(400, "Activated tag missing key link");
+    const key = await KeyModel.findById(tag.keyId).lean();
+    return {
+      activated: true,
+      tag: { id: tag.id, serial: tag.serial, status: tag.status },
+      assetType: "keys",
+      key: key
+        ? {
+            id: (key as any)._id,
+            label: (key as any).label,
+            keyType: (key as any).keyType,
+            description: (key as any).description,
+            returnInstructions: (key as any).returnInstructions,
+            image: (key as any).image
+          }
+        : null
+    };
+  }
+
+  // Activated but unknown/empty link (should not happen).
   return {
     activated: true,
     tag: { id: tag.id, serial: tag.serial, status: tag.status },
-    car: car
-      ? {
-          id: (car as any)._id,
-          nickname: (car as any).nickname,
-          make: (car as any).make,
-          model: (car as any).model,
-          color: (car as any).color,
-          displayMessage: (car as any).displayMessage,
-          maskedRegistration: maskRegistration((car as any).registrationNumber)
-        }
-      : null
+    assetType: null,
+    car: null
   };
 };
 
@@ -82,14 +118,14 @@ export const submitScanAlert = async (args: {
   const tag = await TagModel.findOne({ publicToken: args.publicToken });
   if (!tag) throw new ApiError(404, "Tag not found");
   if (tag.status === "disabled") throw new ApiError(410, "Tag disabled");
-  if (!tag.ownerUserId || !tag.carId) throw new ApiError(400, "Tag is not active");
+  if (!tag.ownerUserId) throw new ApiError(400, "Tag is not active");
 
   const severity = severityByReason[args.reason] ?? "info";
 
   const scan = await ScanEventModel.create({
     tagId: tag.id,
     publicToken: args.publicToken,
-    carId: tag.carId,
+    carId: tag.carId ?? undefined,
     ownerUserId: tag.ownerUserId,
     reason: args.reason,
     severity,
@@ -154,14 +190,15 @@ export const requestMaskedCall = async (args: {
 }) => {
   const tag = await TagModel.findOne({ publicToken: args.publicToken });
   if (!tag) throw new ApiError(404, "Tag not found");
-  if (!tag.ownerUserId || !tag.carId) throw new ApiError(400, "Tag not active");
+  if (!tag.ownerUserId) throw new ApiError(400, "Tag not active");
   const owner = await UserModel.findById(tag.ownerUserId);
   if (!owner) throw new ApiError(404, "Owner not found");
 
   const reporterSessionToken = crypto.randomBytes(24).toString("hex");
   const incident = await IncidentModel.create({
     tagId: tag.id,
-    carId: tag.carId,
+    carId: tag.carId ?? undefined,
+    keyId: tag.keyId ?? undefined,
     userId: tag.ownerUserId,
     reporterName: args.reporterName ?? "",
     reporterPhone: args.reporterPhone,

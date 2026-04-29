@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { OtpChallengeModel } from "../../models/OtpChallenge.js";
 import { UserModel } from "../../models/User.js";
 import { ApiError } from "../../utils/apiError.js";
-import { sha256 } from "../../utils/crypto.js";
+import { hashPassword, sha256 } from "../../utils/crypto.js";
 import { signAccessToken, signRefreshToken } from "../../utils/jwt.js";
 import { RefreshTokenModel } from "../../models/RefreshToken.js";
 import { addDays } from "../common/date.js";
@@ -34,6 +34,7 @@ export const requestOtp = async (args: {
   purpose?: OtpPurpose;
   ipAddress?: string;
   userAgent?: string;
+  channels?: Array<"sms" | "whatsapp">;
 }) => {
   const phone = normalizePhone(args.phone);
   const purpose: OtpPurpose = args.purpose ?? "login";
@@ -72,7 +73,7 @@ export const requestOtp = async (args: {
     type: "otp",
     title: "Your verification code",
     message: `Your code is ${code}. It expires in ${OTP_TTL_SECONDS / 60} minutes.`,
-    channels: ["sms", "whatsapp"]
+    channels: args.channels ?? ["sms", "whatsapp"]
   }).catch((err) => logger.warn("otp.dispatch.failed", { error: err?.message }));
 
   return {
@@ -87,7 +88,7 @@ export const verifyOtp = async (args: {
   phone: string;
   code: string;
   purpose?: OtpPurpose;
-  signup?: { name: string; email: string; address: string };
+  signup?: { name: string; email: string; address: string; password?: string };
 }) => {
   const phone = normalizePhone(args.phone);
   const codeHash = hashCode(args.code, phone);
@@ -123,7 +124,7 @@ export const verifyOtp = async (args: {
       email: args.signup.email.toLowerCase(),
       phone,
       address: args.signup.address,
-      passwordHash: sha256(crypto.randomBytes(24).toString("hex")),
+      passwordHash: args.signup.password ? hashPassword(args.signup.password) : hashPassword(crypto.randomBytes(24).toString("hex")),
       phoneVerifiedAt: new Date(),
       role: "owner"
     });

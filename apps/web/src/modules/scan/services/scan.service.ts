@@ -3,6 +3,7 @@ import { api } from "../../../lib/api";
 export type ScanLanding = {
   activated: boolean;
   tag: { id?: string; serial: string; status: string };
+  assetType?: "car" | "keys" | null;
   car?: {
     id: string;
     nickname?: string;
@@ -11,6 +12,14 @@ export type ScanLanding = {
     color?: string;
     displayMessage?: string;
     maskedRegistration?: string;
+  } | null;
+  key?: {
+    id: string;
+    label?: string;
+    keyType?: string;
+    description?: string;
+    returnInstructions?: string;
+    image?: string;
   } | null;
   message?: string;
 };

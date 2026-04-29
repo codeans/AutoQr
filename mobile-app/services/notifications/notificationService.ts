@@ -40,7 +40,7 @@ export async function configureNotificationChannels(): Promise<void> {
   await Notifications.setNotificationChannelAsync("incoming-calls", {
     name: "Incoming Calls",
     importance: Notifications.AndroidImportance.MAX,
-    sound: "autoqr_ringtone.wav",
+    sound: "autoqr_incoming_call.mp3",
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     vibrationPattern: [0, 500, 250, 500, 250, 700],
     lightColor: "#1D4ED8",
@@ -138,7 +138,7 @@ export async function showLocalNotification(params: {
       title: params.title,
       body: params.body,
       data: params.data,
-      sound: params.channelId === "incoming-calls" ? "autoqr_ringtone.wav" : "default",
+      sound: params.channelId === "incoming-calls" ? "autoqr_incoming_call.mp3" : "default",
       sticky: Boolean(params.sticky)
     },
     trigger:

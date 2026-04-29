@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Eye, ImageIcon, PhoneCall, ShieldAlert, Sparkles } from "lucide-react";
 import { toGermanE164 } from "@autoqr/shared";
@@ -39,6 +39,7 @@ type Props = {
 
 export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { token: tokenParam, qrId } = useParams();
   const token = tokenParam ?? qrId ?? "";
   const isLive = mode === "live";
@@ -90,20 +91,45 @@ export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
   if (!landing.activated) {
     return (
       <div className="mx-auto max-w-lg px-6 py-16">
-        <h1 className="font-display text-3xl text-content">{t("scan.notActiveTitle")}</h1>
+        <h1 className="font-display text-3xl text-content">QR Code Not Activated Yet</h1>
         <p className="mt-3 text-content-muted">
-          {landing.message ?? t("scan.notActiveMessage")}
+          This AutoQr code has not been activated. If this is your QR, please create or log in to your account and
+          activate it using your activation code.
         </p>
+        <div className="mt-6 grid gap-3">
+          <Button type="button" size="lg" className="w-full" onClick={() => navigate("/setup-qr")}>
+            Activate QR
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="secondary"
+            className="w-full"
+            onClick={() => navigate("/login?redirect=/setup-qr")}
+          >
+            Login
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="secondary"
+            className="w-full"
+            onClick={() => navigate("/register?redirect=/setup-qr")}
+          >
+            Register
+          </Button>
+        </div>
       </div>
     );
   }
 
   const car = landing.car;
+  const key = landing.key;
+  const assetType: "car" | "keys" = landing.assetType ?? (car ? "car" : "keys");
+  const activeReason = (assetType === "keys" ? ("other" as ScanReason) : reason) ?? null;
 
   const composedMessage = () => {
-    const reasonLabel = reason
-      ? t(`scan.reasons.${REASONS.find((r) => r.reason === reason)?.key}.label`)
-      : "";
+    const reasonLabel = activeReason ? t(`scan.reasons.${REASONS.find((r) => r.reason === activeReason)?.key}.label`) : "";
     const trimmed = message.trim();
     if (reasonLabel && trimmed) return `[${reasonLabel}] ${trimmed}`;
     if (reasonLabel) return reasonLabel;
@@ -115,7 +141,7 @@ export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
       setSubmitError(t("incident.errorInvalidPhone"));
       return false;
     }
-    if (!reason && message.trim().length < 5) {
+    if (!activeReason && message.trim().length < 5) {
       setSubmitError(t("incident.errorMessageTooShort"));
       return false;
     }
@@ -136,7 +162,7 @@ export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
         token,
         reporterName,
         reporterPhoneE164: phoneE164!,
-        message: composedMessage() || (reason ?? "other"),
+        message: composedMessage() || (activeReason ?? "other"),
         files
       });
       if (action === "call") {
@@ -185,54 +211,86 @@ export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
             )}
             <div className="mt-3 text-[11px] uppercase tracking-[0.2em] text-content-subtle">{t("scan.privacyBridge")}</div>
             <h1 className="mt-4 font-display text-4xl text-content sm:text-5xl">
-              {car?.nickname || t("scan.landingTitleFallback")} {t("scan.landingTitleSuffix")}
+              {assetType === "car"
+                ? `${car?.nickname || t("scan.landingTitleFallback")} ${t("scan.landingTitleSuffix")}`
+                : "I Found These Keys"}
             </h1>
             <p className="mt-4 text-[15px] text-content-muted">
-              {car?.displayMessage || t("scan.landingSubtitle")}
+              {assetType === "car"
+                ? car?.displayMessage || t("scan.landingSubtitle")
+                : "Request secure contact with the QR owner. You can add optional details about where you found the keys."}
             </p>
             <dl className="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-surface-border bg-white p-5 text-[13.5px]">
-              {car?.make && (
-                <div>
-                  <dt className="text-content-subtle">{t("scan.carDetails.make")}</dt>
-                  <dd className="text-content">{car.make}</dd>
-                </div>
-              )}
-              {car?.model && (
-                <div>
-                  <dt className="text-content-subtle">{t("scan.carDetails.model")}</dt>
-                  <dd className="text-content">{car.model}</dd>
-                </div>
-              )}
-              {car?.color && (
-                <div>
-                  <dt className="text-content-subtle">{t("scan.carDetails.color")}</dt>
-                  <dd className="text-content">{car.color}</dd>
-                </div>
-              )}
-              {car?.maskedRegistration && (
-                <div>
-                  <dt className="text-content-subtle">{t("scan.carDetails.plate")}</dt>
-                  <dd className="font-mono text-content">{car.maskedRegistration}</dd>
-                </div>
+              {assetType === "car" ? (
+                <>
+                  {car?.make && (
+                    <div>
+                      <dt className="text-content-subtle">{t("scan.carDetails.make")}</dt>
+                      <dd className="text-content">{car.make}</dd>
+                    </div>
+                  )}
+                  {car?.model && (
+                    <div>
+                      <dt className="text-content-subtle">{t("scan.carDetails.model")}</dt>
+                      <dd className="text-content">{car.model}</dd>
+                    </div>
+                  )}
+                  {car?.color && (
+                    <div>
+                      <dt className="text-content-subtle">{t("scan.carDetails.color")}</dt>
+                      <dd className="text-content">{car.color}</dd>
+                    </div>
+                  )}
+                  {car?.maskedRegistration && (
+                    <div>
+                      <dt className="text-content-subtle">{t("scan.carDetails.plate")}</dt>
+                      <dd className="font-mono text-content">{car.maskedRegistration}</dd>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <dt className="text-content-subtle">Key label</dt>
+                    <dd className="text-content">{key?.label ?? "-"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-content-subtle">Key type</dt>
+                    <dd className="text-content">{key?.keyType ?? "-"}</dd>
+                  </div>
+                  {key?.description && (
+                    <div className="col-span-2">
+                      <dt className="text-content-subtle">Description</dt>
+                      <dd className="text-content">{key.description}</dd>
+                    </div>
+                  )}
+                </>
               )}
             </dl>
 
             <div className="mt-10 space-y-6">
               <div>
                 <h2 className="text-[12px] uppercase tracking-[0.2em] text-content-subtle">{t("scan.whyLabel")}</h2>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {reasonOptions.map((r) => (
-                    <ReasonOption
-                      key={r.reason}
-                      reason={r.reason}
-                      label={r.label}
-                      description={r.description}
-                      severity={r.severity}
-                      selected={reason === r.reason}
-                      onSelect={() => setReason(r.reason)}
-                    />
-                  ))}
-                </div>
+                {assetType === "car" ? (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {reasonOptions.map((r) => (
+                      <ReasonOption
+                        key={r.reason}
+                        reason={r.reason}
+                        label={r.label}
+                        description={r.description}
+                        severity={r.severity}
+                        selected={reason === r.reason}
+                        onSelect={() => setReason(r.reason)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-4 text-content-muted">
+                    These keys have an activated QR code. Add any optional details and request contact with the
+                    owner.
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">

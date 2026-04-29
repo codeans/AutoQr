@@ -28,7 +28,6 @@ export const CallEndReason = {
   TIMEOUT: "timeout",
   DISCONNECT: "disconnect",
   PERMISSION_DENIED: "permission_denied",
-  OWNER_OFFLINE: "owner_offline",
   NETWORK_ERROR: "network_error"
 } as const;
 

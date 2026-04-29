@@ -2,6 +2,7 @@ import { motion, useTransform, type MotionValue } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
+import { ArrowRight } from "lucide-react";
 import type { NarrativeBeat } from "../../types/narrative";
 
 interface NarrativePanelProps {
@@ -61,20 +62,28 @@ export const NarrativePanel = ({ beat, scrollYProgress }: NarrativePanelProps) =
       style={{ opacity, y }}
       className="absolute inset-0 flex items-center px-6 sm:px-10 md:items-center md:justify-start lg:px-16"
     >
-      <div className="w-full max-w-[640px] md:max-w-[600px]">
-        <p className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-[#0066FF]">
-          {chapterLabel} {beat.chapter}
-        </p>
+      <div className="w-full max-w-[680px] md:max-w-[620px]">
+        <div className="relative overflow-hidden rounded-[28px] border border-white/70 bg-white/80 p-7 shadow-[0_24px_70px_rgba(0,20,60,0.16)] backdrop-blur-xl sm:p-9">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,rgba(255,255,255,0.8),rgba(239,246,255,0.5),rgba(255,255,255,0.7))]"
+          />
+          <div className="relative">
+            <p className="mb-4 inline-flex items-center rounded-full border border-[#0066FF]/20 bg-[#0066FF]/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0052cc]">
+              {chapterLabel} {beat.chapter}
+            </p>
 
-        <h1 className="text-5xl font-bold leading-[0.95] tracking-[-0.02em] text-[#001233] md:text-7xl lg:text-8xl">
-          {parseHighlights(headline)}
-        </h1>
+            <h1 className="text-4xl font-bold leading-[0.95] tracking-[-0.03em] text-[#001233] sm:text-6xl lg:text-7xl">
+              {parseHighlights(headline)}
+            </h1>
 
-        <p className="mt-6 max-w-prose text-lg leading-relaxed text-[#4A5260] md:text-xl">
-          {subline}
-        </p>
+            <p className="mt-5 max-w-prose text-base leading-relaxed text-[#4A5260] sm:text-lg md:text-xl">
+              {subline}
+            </p>
 
-        {beat.showCTA && <CtaPair />}
+            {beat.showCTA && <CtaPair />}
+          </div>
+        </div>
       </div>
     </motion.div>
   );
@@ -91,9 +100,10 @@ const CtaPair = () => {
       >
         <Link
           to="/shop/car-qr"
-          className="inline-flex items-center justify-center rounded-full bg-[#001233] px-8 py-4 font-medium text-white shadow-[0_12px_32px_-12px_rgba(0,18,51,0.4)] transition-all duration-300 hover:scale-[1.03] hover:bg-[#0066FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066FF] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-[#001233] px-8 py-4 font-medium text-white shadow-[0_12px_32px_-12px_rgba(0,18,51,0.4)] transition-all duration-300 hover:scale-[1.03] hover:bg-[#0066FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066FF] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
         >
           {t("landingHero.ctaPrimary")}
+          <ArrowRight className="h-4 w-4" />
         </Link>
       </motion.div>
       <motion.div

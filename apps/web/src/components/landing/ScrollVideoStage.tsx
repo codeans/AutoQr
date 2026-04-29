@@ -89,7 +89,7 @@ export const ScrollVideoStage = ({
         className="pointer-events-none absolute inset-0 hidden md:block"
         style={{
           background:
-            "linear-gradient(90deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.5) 35%, rgba(255,255,255,0) 65%)"
+            "linear-gradient(90deg, rgba(250,252,255,0.95) 0%, rgba(250,252,255,0.64) 33%, rgba(250,252,255,0.1) 67%)"
         }}
       />
 
@@ -99,7 +99,7 @@ export const ScrollVideoStage = ({
         className="pointer-events-none absolute inset-x-0 bottom-0 h-[60%] md:hidden"
         style={{
           background:
-            "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.85) 65%, rgba(255,255,255,0.96) 100%)"
+            "linear-gradient(180deg, rgba(248,251,255,0) 0%, rgba(248,251,255,0.86) 64%, rgba(248,251,255,0.97) 100%)"
         }}
       />
 
@@ -109,7 +109,15 @@ export const ScrollVideoStage = ({
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(0,18,51,0) 35%, rgba(0,18,51,0.18) 100%)"
+            "radial-gradient(ellipse 85% 62% at 55% 48%, rgba(0,18,51,0) 30%, rgba(0,18,51,0.22) 100%)"
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at 20% 15%, rgba(0,102,255,0.12), rgba(0,102,255,0) 35%), radial-gradient(circle at 85% 22%, rgba(111,77,255,0.12), rgba(111,77,255,0) 40%)"
         }}
       />
     </div>

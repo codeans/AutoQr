@@ -53,6 +53,7 @@ export function useCallActions() {
       if (micStatus !== "granted") {
         setStatus("failed");
         setEndReason("permission_denied");
+        await stopIncomingCallAlerting();
         router.push("/permissions/microphone");
         return;
       }
@@ -62,6 +63,7 @@ export function useCallActions() {
       if (!socket) {
         setStatus("failed");
         setEndReason("network_error");
+        await stopIncomingCallAlerting();
         return;
       }
       setActive({
@@ -74,12 +76,14 @@ export function useCallActions() {
       if (!acceptResult?.ok) {
         setStatus("failed");
         setEndReason("accept_failed");
+        await stopIncomingCallAlerting();
         return;
       }
       const agora = acceptResult.call?.agora;
       if (!agora) {
         setStatus("failed");
         setEndReason("agora_token_missing");
+        await stopIncomingCallAlerting();
         return;
       }
       const resolvedIncoming = acceptResult.call?.reporterSocketId
@@ -108,8 +112,12 @@ export function useCallActions() {
         markAudioConnected(false);
         setStatus("failed");
         setEndReason("audio_unavailable");
+        await stopIncomingCallAlerting();
         return;
       }
+      const state = useCallStore.getState();
+      agoraVoiceService.toggleSpeaker(state.speakerEnabled);
+      agoraVoiceService.toggleMute(state.micEnabled);
       markConnected();
     } finally {
       acceptingCallId = null;

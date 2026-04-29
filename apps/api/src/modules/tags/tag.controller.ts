@@ -26,6 +26,7 @@ const batchSchema = z.object({
 });
 
 const activationSchema = z.object({
+  assetType: z.enum(["car", "keys"]).default("car"),
   activationCode: z.string().min(4).max(40),
   carId: z.string().optional(),
   carPayload: z
@@ -37,6 +38,15 @@ const activationSchema = z.object({
       year: z.number().optional(),
       nickname: z.string().optional(),
       plateImage: z.string().optional()
+    })
+    .optional(),
+  keyPayload: z
+    .object({
+      label: z.string().min(1),
+      keyType: z.string().min(1),
+      description: z.string().optional(),
+      returnInstructions: z.string().optional(),
+      image: z.string().optional()
     })
     .optional()
 });
@@ -157,14 +167,18 @@ export const ownerActivateTag = asyncHandler(async (req: Request, res: Response)
       ipAddress: req.ip,
       userAgent: req.get("user-agent") ?? ""
     });
+    const assetType = body.assetType ?? "car";
     await dispatchNotification({
       userId: req.auth!.userId,
       type: "activation_success",
-      title: "Car QR activated",
-      message: `Your QR ${result.tag.serial} is now active and linked to your car.`,
+      title: assetType === "keys" ? "Keys QR activated" : "Car QR activated",
+      message:
+        assetType === "keys"
+          ? `Your QR ${result.tag.serial} is now active and linked to your keys.`
+          : `Your QR ${result.tag.serial} is now active and linked to your car.`,
       channels: ["in_app", "email", "sms"]
     }).catch(() => undefined);
-    res.status(201).json({ tag: result.tag, carId: result.carId });
+    res.status(201).json({ tag: result.tag, carId: result.carId, keyId: (result as any).keyId });
   } catch (err) {
     if (err instanceof ApiError) throw err;
     throw err;
@@ -203,12 +217,16 @@ export const ownerActivateWithUpload = asyncHandler(async (req: Request, res: Re
     ipAddress: req.ip,
     userAgent: req.get("user-agent") ?? ""
   });
+  const assetType = parsed.assetType ?? "car";
   await dispatchNotification({
     userId: req.auth!.userId,
     type: "activation_success",
-    title: "Car QR activated",
-    message: `Your QR ${result.tag.serial} is now active and linked to your car.`,
+    title: assetType === "keys" ? "Keys QR activated" : "Car QR activated",
+    message:
+      assetType === "keys"
+        ? `Your QR ${result.tag.serial} is now active and linked to your keys.`
+        : `Your QR ${result.tag.serial} is now active and linked to your car.`,
     channels: ["in_app", "email", "sms"]
   }).catch(() => undefined);
-  res.status(201).json({ tag: result.tag, carId: result.carId });
+  res.status(201).json({ tag: result.tag, carId: result.carId, keyId: (result as any).keyId });
 });

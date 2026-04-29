@@ -115,11 +115,11 @@ export const PlanDetailScreen = () => {
                 {plan.billingCycle === "one_time" ? "One-time payment · no subscription" : "Billed yearly"}
               </p>
 
-              <LinkButton to={`/onboard/${plan.slug}`} size="lg" className="mt-8 w-full" showArrow>
-                Start onboarding
+              <LinkButton to={`/checkout/${plan.slug}`} size="lg" className="mt-8 w-full" showArrow>
+                Checkout
               </LinkButton>
               <p className="mt-4 text-[12px] text-content0 text-center">
-                14-day return · Secured by Stripe · Privacy-first relay
+                Secured by Stripe · Privacy-first relay
               </p>
             </aside>
           </div>

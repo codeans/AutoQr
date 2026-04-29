@@ -7,6 +7,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { agoraVoiceService } from "@/services/agora/agoraVoiceService";
 import { nativeCallService } from "@/services/calls/nativeCallService";
 import { callsService } from "@/services/api/calls.service";
+import { callAlertService } from "@/services/calls/callAlertService";
 import {
   handleIncomingCall,
   isCallHandled,
@@ -75,6 +76,7 @@ export function useCallSocketHandlers(): void {
           void nativeCallService.endNativeCall(payload.callId).catch(() => undefined);
           state.setEndReason("timeout");
           state.setStatus("missed");
+          void callAlertService.cleanupCallAlerts();
           state.reset();
         }
       }, RINGING_TIMEOUT_MS);
@@ -107,6 +109,7 @@ export function useCallSocketHandlers(): void {
     };
 
     const onStarted = () => {
+      void callAlertService.cleanupCallAlerts();
       setStatus("active");
       useCallStore.getState().markConnected();
       const callId = useCallStore.getState().activeCallId;
@@ -176,6 +179,7 @@ export function useCallSocketHandlers(): void {
 
     return () => {
       clearRingingTimer();
+      void callAlertService.cleanupCallAlerts();
       cleanup();
     };
   }, [status, setActive, setStatus, markConnected, setEndReason, markAudioConnected, reset]);

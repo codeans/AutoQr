@@ -138,7 +138,7 @@ export const en: MobileTranslationSchema = {
     welcomeBack: "Welcome back",
     there: "there",
     live: "Live",
-    offline: "Offline",
+    offline: "Realtime",
     summary: {
       vehicles: "Vehicles",
       activeTags: "Active QR codes",

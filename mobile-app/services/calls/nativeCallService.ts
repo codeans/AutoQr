@@ -128,11 +128,12 @@ async function setupCallKeep(): Promise<void> {
         appName: "AutoQr",
         supportsVideo: false,
         includesCallsInRecents: false,
-        ringtoneSound: "autoqr_ringtone.wav"
+        ringtoneSound: "autoqr_incoming_call.mp3"
       },
       android: {
         alertTitle: "Phone account required",
         alertDescription: "AutoQr needs call account access to show incoming incident calls.",
+        ringtoneSound: "autoqr_incoming_call.mp3",
         cancelButton: "Cancel",
         okButton: "Allow",
         additionalPermissions: [
@@ -150,7 +151,7 @@ async function setupCallKeep(): Promise<void> {
           notificationTitle: "AutoQr call in progress",
           notificationIcon: "notification_icon"
         }
-      }
+      } as any
     });
     if (Platform.OS === "android") {
       RNCallKeep.setAvailable(true);
@@ -319,8 +320,20 @@ export const nativeCallService = {
     }
   },
 
+  answerIncomingCall(callId: string): void {
+    this.answerNativeCall(callId);
+  },
+
   rejectNativeCall(callId: string): void {
     this.markCallEnded(callId, getEndCallReasons().DECLINED_ELSEWHERE);
+  },
+
+  rejectIncomingCall(callId: string): void {
+    this.rejectNativeCall(callId);
+  },
+
+  declineIncomingCall(callId: string): void {
+    this.rejectNativeCall(callId);
   },
 
   handleNativeAnswer(handler: NativeCallActionHandler): () => void {
@@ -337,10 +350,18 @@ export const nativeCallService = {
     };
   },
 
-  cleanupNativeCall(): void {
+  async cleanupNativeCall(): Promise<void> {
     subscriptions.forEach((sub) => sub.remove());
     subscriptions = [];
     incomingByUuid.clear();
+  },
+
+  async cleanupIncomingCall(callId?: string): Promise<void> {
+    if (callId) {
+      await this.endIncomingCall(callId);
+      return;
+    }
+    await this.cleanupNativeCall();
   },
 
   markCallActive(callId: string): void {

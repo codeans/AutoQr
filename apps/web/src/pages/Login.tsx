@@ -10,7 +10,7 @@ type Mode = "otp" | "password";
 
 export const LoginPage = () => {
   const { t } = useTranslation();
-  const { login, requestOtp, verifyOtp } = useAuth();
+  const { login, requestWhatsAppOtp, verifyWhatsAppOtp } = useAuth();
   const [params] = useSearchParams();
   const redirect = params.get("redirect");
   const navigate = useNavigate();
@@ -40,7 +40,7 @@ export const LoginPage = () => {
     setError("");
     setPending(true);
     try {
-      const res = await requestOtp(phone, "login");
+      const res = await requestWhatsAppOtp(phone, "login");
       setCodeRequested(true);
       setDevCode(res.devCode);
     } catch (err: any) {
@@ -55,7 +55,7 @@ export const LoginPage = () => {
     setError("");
     setPending(true);
     try {
-      const user = await verifyOtp({ phone, code, purpose: "login" });
+      const user = await verifyWhatsAppOtp({ phone, code, purpose: "login" });
       afterLogin(user?.role ?? "owner");
     } catch (err: any) {
       setError(err?.response?.data?.message ?? t("auth.errorInvalidCode"));

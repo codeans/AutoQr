@@ -11,6 +11,7 @@ import {
   revokeRefreshToken,
   rotateRefreshToken
 } from "./auth.service.js";
+import { requestOtp, verifyOtp } from "../otp/otp.service.js";
 import { comparePassword, hashPassword } from "../../utils/crypto.js";
 import { env } from "../../config/env.js";
 
@@ -20,6 +21,51 @@ const refreshCookieOptions = {
   secure: env.NODE_ENV === "production",
   path: "/api/auth/refresh"
 };
+
+const sendWhatsAppOtpSchema = z.object({
+  phone: z.string().min(6).max(32),
+  purpose: z.enum(["login", "signup"]).default("login")
+});
+
+const verifyWhatsAppOtpSchema = z.object({
+  phone: z.string().min(6).max(32),
+  code: z.string().min(4).max(8),
+  purpose: z.enum(["login", "signup"]).default("login"),
+  signup: z
+    .object({
+      name: z.string().min(2).max(120),
+      email: z.string().email(),
+      address: z.string().min(3).max(500),
+      password: z.string().min(8)
+    })
+    .optional()
+});
+
+export const sendWhatsAppOtp = asyncHandler(async (req: Request, res: Response) => {
+  const { phone, purpose } = sendWhatsAppOtpSchema.parse(req.body);
+  const result = await requestOtp({
+    phone,
+    purpose,
+    ipAddress: req.ip,
+    userAgent: req.get("user-agent") ?? "",
+    channels: ["whatsapp"]
+  });
+  res.json(result);
+});
+
+export const verifyWhatsAppOtp = asyncHandler(async (req: Request, res: Response) => {
+  const body = verifyWhatsAppOtpSchema.parse(req.body);
+  const result = await verifyOtp({
+    phone: body.phone,
+    code: body.code,
+    purpose: body.purpose,
+    signup: body.signup
+      ? { name: body.signup.name, email: body.signup.email, address: body.signup.address, password: body.signup.password }
+      : undefined
+  });
+  res.cookie("refreshToken", result.refreshToken, refreshCookieOptions);
+  res.json({ accessToken: result.accessToken, user: result.user });
+});
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(8),

@@ -18,10 +18,10 @@ import { adminPlatformService } from "../services/platform.service";
 import { assetBaseUrl } from "../../../lib/runtimeConfig";
 
 const tone: Record<string, "neutral" | "success" | "warning" | "danger" | "info"> = {
-  in_stock: "neutral",
-  assigned_to_order: "info",
-  shipped: "info",
-  delivered: "info",
+  generated: "neutral",
+  printed: "info",
+  dispatched: "info",
+  unlinked: "info",
   activated: "success",
   disabled: "danger",
   lost: "danger"
@@ -132,8 +132,8 @@ export const TagsInventoryPage = () => {
   const stats = useMemo(() => {
     const sum = { total: tags.length, inStock: 0, assigned: 0, activated: 0, disabled: 0 };
     for (const t of tags) {
-      if (t.status === "in_stock") sum.inStock += 1;
-      if (["assigned_to_order", "shipped", "delivered"].includes(t.status)) sum.assigned += 1;
+      if (t.status === "generated") sum.inStock += 1;
+      if (["printed", "dispatched", "unlinked"].includes(t.status)) sum.assigned += 1;
       if (t.status === "activated") sum.activated += 1;
       if (["disabled", "lost"].includes(t.status)) sum.disabled += 1;
     }
@@ -160,7 +160,7 @@ export const TagsInventoryPage = () => {
       <FilterBar>
         <Select value={status} onChange={(e) => setStatus(e.target.value)} className="md:max-w-xs">
           <option value="">All statuses</option>
-          {["in_stock", "assigned_to_order", "shipped", "delivered", "activated", "disabled", "lost"].map((s) => (
+          {["generated", "printed", "dispatched", "unlinked", "activated", "disabled", "lost"].map((s) => (
             <option key={s} value={s}>
               {s.replace(/_/g, " ")}
             </option>

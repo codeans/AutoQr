@@ -41,6 +41,8 @@ export type ReporterIncidentView = {
     images: string[];
     createdAt: string;
     car: { make: string; model: string; nickname: string; color: string } | null;
+    key?: { label: string; keyType: string; description?: string; returnInstructions?: string; image?: string } | null;
+    linkedAssetType?: string | null;
   };
   latestCall: {
     id: string;

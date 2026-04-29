@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import { TagModel } from "../../models/Tag.js";
 import { TagBatchModel } from "../../models/TagBatch.js";
 import { CarModel } from "../../models/Car.js";
+import { UserModel } from "../../models/User.js";
+import { KeyModel } from "../../models/Key.js";
 import {
   ActivationAttemptModel,
   ActivationRecordModel
@@ -45,7 +47,7 @@ export const createTagBatch = async (args: {
       publicToken: qr.qrUrlToken,
       activationCode: randomActivationCode(),
       qrImage: qr.qrImage,
-      status: "in_stock"
+      status: "generated"
     });
   }
   await TagModel.insertMany(tags);
@@ -76,14 +78,14 @@ export const listBatches = async () => {
   const stats = await buildBatchStats(ids);
   return batches.map((b) => {
     const entry = stats.get(String(b._id)) ?? {};
-    const inStock = entry.in_stock ?? 0;
+    const generated = entry.generated ?? 0;
     const assigned =
-      (entry.assigned_to_order ?? 0) + (entry.shipped ?? 0) + (entry.delivered ?? 0);
+      (entry.printed ?? 0) + (entry.dispatched ?? 0) + (entry.unlinked ?? 0);
     const activated = entry.activated ?? 0;
     const disabled = (entry.disabled ?? 0) + (entry.lost ?? 0);
     return {
       ...b,
-      inStockCount: inStock,
+      inStockCount: generated,
       assignedCount: assigned,
       activatedCount: activated,
       disabledCount: disabled
@@ -164,6 +166,7 @@ export const exportBatchRows = async (batchId: string) => {
 export const activateTag = async (args: {
   activationCode: string;
   userId: string;
+  assetType?: "car" | "keys";
   carId?: string;
   carPayload?: {
     registrationNumber: string;
@@ -174,10 +177,22 @@ export const activateTag = async (args: {
     nickname?: string;
     plateImage?: string;
   };
+  keyPayload?: {
+    label: string;
+    keyType: string;
+    description?: string;
+    returnInstructions?: string;
+    image?: string;
+  };
   ipAddress?: string;
   userAgent?: string;
 }) => {
   const code = args.activationCode.trim().toUpperCase();
+  const assetType = args.assetType ?? "car";
+
+  const user = await UserModel.findById(args.userId);
+  if (!user) throw new ApiError(404, "User not found");
+  if (!user.phoneVerifiedAt) throw new ApiError(403, "Phone not verified. Verify your WhatsApp OTP before activation.");
 
   const windowStart = new Date(Date.now() - ATTEMPT_WINDOW_MS);
   const recent = await ActivationAttemptModel.countDocuments({
@@ -219,72 +234,115 @@ export const activateTag = async (args: {
     throw new ApiError(400, "This QR is not available for activation");
   }
 
-  let carId = args.carId;
-  if (!carId) {
-    if (!args.carPayload) {
-      await recordAttempt("error", "missing_car_details");
-      throw new ApiError(400, "Provide car details or select an existing car");
-    }
-    const existing = await CarModel.findOne({
-      userId: args.userId,
-      registrationNumber: args.carPayload.registrationNumber
-    });
-    if (existing) {
-      carId = existing.id;
-    } else {
-      const count = await CarModel.countDocuments({ userId: args.userId });
-      const car = await CarModel.create({
+  if (assetType === "car") {
+    let carId = args.carId;
+    if (!carId) {
+      if (!args.carPayload) {
+        await recordAttempt("error", "missing_car_details");
+        throw new ApiError(400, "Provide car details or select an existing car");
+      }
+      const existing = await CarModel.findOne({
         userId: args.userId,
-        registrationNumber: args.carPayload.registrationNumber,
-        make: args.carPayload.make ?? "",
-        model: args.carPayload.model ?? "",
-        color: args.carPayload.color ?? "",
-        year: args.carPayload.year,
-        nickname: args.carPayload.nickname ?? "",
-        plateImage: args.carPayload.plateImage ?? "",
-        isPrimary: count === 0,
-        activationStatus: "activated"
+        registrationNumber: args.carPayload.registrationNumber
       });
-      carId = car.id;
+      if (existing) {
+        carId = existing.id;
+      } else {
+        const count = await CarModel.countDocuments({ userId: args.userId });
+        const car = await CarModel.create({
+          userId: args.userId,
+          registrationNumber: args.carPayload.registrationNumber,
+          make: args.carPayload.make ?? "",
+          model: args.carPayload.model ?? "",
+          color: args.carPayload.color ?? "",
+          year: args.carPayload.year,
+          nickname: args.carPayload.nickname ?? "",
+          plateImage: args.carPayload.plateImage ?? "",
+          isPrimary: count === 0,
+          activationStatus: "activated"
+        });
+        carId = car.id;
+      }
+    } else {
+      const car = await CarModel.findOne({ _id: carId, userId: args.userId });
+      if (!car) {
+        await recordAttempt("error", "car_not_found");
+        throw new ApiError(404, "Car not found");
+      }
+      if (args.carPayload?.plateImage && !car.plateImage) {
+        car.plateImage = args.carPayload.plateImage;
+        await car.save();
+      }
     }
-  } else {
-    const car = await CarModel.findOne({ _id: carId, userId: args.userId });
-    if (!car) {
-      await recordAttempt("error", "car_not_found");
-      throw new ApiError(404, "Car not found");
-    }
-    if (args.carPayload?.plateImage && !car.plateImage) {
-      car.plateImage = args.carPayload.plateImage;
-      await car.save();
-    }
+
+    tag.ownerUserId = args.userId as any;
+    tag.linkedAssetType = "car";
+    tag.carId = carId as any;
+    tag.keyId = undefined;
+    tag.status = "activated";
+    tag.activatedAt = new Date();
+    await tag.save();
+
+    await CarModel.updateOne({ _id: carId }, { $set: { activeTagId: tag.id, activationStatus: "activated" } });
+
+    await ActivationRecordModel.create({
+      tagId: tag._id,
+      serial: tag.serial,
+      activationCode: tag.activationCode,
+      userId: args.userId,
+      carId,
+      outcome: "success",
+      ipAddress: args.ipAddress ?? "",
+      userAgent: args.userAgent ?? "",
+      message: "Tag activated and bound to car"
+    });
+
+    await recordAttempt("success");
+    return { tag, carId };
   }
 
-  tag.ownerUserId = args.userId as any;
-  tag.carId = carId as any;
-  tag.status = "activated";
-  tag.activatedAt = new Date();
-  await tag.save();
+  if (assetType === "keys") {
+    if (!args.keyPayload) {
+      await recordAttempt("error", "missing_keys_details");
+      throw new ApiError(400, "Provide keys details to activate this QR");
+    }
+    const key = await KeyModel.create({
+      ownerId: args.userId,
+      qrId: tag.id,
+      label: args.keyPayload.label,
+      keyType: args.keyPayload.keyType,
+      description: args.keyPayload.description ?? "",
+      image: args.keyPayload.image ?? "",
+      returnInstructions: args.keyPayload.returnInstructions ?? ""
+    });
 
-  await CarModel.updateOne(
-    { _id: carId },
-    { $set: { activeTagId: tag.id, activationStatus: "activated" } }
-  );
+    tag.ownerUserId = args.userId as any;
+    tag.linkedAssetType = "keys";
+    tag.keyId = key.id as any;
+    tag.carId = undefined;
+    tag.status = "activated";
+    tag.activatedAt = new Date();
+    await tag.save();
 
-  await ActivationRecordModel.create({
-    tagId: tag._id,
-    serial: tag.serial,
-    activationCode: tag.activationCode,
-    userId: args.userId,
-    carId,
-    outcome: "success",
-    ipAddress: args.ipAddress ?? "",
-    userAgent: args.userAgent ?? "",
-    message: "Tag activated and bound to car"
-  });
+    await ActivationRecordModel.create({
+      tagId: tag._id,
+      serial: tag.serial,
+      activationCode: tag.activationCode,
+      userId: args.userId,
+      keyId: key.id,
+      outcome: "success",
+      ipAddress: args.ipAddress ?? "",
+      userAgent: args.userAgent ?? "",
+      message: "Tag activated and bound to keys"
+    });
+
+    await recordAttempt("success");
+    return { tag, carId: undefined, keyId: key.id };
+  }
 
   await recordAttempt("success");
 
-  return { tag, carId };
+  return { tag, carId: undefined };
 };
 
 export const listUserTags = async (userId: string) => {

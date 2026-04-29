@@ -11,6 +11,7 @@ import { Text } from "@/components/ui";
 import { Avatar } from "@/components/ui/Avatar";
 import { maskPhone } from "@/utils/format";
 import { callsService } from "@/services/api/calls.service";
+import { callAlertService, SHOULD_VIBRATE_FOR_INCOMING_CALL } from "@/services/calls/callAlertService";
 
 export function IncomingCallScreen() {
   const incoming = useCallStore((s) => s.incoming);
@@ -50,13 +51,28 @@ export function IncomingCallScreen() {
 
   useEffect(() => {
     if (status === "connecting" || status === "active") {
+      void callAlertService.cleanupCallAlerts();
       router.replace("/call/active");
     }
-    if (status === "idle" || status === "missed" || status === "declined" || status === "ended") {
+    if (status === "ringing") {
+      if (SHOULD_VIBRATE_FOR_INCOMING_CALL) {
+        void callAlertService.startIncomingCallAlerts();
+      } else {
+        void callAlertService.startRingtone();
+      }
+    }
+    if (status === "idle" || status === "missed" || status === "declined" || status === "ended" || status === "failed") {
+      void callAlertService.cleanupCallAlerts();
       if (router.canGoBack()) router.back();
       else router.replace("/(tabs)/dashboard");
     }
   }, [status]);
+
+  useEffect(() => {
+    return () => {
+      void callAlertService.cleanupCallAlerts();
+    };
+  }, []);
 
   if (!incoming) return null;
 

@@ -2,8 +2,9 @@ import { useEffect, useRef } from "react";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useAuthStore } from "@/stores/auth.store";
-import { handleIncomingCall, handleIncomingCallTap } from "@/features/calls/incomingCallNotificationHandler";
+import { handleIncomingCallTap } from "@/features/calls/incomingCallNotificationHandler";
 import type { NotificationType } from "@/types/notification";
+import { routeIncomingCallNotification } from "@/services/notifications/fcmService";
 
 type NotificationData = {
   type?: NotificationType | string;
@@ -80,26 +81,7 @@ export function useNotificationHandlers(): void {
     const receiveSub = Notifications.addNotificationReceivedListener((notification) => {
       const data = getData(notification);
       if (String(data.type ?? "") === "INCOMING_CALL" && data.callId) {
-        void handleIncomingCall({
-          callId: data.callId,
-          incidentId: data.incidentId,
-          vehicleId: data.vehicleId,
-          vehiclePlate: data.vehiclePlate,
-          callerPhone: data.callerPhone,
-          incidentImages: data.incidentImages,
-          ownerId: data.ownerId,
-          status: data.status,
-          reporterSocketId: data.reporterSocketId,
-          reporterPhone: data.reporterPhone ?? data.callerPhone,
-          reporterName: data.reporterName,
-          carId: data.carId ?? data.vehicleId,
-          carLabel: data.carLabel ?? data.vehiclePlate,
-          imageCount: data.imageCount,
-          message: data.message,
-          platform: data.platform,
-          createdAt: data.createdAt,
-          expiresAt: data.expiresAt
-        });
+        void routeIncomingCallNotification(data as unknown as Record<string, unknown>);
       }
     });
 

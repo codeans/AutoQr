@@ -48,7 +48,7 @@ export const PlanCard = ({ plan }: { plan: Plan }) => {
 
       <div className="mt-auto pt-8">
         <LinkButton
-          to={`/onboard/${plan.slug}`}
+          to={`/checkout/${plan.slug}`}
           size="lg"
           variant={plan.isBestValue ? "primary" : "secondary"}
           className="w-full"

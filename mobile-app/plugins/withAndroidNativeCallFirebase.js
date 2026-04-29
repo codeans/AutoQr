@@ -42,8 +42,11 @@ import expo.modules.notifications.service.ExpoFirebaseMessagingService
 
 class AutoQrMessagingService : ExpoFirebaseMessagingService() {
   override fun onMessageReceived(remoteMessage: RemoteMessage) {
-    if (remoteMessage.data["type"] == "INCOMING_CALL") {
+    val type = remoteMessage.data["type"]
+    if (type == "INCOMING_CALL") {
       showIncomingCall(remoteMessage.data)
+    } else if (type == "MISSED_CALL" || type == "CALL_ENDED" || type == "call_missed" || type == "call_ended") {
+      cancelIncomingCall(remoteMessage.data)
     }
     super.onMessageReceived(remoteMessage)
   }
@@ -113,7 +116,7 @@ class AutoQrMessagingService : ExpoFirebaseMessagingService() {
   }
 
   private fun ringtoneUri(): Uri? {
-    val id = resourceId("raw", "autoqr_ringtone")
+    val id = resourceId("raw", "autoqr_incoming_call")
     return if (id == 0) null else Uri.parse("android.resource://$packageName/$id")
   }
 
@@ -121,6 +124,12 @@ class AutoQrMessagingService : ExpoFirebaseMessagingService() {
     return resources.getIdentifier(name, type, packageName)
   }
 }
+
+  private fun cancelIncomingCall(data: Map<String, String>) {
+    val callId = data["callId"] ?: data["uuid"] ?: return
+    val notificationManager = getSystemService(NotificationManager::class.java)
+    notificationManager.cancel(callId.hashCode())
+  }
 `;
 }
 

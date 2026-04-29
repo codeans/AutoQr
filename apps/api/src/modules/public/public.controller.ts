@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import { TagModel } from "../../models/Tag.js";
 import { CarModel } from "../../models/Car.js";
+import { KeyModel } from "../../models/Key.js";
 import { IncidentModel } from "../../models/Incident.js";
 import { CallSessionModel } from "../../models/CallSession.js";
 import { CmsContentModel } from "../../models/CmsContent.js";
@@ -28,6 +29,13 @@ const formatCar = (car: any) => ({
   color: car?.color ?? ""
 });
 
+const formatKey = (key: any) => ({
+  label: key?.label ?? "",
+  keyType: key?.keyType ?? "",
+  description: key?.description ?? "",
+  returnInstructions: key?.returnInstructions ?? ""
+});
+
 export const qrInfo = asyncHandler(async (req: Request, res: Response) => {
   const tag = await TagModel.findOne({ publicToken: req.params.token });
   if (!tag) throw new ApiError(404, "QR not found");
@@ -35,10 +43,12 @@ export const qrInfo = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(410, "This QR is no longer active");
   }
   const car = tag.carId ? await CarModel.findById(tag.carId).lean() : null;
+  const key = tag.keyId ? await KeyModel.findById(tag.keyId).lean() : null;
   res.json({
     qr: {
       status: tag.status,
-      car: car ? formatCar(car) : null
+      car: car ? formatCar(car) : null,
+      key: key ? formatKey(key) : null
     }
   });
 });
@@ -61,16 +71,27 @@ export const createIncident = asyncHandler(async (req: Request, res: Response) =
   if (tag.status === "disabled" || tag.status === "lost") {
     throw new ApiError(410, "This QR is no longer active");
   }
-  if (tag.status !== "activated" || !tag.carId || !tag.ownerUserId) {
-    throw new ApiError(400, "This QR has not been linked to a car yet");
+  if (tag.status !== "activated" || !tag.ownerUserId) {
+    throw new ApiError(400, "This QR has not been activated yet");
   }
+
+  const assetType = tag.linkedAssetType ?? (tag.carId ? "car" : tag.keyId ? "keys" : null);
+  if (!assetType) throw new ApiError(400, "This QR has not been linked yet");
+
+  const carId = assetType === "car" ? tag.carId : undefined;
+  const keyId = assetType === "keys" ? tag.keyId : undefined;
+  if (assetType === "car" && !carId) throw new ApiError(400, "This QR has not been linked to a car yet");
+  if (assetType === "keys" && !keyId) throw new ApiError(400, "This QR has not been linked to keys yet");
+
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
 
   const reporterSessionToken = crypto.randomBytes(24).toString("hex");
 
   const incident = await IncidentModel.create({
     tagId: tag.id,
-    carId: tag.carId,
+    carId,
+    keyId,
+    linkedAssetType: assetType,
     userId: tag.ownerUserId,
     reporterName: payload.reporterName,
     reporterPhone: normalizedPhone,
@@ -109,11 +130,14 @@ const reporterAuthSchema = z.object({
 export const reporterIncidentView = asyncHandler(async (req: Request, res: Response) => {
   const { incidentId } = req.params;
   const { sessionToken } = reporterAuthSchema.parse({ sessionToken: req.query.sessionToken });
-  const incident = await IncidentModel.findById(incidentId).populate("carId");
+  const incident = await IncidentModel.findById(incidentId)
+    .populate("carId")
+    .populate("keyId");
   if (!incident || incident.reporterSessionToken !== sessionToken) {
     throw new ApiError(404, "Incident not accessible");
   }
   const car = incident.carId as any;
+  const key = incident.keyId as any;
   const latestCall = await CallSessionModel.findOne({ incidentId: incident.id })
     .sort({ createdAt: -1 })
     .lean();
@@ -125,7 +149,9 @@ export const reporterIncidentView = asyncHandler(async (req: Request, res: Respo
       message: incident.message,
       images: incident.images,
       createdAt: incident.createdAt,
-      car: car ? formatCar(car) : null
+      car: car ? formatCar(car) : null,
+      key: key ? formatKey(key) : null,
+      linkedAssetType: incident.linkedAssetType
     },
     latestCall: latestCall
       ? {

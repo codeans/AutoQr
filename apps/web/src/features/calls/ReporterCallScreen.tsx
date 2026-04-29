@@ -90,7 +90,7 @@ export const ReporterCallScreen = () => {
 
   useEffect(() => {
     if (!socket) return;
-    const onCallRequested = ({ callId: id, agora }: { callId: string; ownerOnline?: boolean; agora?: AgoraJoinPayload }) => {
+    const onCallRequested = ({ callId: id, agora }: { callId: string; agora?: AgoraJoinPayload }) => {
       setCallId(id);
       callerAgoraRef.current = agora ?? null;
       setReporterStatus("ringing");
@@ -240,11 +240,16 @@ export const ReporterCallScreen = () => {
     ? formatGermanPhoneDisplay(phoneHint)
     : "";
 
-  const carLabel = view?.incident.car
-    ? [view.incident.car.nickname, [view.incident.car.make, view.incident.car.model].filter(Boolean).join(" ")]
-        .filter(Boolean)
-        .join(" · ")
-    : t("call.reporter.vehicleOwnerFallback");
+  const incidentAssetType = view?.incident.linkedAssetType ?? (view?.incident.car ? "car" : "keys");
+
+  const incidentLabel =
+    incidentAssetType === "car" && view?.incident.car
+      ? [view.incident.car.nickname, [view.incident.car.make, view.incident.car.model].filter(Boolean).join(" ")]
+          .filter(Boolean)
+          .join(" · ")
+      : view?.incident.key?.label
+        ? `Key: ${view.incident.key.label}`
+        : t("call.reporter.vehicleOwnerFallback");
 
   const callStateBadge = (() => {
     switch (reporterStatus) {
@@ -307,7 +312,7 @@ export const ReporterCallScreen = () => {
           <div className="text-center">
             <p className="text-[12px] uppercase tracking-[0.22em] text-fog-400">{t("call.reporter.connectingTo")}</p>
             <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-fog-50 sm:text-3xl">
-              {carLabel}
+              {incidentLabel}
             </h1>
             {phoneDisplay && (
               <p className="mt-1 text-[13px] text-fog-400">{t("call.reporter.fromPhone", { phone: phoneDisplay })}</p>

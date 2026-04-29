@@ -5,15 +5,36 @@ import { env } from "../../config/env.js";
 import { ensureStripe } from "../../infrastructure/payment/stripe.client.js";
 import { ApiError } from "../../utils/apiError.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { createCheckoutSession, fulfillPaidOrder } from "./payment.service.js";
+import { createCheckoutSession, createPublicCheckoutSession, fulfillPaidOrder } from "./payment.service.js";
 
 const createCheckoutSchema = z.object({
   orderId: z.string().min(1)
 });
 
+const createPublicCheckoutSchema = z.object({
+  planId: z.string().min(1),
+  fullName: z.string().min(2),
+  phone: z.string().min(6).max(32),
+  email: z.string().email(),
+  shippingAddress: z.object({
+    line1: z.string().min(3),
+    line2: z.string().optional(),
+    city: z.string().min(1),
+    postalCode: z.string().min(1),
+    country: z.string().min(1)
+  }),
+  note: z.string().optional()
+});
+
 export const createCheckout = asyncHandler(async (req: Request, res: Response) => {
   const { orderId } = createCheckoutSchema.parse(req.body);
   const session = await createCheckoutSession(orderId, req.auth!.userId);
+  res.json({ sessionId: session.id, url: session.url });
+});
+
+export const createPublicCheckout = asyncHandler(async (req: Request, res: Response) => {
+  const payload = createPublicCheckoutSchema.parse(req.body);
+  const session = await createPublicCheckoutSession(payload);
   res.json({ sessionId: session.id, url: session.url });
 });
 
