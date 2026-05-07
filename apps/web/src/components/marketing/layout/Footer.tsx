@@ -81,9 +81,22 @@ export const Footer = () => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-6 border-t border-surface-border py-8 text-xs text-content-subtle sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} AutoQr. {t("footer.rights")}</p>
-          <p className="font-mono tracking-tight text-content-soft">autoqr.de — {t("footer.tagline")}</p>
+        <div className="border-t border-surface-border py-8">
+          <div className="flex flex-col gap-6 text-xs text-content-subtle sm:flex-row sm:items-center sm:justify-between">
+            <p>© {new Date().getFullYear()} AutoQr. {t("footer.rights")}</p>
+            <p className="font-mono tracking-tight text-content-soft">autoqr.de — {t("footer.tagline")}</p>
+          </div>
+          <p className="mt-6 text-center text-xs text-content-subtle">
+            {t("footer.designedByPrefix")}{" "}
+            <a
+              href="https://codeans.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-content-muted transition-colors hover:text-brand-700"
+            >
+              CODEANS
+            </a>
+          </p>
         </div>
       </Container>
     </footer>

@@ -158,6 +158,7 @@ const overrides: DeepPartial<TranslationSchema> = {
     legal: "Legal",
     support: "Support",
     rights: "All rights reserved.",
+    designedByPrefix: "Designed & Developed By",
     madeIn: "Made in Germany",
     privacy: "Privacy Policy",
     terms: "Terms & Conditions",
@@ -241,7 +242,7 @@ const overrides: DeepPartial<TranslationSchema> = {
       ]
     },
     faq: {
-      title: "Frequently asked questions",
+      title: "Frequently asked questions (FAQ)",
       subtitle: "Answers to the most common questions about AutoQr.",
       viewAll: "View all FAQ"
     },
@@ -254,7 +255,30 @@ const overrides: DeepPartial<TranslationSchema> = {
       fallbackTrustLine: "GDPR-compliant. Your phone number is never shown."
     },
     privacyBadge: "GDPR · Hosted in Germany",
-    pricingBadge: "One-time purchase"
+    pricingBadge: "One-time purchase",
+    planGrid: {
+      eyebrow: "Plans & pricing",
+      title: "Choose the protection that fits.",
+      subtitle: "One-time prices in EUR. The same privacy core — different tag bundles, contact limits, and support levels.",
+      loading: "Loading plans…",
+      empty:
+        "No plans are available yet. Restart the API (it syncs the catalog on startup) or run: npm run seed:plans -w @autoqr/api",
+      error: "We couldn't load plans. Please try again in a moment.",
+      compareDetails: "Compare details",
+      choose: "Choose {{name}}",
+      oneTime: "One-time payment",
+      billedYearly: "Billed yearly",
+      tagsIncluded: "{{count}} tags included",
+      mostPopular: "Most popular",
+      fleetSales: "Need more than Fleet Pro?",
+      fleetSalesLink: "Talk to sales"
+    },
+    planTier: {
+      car_basic: "Car-Basic",
+      smart_key: "Smart-Key",
+      premium_combo: "Premium-Combo",
+      fleet_pro: "Fleet-Pro"
+    }
   },
   howItWorksPageExtra: {
     eyebrow: "How it works",
@@ -267,8 +291,8 @@ const overrides: DeepPartial<TranslationSchema> = {
   },
   useCasesPageExtra: {
     eyebrow: "Cars & keys",
-    heroTitle1: "One QR code.",
-    heroTitleBrand: "Two simple use cases.",
+    heroTitle1: "One QR for",
+    heroTitleBrand: "parking damage and lost keys.",
     heroSubtitle:
       "AutoQr is made for the everyday moments that matter – a dent, a scratch, a lost keychain. Here's how it works for both."
   },
@@ -377,7 +401,7 @@ const overrides: DeepPartial<TranslationSchema> = {
     heroTitle1: "A real team,",
     heroTitleBrand: "on the other end.",
     heroSubtitle:
-      "Whether you are ordering your first QR code, handling an incident, or just have a question – we reply within one business day from a real human.",
+      "Support is currently available via live chat and email only. Phone/call support is not available at the moment.",
     channels: [
       {
         label: "General",
@@ -390,14 +414,9 @@ const overrides: DeepPartial<TranslationSchema> = {
         hint: "Abuse reports, deletion requests, policies"
       },
       {
-        label: "Business hours",
+        label: "Live chat support",
         value: "Mon–Fri · 09:00–18:00 CET",
-        hint: "Most requests are answered within 4 hours"
-      },
-      {
-        label: "Office",
-        value: "Berlin, Germany",
-        hint: "EU data residency · hosted in Germany"
+        hint: "Most chat requests are answered within 4 hours"
       }
     ],
     activeIncident: "Active incident?",
@@ -439,7 +458,7 @@ const overrides: DeepPartial<TranslationSchema> = {
     hoursValue: "Mon. – Fri. 09:00 – 18:00"
   },
   faqPage: {
-    title: "Frequently asked questions",
+    title: "Frequently asked questions (FAQ)",
     subtitle: "Everything you need to know about AutoQr.",
     categories: {
       general: "General",
@@ -537,6 +556,8 @@ const overrides: DeepPartial<TranslationSchema> = {
     mobileNumberPlaceholder: "+49 176 ...",
     sendingCode: "Sending code…",
     sendMeCode: "Send me a code",
+    resendCode: "Resend code",
+    resendIn: "Resend in {{seconds}}s",
     emailPlaceholder: "you@company.com",
     passwordPlaceholder: "••••••••",
     newToAutoqr: "New to AutoQr?",
@@ -639,7 +660,21 @@ const overrides: DeepPartial<TranslationSchema> = {
     errorInvalidPhone: "Please enter a valid German phone number.",
     errorMessageTooShort: "Please describe briefly what happened (at least 5 characters).",
     errorConsentRequired: "Please accept the privacy consent to continue.",
-    errorSubmitGeneric: "Could not submit incident. Please check your details and try again."
+    errorSubmitGeneric: "Could not submit incident. Please check your details and try again.",
+    fetchingLocation: "Fetching your location...",
+    locationDeniedLong:
+      "Location access is required to report an incident. Please enable GPS to continue.",
+    refreshLocation: "Refresh location",
+    locationMapTitle: "Reported location preview",
+    locationApproximateTitle: "Approximate (IP-based) location",
+    locationApproximateBody:
+      "We could not read GPS from this device. Your report will use an approximate location from the network connection when you submit.",
+    locationLowAccuracy: "Low accuracy",
+    locationConfirmationLabel: "This location looks correct — use it for my report.",
+    locationConfirmRequired: "Please confirm the location before submitting.",
+    offlineQueued: "You're offline — we saved your report and will send it when you're back online.",
+    locationRequiredHint: "Location is required to send a report. When you submit, we will ask your browser for GPS access.",
+    locationSectionTitle: "Location"
   },
   orderPage: {
     eyebrow: "Order AutoQr",
@@ -827,7 +862,71 @@ const overrides: DeepPartial<TranslationSchema> = {
     selectPlan: "Select plan",
     startOnboarding: "Get started",
     featuresTitle: "What's included",
-    comingSoon: "Coming soon"
+    comingSoon: "Coming soon",
+    eyebrow: "Plans",
+    pageTitle: "Pick a plan — start in under 3 minutes.",
+    pageSubtitle:
+      "One-time payment. No subscriptions. No hidden fees. Every plan includes tags, emergency routing, and lifetime reassignment.",
+    sectionEyebrow: "Transparent pricing",
+    sectionTitle: "From a single car to a full fleet.",
+    sectionSubtitle:
+      "One-time plans in EUR. Same privacy core — different tag bundles, contact limits, and support levels.",
+    loadingPlans: "Loading…",
+    loadError: "We couldn't load plans just now. Please refresh in a moment.",
+    needMoreThanBusiness: "Need more than Fleet Pro?",
+    talkToSales: "Talk to sales",
+    talkToSalesSuffix: "for volume pricing.",
+    backToPlans: "← Back to plans",
+    highlights: "Highlights",
+    whatsInTheBox: "What's in the box",
+    qrCodesLabel: "Tags",
+    vehiclesLabel: "Vehicles",
+    emergencyContactsLabel: "Emergency contacts",
+    emergencyUnlimited: "Unlimited",
+    supportLabel: "Support",
+    youPay: "You pay",
+    oneTime: "One-time payment · no subscription",
+    billedYearly: "Billed yearly",
+    checkoutCta: "Checkout",
+    priceFooter: "Secured by Stripe · privacy-first relay",
+    planNotFound: "Plan not found",
+    chooseX: "Choose {{name}}",
+    compareDetails: "Compare details",
+    oneTimePayment: "One-time payment",
+    tagIncluded: "QR tag included",
+    tagsIncluded: "QR tags included",
+    supportSuffix: "support",
+    loading: "Loading…",
+    checkoutYouPay: "You pay",
+    checkoutIncludes: "Includes",
+    checkoutTagsLine: "{{count}} QR tag",
+    checkoutTagsLine_plural: "{{count}} QR tags",
+    checkoutActivationNote: "Activation happens after delivery",
+    checkoutFootnote:
+      "Your QR becomes active only after you create an account and activate it with the activation code you receive with your QR.",
+    checkoutTitle: "Checkout",
+    checkoutIntro:
+      "Your order and shipping details are used for dispatch. The QR is linked to your account only after activation.",
+    checkoutSectionContact: "Contact",
+    checkoutLabelFullName: "Full name",
+    checkoutLabelPhone: "Phone",
+    checkoutLabelEmail: "Email",
+    checkoutPhonePlaceholder: "+49 …",
+    checkoutSectionShipping: "Shipping address",
+    checkoutLabelAddressLine1: "Address line",
+    checkoutLabelAddressLine2: "Address line 2 (optional)",
+    checkoutLabelCity: "City",
+    checkoutLabelPostalCode: "Postal code",
+    checkoutLabelCountry: "Country",
+    checkoutDefaultCountry: "Germany",
+    checkoutSectionNoteOptional: "Optional note",
+    checkoutLabelDeliveryNote: "Delivery note",
+    checkoutPayButton: "Pay {{amount}}",
+    checkoutRedirecting: "Redirecting to payment…",
+    checkoutLegalConsent:
+      "By paying, you agree that your QR becomes active only after account creation and activation.",
+    checkoutStripeFailed: "Stripe checkout failed. Please try again.",
+    checkoutGenericFailed: "Checkout failed."
   },
   onboarding: {
     title: "Welcome to AutoQr",
@@ -1032,7 +1131,7 @@ const overrides: DeepPartial<TranslationSchema> = {
   emergency: {
     title: "Emergency contacts",
     subtitle:
-      "In an accident or emergency scan we notify these contacts via SMS, WhatsApp and email. Add family or trusted people.",
+      "In an accident or emergency scan we notify these contacts via SMS and email. Add family or trusted people.",
     nameLabel: "Name",
     relationshipLabel: "Relationship",
     relationshipPlaceholder: "Spouse, parent, friend...",

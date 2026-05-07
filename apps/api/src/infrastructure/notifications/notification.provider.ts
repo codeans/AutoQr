@@ -1,6 +1,6 @@
 import { logger } from "../../utils/logger.js";
 
-export type NotificationChannel = "sms" | "whatsapp" | "push" | "email" | "in_app";
+export type NotificationChannel = "sms" | "push" | "email" | "in_app";
 
 export type NotificationPayload = {
   to: string;

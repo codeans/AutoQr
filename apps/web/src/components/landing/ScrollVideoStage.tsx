@@ -17,7 +17,7 @@ export const ScrollVideoStage = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [status, setStatus] = useState<Status>("loading");
 
-  useScrollVideo(videoRef, containerRef);
+  useScrollVideo(videoRef, containerRef, true);
   useVideoUnlock(videoRef);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export const ScrollVideoStage = ({
       {/* Loading state — soft pulse until video metadata arrives */}
       <div
         aria-hidden
-        className={`absolute inset-0 bg-gradient-to-br from-[#E8F0FF] via-white to-[#F8F9FB] transition-opacity duration-700 ${
+        className={`absolute inset-0 bg-gradient-to-br from-[#EDF4FF] via-white to-[#F7FAFD] transition-opacity duration-700 ${
           status === "ready" ? "opacity-0" : "opacity-100"
         } ${status === "loading" ? "animate-pulse" : ""}`}
       />
@@ -64,7 +64,7 @@ export const ScrollVideoStage = ({
         src={heroVideoUrl}
         muted
         playsInline
-        preload="auto"
+        preload="metadata"
         disableRemotePlayback
         // @ts-ignore — non-standard attribute, valid in WebKit
         disablePictureInPicture
@@ -109,7 +109,7 @@ export const ScrollVideoStage = ({
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 85% 62% at 55% 48%, rgba(0,18,51,0) 30%, rgba(0,18,51,0.22) 100%)"
+            "radial-gradient(ellipse 85% 62% at 55% 48%, rgba(0,27,54,0) 30%, rgba(0,27,54,0.22) 100%)"
         }}
       />
       <div
@@ -117,7 +117,7 @@ export const ScrollVideoStage = ({
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(circle at 20% 15%, rgba(0,102,255,0.12), rgba(0,102,255,0) 35%), radial-gradient(circle at 85% 22%, rgba(111,77,255,0.12), rgba(111,77,255,0) 40%)"
+            "radial-gradient(circle at 20% 15%, rgba(0,56,120,0.12), rgba(0,56,120,0) 35%), radial-gradient(circle at 85% 22%, rgba(104,136,80,0.12), rgba(104,136,80,0) 40%)"
         }}
       />
     </div>

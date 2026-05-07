@@ -30,7 +30,7 @@ export const AdminLayout = () => {
 
       <div className={`min-h-screen transition-all ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
         <AdminTopbar pathname={location.pathname} onOpenMobileSidebar={() => setDrawerOpen(true)} onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)} />
-        <main className="space-y-6 p-4 sm:p-6">
+        <main className="mx-auto w-full max-w-[110rem] space-y-5 p-3 sm:space-y-6 sm:p-5 md:p-6 lg:p-7">
           <Outlet />
         </main>
       </div>

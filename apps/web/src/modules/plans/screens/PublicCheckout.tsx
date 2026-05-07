@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "../../../components/marketing/shared/Button";
 import { Container } from "../../../components/marketing/shared/Container";
@@ -9,6 +10,7 @@ import { SectionWrapper } from "../../../components/marketing/shared/SectionWrap
 import { fetchPlan, publicCheckout } from "../services/plans.service";
 import type { Plan } from "../types";
 import { formatCurrency } from "../types";
+import { localizePlan } from "../planDisplay";
 
 type AddressForm = {
   line1: string;
@@ -19,8 +21,8 @@ type AddressForm = {
 };
 
 export const PublicCheckoutScreen = () => {
+  const { t, i18n } = useTranslation();
   const { slug } = useParams();
-  const navigate = useNavigate();
 
   const [plan, setPlan] = useState<Plan | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -28,7 +30,7 @@ export const PublicCheckoutScreen = () => {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     fullName: "",
     phone: "",
     email: "",
@@ -37,51 +39,57 @@ export const PublicCheckoutScreen = () => {
       line2: "",
       city: "",
       postalCode: "",
-      country: "Germany"
+      country: t("plans.checkoutDefaultCountry")
     } as AddressForm,
     note: ""
-  });
+  }));
 
   useEffect(() => {
     if (!slug) return;
     fetchPlan(slug)
       .then(setPlan)
-      .catch(() => setLoadError("Plan not found."));
-  }, [slug]);
+      .catch(() => setLoadError(t("plans.planNotFound")));
+  }, [slug, t]);
 
   const summary = useMemo(() => {
     if (!plan) return null;
+    const copy = localizePlan(plan, i18n.language);
+    const tierLabel = t(`home.planTier.${plan.tier}`, { defaultValue: plan.tier });
+    const tagsTitle =
+      plan.tagsIncluded === 1
+        ? t("plans.checkoutTagsLine", { count: plan.tagsIncluded })
+        : t("plans.checkoutTagsLine_plural", { count: plan.tagsIncluded });
     return (
       <div className="rounded-3xl border border-surface-border bg-surface-soft p-8">
         <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-content-subtle">
           <span className="h-px w-6 bg-fog-400/40" />
-          {plan.tier}
+          {tierLabel}
         </div>
-        <h1 className="mt-4 font-display text-4xl text-content">{plan.name}</h1>
-        <p className="mt-3 text-[15.5px] leading-relaxed text-content-muted">{plan.description}</p>
+        <h1 className="mt-4 font-display text-4xl text-content">{copy.name}</h1>
+        <p className="mt-3 text-[15.5px] leading-relaxed text-content-muted">{copy.description}</p>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-surface-border bg-white/60 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-content-subtle">You pay</p>
-            <p className="mt-1 font-display text-3xl text-content">{formatCurrency(plan.priceCents, plan.currency)}</p>
-            <p className="mt-1 text-[12.5px] text-content0">{plan.billingCycle === "one_time" ? "One-time payment" : "Yearly"}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-content-subtle">{t("plans.checkoutYouPay")}</p>
+            <p className="mt-1 font-display text-3xl text-content">{formatCurrency(plan.priceCents, plan.currency, i18n.language)}</p>
+            <p className="mt-1 text-[12.5px] text-content0">
+              {plan.billingCycle === "one_time" ? t("plans.oneTimePayment") : t("plans.billedYearly")}
+            </p>
           </div>
           <div className="rounded-2xl border border-surface-border bg-white/60 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-content-subtle">Includes</p>
-            <p className="mt-1 font-display text-3xl text-content">{plan.tagsIncluded} QR tag{plan.tagsIncluded > 1 ? "s" : ""}</p>
-            <p className="mt-1 text-[12.5px] text-content0">Activation happens after delivery</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-content-subtle">{t("plans.checkoutIncludes")}</p>
+            <p className="mt-1 font-display text-3xl text-content">{tagsTitle}</p>
+            <p className="mt-1 text-[12.5px] text-content0">{t("plans.checkoutActivationNote")}</p>
           </div>
         </div>
 
         <div className="mt-6 flex items-start gap-3 rounded-2xl bg-white/60 p-4">
           <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand-700" />
-          <p className="text-[13.5px] text-content-muted">
-            Your QR becomes active only after you create an account and activate it with the activation code you receive with your QR.
-          </p>
+          <p className="text-[13.5px] text-content-muted">{t("plans.checkoutFootnote")}</p>
         </div>
       </div>
     );
-  }, [plan]);
+  }, [plan, t, i18n.language]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -107,9 +115,9 @@ export const PublicCheckoutScreen = () => {
     try {
       const pay = await publicCheckout(payload);
       if (pay.url) window.location.href = pay.url;
-      else setError("Stripe checkout failed. Please try again.");
+      else setError(t("plans.checkoutStripeFailed"));
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? "Checkout failed.");
+      setError(err?.response?.data?.message ?? t("plans.checkoutGenericFailed"));
     } finally {
       setPending(false);
     }
@@ -121,7 +129,7 @@ export const PublicCheckoutScreen = () => {
         <Container>
           <p className="text-red-600">{loadError}</p>
           <Link to="/plans" className="mt-4 text-content underline">
-            Back to plans
+            {t("plans.backToPlans")}
           </Link>
         </Container>
       </SectionWrapper>
@@ -131,7 +139,7 @@ export const PublicCheckoutScreen = () => {
   if (!plan) {
     return (
       <SectionWrapper>
-        <Container>Loading…</Container>
+        <Container>{t("plans.loading")}</Container>
       </SectionWrapper>
     );
   }
@@ -139,20 +147,18 @@ export const PublicCheckoutScreen = () => {
   return (
     <div className="relative min-h-screen bg-surface-soft">
       <SectionWrapper spacing="default">
-        <Container size="narrow">
+        <Container>
           <Reveal>
             <Link to="/plans" className="text-[13px] text-content-subtle hover:text-content">
-              ← Plans
+              {t("plans.backToPlans")}
             </Link>
 
             <div className="mt-6 grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
               <div>{summary}</div>
 
               <div className="rounded-3xl border border-surface-border bg-white/60 p-8">
-                <h2 className="font-display text-2xl text-content">Checkout</h2>
-                <p className="mt-2 text-[13.5px] text-content-muted">
-                  Your order/shipping details are used for dispatch. The QR is linked to your account only after activation.
-                </p>
+                <h2 className="font-display text-2xl text-content">{t("plans.checkoutTitle")}</h2>
+                <p className="mt-2 text-[13.5px] text-content-muted">{t("plans.checkoutIntro")}</p>
 
                 <form onSubmit={submit} className="mt-8 space-y-6">
                   {error && (
@@ -160,40 +166,46 @@ export const PublicCheckoutScreen = () => {
                   )}
 
                   <div className="space-y-4">
-                    <h3 className="text-xs uppercase tracking-[0.2em] text-content-subtle">Contact</h3>
+                    <h3 className="text-xs uppercase tracking-[0.2em] text-content-subtle">{t("plans.checkoutSectionContact")}</h3>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <FieldGroup>
-                        <FieldLabel htmlFor="fullName">Full name</FieldLabel>
+                        <FieldLabel htmlFor="fullName">{t("plans.checkoutLabelFullName")}</FieldLabel>
                         <TextField id="fullName" required value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))} />
                       </FieldGroup>
                       <FieldGroup>
-                        <FieldLabel htmlFor="phone">Phone</FieldLabel>
-                        <TextField id="phone" required value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} placeholder="+49 …" />
+                        <FieldLabel htmlFor="phone">{t("plans.checkoutLabelPhone")}</FieldLabel>
+                        <TextField
+                          id="phone"
+                          required
+                          value={form.phone}
+                          onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                          placeholder={t("plans.checkoutPhonePlaceholder")}
+                        />
                       </FieldGroup>
                       <FieldGroup>
-                        <FieldLabel htmlFor="email">Email</FieldLabel>
+                        <FieldLabel htmlFor="email">{t("plans.checkoutLabelEmail")}</FieldLabel>
                         <TextField id="email" required type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
                       </FieldGroup>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-xs uppercase tracking-[0.2em] text-content-subtle">Shipping address</h3>
+                    <h3 className="text-xs uppercase tracking-[0.2em] text-content-subtle">{t("plans.checkoutSectionShipping")}</h3>
                     <FieldGroup>
-                      <FieldLabel htmlFor="line1">Address line</FieldLabel>
+                      <FieldLabel htmlFor="line1">{t("plans.checkoutLabelAddressLine1")}</FieldLabel>
                       <TextField id="line1" required value={form.address.line1} onChange={(e) => setForm((p) => ({ ...p, address: { ...p.address, line1: e.target.value } }))} />
                     </FieldGroup>
                     <FieldGroup>
-                      <FieldLabel htmlFor="line2">Address line 2 (optional)</FieldLabel>
+                      <FieldLabel htmlFor="line2">{t("plans.checkoutLabelAddressLine2")}</FieldLabel>
                       <TextField id="line2" value={form.address.line2 ?? ""} onChange={(e) => setForm((p) => ({ ...p, address: { ...p.address, line2: e.target.value } }))} />
                     </FieldGroup>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <FieldGroup>
-                        <FieldLabel htmlFor="city">City</FieldLabel>
+                        <FieldLabel htmlFor="city">{t("plans.checkoutLabelCity")}</FieldLabel>
                         <TextField id="city" required value={form.address.city} onChange={(e) => setForm((p) => ({ ...p, address: { ...p.address, city: e.target.value } }))} />
                       </FieldGroup>
                       <FieldGroup>
-                        <FieldLabel htmlFor="postalCode">Postal code</FieldLabel>
+                        <FieldLabel htmlFor="postalCode">{t("plans.checkoutLabelPostalCode")}</FieldLabel>
                         <TextField
                           id="postalCode"
                           required
@@ -203,26 +215,26 @@ export const PublicCheckoutScreen = () => {
                       </FieldGroup>
                     </div>
                     <FieldGroup>
-                      <FieldLabel htmlFor="country">Country</FieldLabel>
+                      <FieldLabel htmlFor="country">{t("plans.checkoutLabelCountry")}</FieldLabel>
                       <TextField id="country" required value={form.address.country} onChange={(e) => setForm((p) => ({ ...p, address: { ...p.address, country: e.target.value } }))} />
                     </FieldGroup>
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-xs uppercase tracking-[0.2em] text-content-subtle">Optional note</h3>
+                    <h3 className="text-xs uppercase tracking-[0.2em] text-content-subtle">{t("plans.checkoutSectionNoteOptional")}</h3>
                     <FieldGroup>
-                      <FieldLabel htmlFor="note">Delivery note</FieldLabel>
+                      <FieldLabel htmlFor="note">{t("plans.checkoutLabelDeliveryNote")}</FieldLabel>
                       <TextArea id="note" value={form.note} onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))} />
                     </FieldGroup>
                   </div>
 
                   <Button type="submit" size="lg" className="w-full" disabled={pending}>
-                    {pending ? "Redirecting to payment…" : `Pay ${formatCurrency(plan.priceCents, plan.currency)}`}
+                    {pending
+                      ? t("plans.checkoutRedirecting")
+                      : t("plans.checkoutPayButton", { amount: formatCurrency(plan.priceCents, plan.currency, i18n.language) })}
                   </Button>
 
-                  <p className="text-center text-[12.5px] text-content-subtle">
-                    By paying, you agree that your QR becomes active only after account creation and activation.
-                  </p>
+                  <p className="text-center text-[12.5px] text-content-subtle">{t("plans.checkoutLegalConsent")}</p>
                 </form>
               </div>
             </div>

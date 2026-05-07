@@ -6,7 +6,7 @@ import { MoreHorizontal, Search, X } from "lucide-react";
 export const Button = ({ className, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => (
   <button
     className={clsx(
-      "cursor-pointer rounded-xl bg-action px-4 py-2.5 text-sm font-semibold text-white shadow-premium transition duration-200 hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:cursor-not-allowed disabled:opacity-60",
+      "min-h-11 cursor-pointer rounded-xl bg-action px-4 py-2.5 text-sm font-semibold text-white shadow-premium transition duration-200 hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:cursor-not-allowed disabled:opacity-60",
       className
     )}
     {...props}
@@ -16,7 +16,7 @@ export const Button = ({ className, ...props }: ButtonHTMLAttributes<HTMLButtonE
 export const SecondaryButton = ({ className, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => (
   <button
     className={clsx(
-      "cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition duration-200 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300",
+      "min-h-11 cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition duration-200 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300",
       className
     )}
     {...props}
@@ -60,12 +60,12 @@ export const Select = ({ className, children, ...props }: React.SelectHTMLAttrib
 );
 
 export const PageContainer = ({ children }: PropsWithChildren) => (
-  <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</div>
+  <div className="mx-auto w-full max-w-[90rem] px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-10">{children}</div>
 );
 
 export const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string }) => (
   <div className="mb-6 space-y-1">
-    <h2 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h2>
+    <h2 className="text-fluid-h2 font-bold text-slate-900">{title}</h2>
     {subtitle && <p className="max-w-3xl text-sm text-slate-600">{subtitle}</p>}
   </div>
 );
@@ -124,12 +124,12 @@ export const PageHeader = ({
   subtitle?: string;
   actions?: React.ReactNode;
 }) => (
-  <div className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/85 p-5 shadow-sm backdrop-blur sm:flex-row sm:items-center">
-    <div>
-      <h2 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h2>
+  <div className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-sm backdrop-blur sm:p-5 md:flex-row md:items-start md:gap-4">
+    <div className="min-w-0">
+      <h2 className="truncate text-fluid-h3 font-bold text-slate-900">{title}</h2>
       {subtitle && <p className="mt-1 max-w-3xl text-sm text-slate-600">{subtitle}</p>}
     </div>
-    {actions && <div className="flex items-center gap-2">{actions}</div>}
+    {actions && <div className="flex flex-wrap items-center gap-2 md:justify-end">{actions}</div>}
   </div>
 );
 
@@ -147,7 +147,7 @@ export const SectionCard = ({
           {title && <h3 className="text-base font-semibold text-slate-900">{title}</h3>}
           {subtitle && <p className="text-sm text-slate-600">{subtitle}</p>}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
     )}
     {children}
@@ -162,20 +162,36 @@ export const SearchInput = ({ className, ...props }: InputHTMLAttributes<HTMLInp
 );
 
 export const FilterBar = ({ children }: PropsWithChildren) => (
-  <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3 md:flex-row md:items-center">{children}</div>
+  <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3 md:flex-row md:flex-wrap md:items-center">{children}</div>
 );
 
 export const DataTable = ({
   columns,
   rows,
-  className
+  className,
+  mobileCards = true
 }: {
   columns: string[];
   rows: Array<Array<React.ReactNode>>;
   className?: string;
+  mobileCards?: boolean;
 }) => (
   <div className={clsx("overflow-hidden rounded-2xl border border-slate-200 bg-white", className)}>
-    <div className="overflow-x-auto">
+    {mobileCards ? (
+      <div className="divide-y divide-slate-100 md:hidden">
+        {rows.map((row, idx) => (
+          <div key={idx} className="space-y-2 p-4">
+            {row.map((cell, cellIdx) => (
+              <div key={cellIdx} className="flex items-start justify-between gap-3">
+                <span className="w-1/3 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500">{columns[cellIdx]}</span>
+                <span className="min-w-0 flex-1 text-right text-sm text-slate-700">{cell}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    ) : null}
+    <div className="hidden overflow-x-auto md:block">
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50 text-left text-slate-600">
           <tr>
@@ -239,7 +255,7 @@ export const Drawer = ({
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="absolute right-0 top-0 h-full w-full max-w-lg overflow-y-auto border-l border-slate-200 bg-white p-5 shadow-2xl">
+      <div className="absolute right-0 top-0 h-full w-full max-w-lg overflow-y-auto border-l border-slate-200 bg-white p-4 shadow-2xl sm:p-5">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
           <button
@@ -267,7 +283,7 @@ export const Modal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+      <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-5">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
           <button

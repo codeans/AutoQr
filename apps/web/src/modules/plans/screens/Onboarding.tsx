@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Check } from "lucide-react";
 import { Button } from "../../../components/marketing/shared/Button";
 import { Container } from "../../../components/marketing/shared/Container";
@@ -36,6 +37,7 @@ const EMPTY_ADDRESS: AddressForm = {
 };
 
 export const OnboardingScreen = () => {
+  const { i18n } = useTranslation();
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user, requestOtp, verifyOtp } = useAuth();
@@ -92,14 +94,14 @@ export const OnboardingScreen = () => {
           </div>
           <div className="text-right">
             <p className="font-display text-xl text-content">
-              {formatCurrency(plan.priceCents, plan.currency)}
+              {formatCurrency(plan.priceCents, plan.currency, i18n.language)}
             </p>
             <p className="text-[11px] text-content0">one-time</p>
           </div>
         </div>
       </div>
     );
-  }, [plan]);
+  }, [plan, i18n.language]);
 
   if (loadError) {
     return (

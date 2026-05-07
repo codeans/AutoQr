@@ -25,15 +25,15 @@ export const UserBreadcrumbs = () => {
   }));
 
   return (
-    <nav className="flex items-center gap-1 text-xs text-slate-500" aria-label="Breadcrumb">
+    <nav className="flex max-w-[58vw] items-center gap-1 overflow-hidden text-xs text-slate-500 sm:max-w-[48vw] lg:max-w-none" aria-label="Breadcrumb">
       {segments.map((segment, index) => (
-        <span key={segment.path} className="inline-flex items-center gap-1">
+        <span key={segment.path} className="inline-flex min-w-0 items-center gap-1">
           {index < segments.length - 1 ? (
-            <Link to={segment.path} className="transition hover:text-slate-700">
+            <Link to={segment.path} className="truncate transition hover:text-slate-700">
               {segment.label}
             </Link>
           ) : (
-            <span className="font-semibold text-slate-700">{segment.label}</span>
+            <span className="truncate font-semibold text-slate-700">{segment.label}</span>
           )}
           {index < segments.length - 1 ? <span>/</span> : null}
         </span>

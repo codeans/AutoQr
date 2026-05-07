@@ -1,3 +1,4 @@
+import { formatMoney } from "../../../utils/intlCurrency";
 import { UserBadgeTone } from "../types/user.types";
 
 export const prettifyStatus = (value?: string) => (value ?? "unknown").replace(/_/g, " ");
@@ -7,9 +8,9 @@ export const formatDateTime = (value?: string) => {
   return new Date(value).toLocaleString();
 };
 
-export const formatCurrency = (amount?: number, currency = "EUR") => {
+export const formatCurrency = (amount?: number, currency = "EUR", i18nLanguage?: string) => {
   if (typeof amount !== "number") return "-";
-  return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(amount);
+  return formatMoney(amount, currency, i18nLanguage);
 };
 
 export const statusTone = (status?: string): UserBadgeTone => {

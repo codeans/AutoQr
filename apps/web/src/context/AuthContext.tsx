@@ -39,8 +39,6 @@ type AuthContextShape = {
   login: (email: string, password: string) => Promise<void>;
   requestOtp: (phone: string, purpose?: OtpVerifyPayload["purpose"]) => Promise<{ devCode?: string; expiresInSeconds: number }>;
   verifyOtp: (payload: OtpVerifyPayload) => Promise<User>;
-  requestWhatsAppOtp: (phone: string, purpose?: "login" | "signup") => Promise<{ devCode?: string; expiresInSeconds: number }>;
-  verifyWhatsAppOtp: (payload: OtpVerifyPayload) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -125,39 +123,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return data.user as User;
   }, []);
 
-  const requestWhatsAppOtp = useCallback(
-    async (phone: string, purpose: "login" | "signup" = "login") => {
-      const { data } = await api.post("/auth/send-whatsapp-otp", { phone, purpose });
-      return { devCode: data.devCode, expiresInSeconds: data.expiresInSeconds };
-    },
-    []
-  );
-
-  const verifyWhatsAppOtp = useCallback(async (payload: OtpVerifyPayload) => {
-    const purpose = (payload.purpose ?? "login") as "login" | "signup";
-    const body = {
-      phone: payload.phone,
-      code: payload.code,
-      purpose,
-      signup: payload.signup
-        ? {
-            name: payload.signup.name,
-            email: payload.signup.email,
-            address: payload.signup.address,
-            password: payload.signup.password ?? ""
-          }
-        : undefined
-    };
-
-    const { data } = await api.post("/auth/verify-whatsapp-otp", body);
-    setToken(data.accessToken);
-    setAccessToken(data.accessToken);
-    setUser(data.user);
-    syncLocaleFromUser(data.user);
-    persist(data.user, data.accessToken);
-    return data.user as User;
-  }, []);
-
   const logout = async () => {
     try {
       await api.post("/auth/logout");
@@ -190,11 +155,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       logout,
       requestOtp,
       verifyOtp,
-      requestWhatsAppOtp,
-      verifyWhatsAppOtp,
       refreshUser
     }),
-    [user, token, isBootstrapping, requestOtp, verifyOtp, requestWhatsAppOtp, verifyWhatsAppOtp, refreshUser]
+    [user, token, isBootstrapping, requestOtp, verifyOtp, refreshUser]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

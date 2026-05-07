@@ -3,6 +3,13 @@ import type { Config } from "tailwindcss";
 const config: Config = {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
+    screens: {
+      xs: "0px",
+      sm: "481px",
+      md: "769px",
+      lg: "1025px",
+      xl: "1441px"
+    },
     extend: {
       colors: {
         ink: {
@@ -23,21 +30,21 @@ const config: Config = {
           600: "#3D3D44"
         },
         accent: {
-          DEFAULT: "#1D4ED8",
-          soft: "#DBEAFE",
-          muted: "#1E3A8A"
+          DEFAULT: "#003878",
+          soft: "#DCE8F7",
+          muted: "#002C5F"
         },
         brand: {
-          50: "#EFF4FF",
-          100: "#DBEAFE",
-          200: "#BFD7FE",
-          300: "#93BBFD",
-          400: "#609BFA",
-          500: "#3B7CF6",
-          600: "#2563EB",
-          700: "#1D4ED8",
-          800: "#1E40AF",
-          900: "#1E3A8A"
+          50: "#EEF4FB",
+          100: "#DCE8F7",
+          200: "#BDD4ED",
+          300: "#93B8DF",
+          400: "#6999CF",
+          500: "#3D77B0",
+          600: "#003878",
+          700: "#002C5F",
+          800: "#002449",
+          900: "#001B36"
         },
         surface: {
           DEFAULT: "#FFFFFF",
@@ -52,15 +59,21 @@ const config: Config = {
           soft: "#9CA3AF"
         },
         action: "#dc2626",
+        signal: {
+          DEFAULT: "#688850",
+          soft: "#EAF0E4",
+          muted: "#4F6C3D"
+        },
         landing: {
-          primary: "#0066FF",
-          deep: "#001233",
-          soft: "#E8F0FF",
-          ink: "#0A0A0A",
-          mist: "#F8F9FB",
-          line: "#E5E8EC",
-          muted: "#9AA3B0",
-          slate: "#4A5260"
+          primary: "#003878",
+          deep: "#001B36",
+          soft: "#EEF4FB",
+          ink: "#0D1B2A",
+          mist: "#F6F9FC",
+          line: "#D2DEED",
+          muted: "#5E7693",
+          slate: "#37526F",
+          support: "#688850"
         }
       },
       borderRadius: {
@@ -97,33 +110,39 @@ const config: Config = {
         tighter: "-0.03em",
         display: "-0.035em"
       },
+      fontSize: {
+        "fluid-h1": ["clamp(2rem, 5vw, 5rem)", { lineHeight: "1.03", letterSpacing: "-0.03em" }],
+        "fluid-h2": ["clamp(1.5rem, 3.6vw, 3rem)", { lineHeight: "1.08", letterSpacing: "-0.02em" }],
+        "fluid-h3": ["clamp(1.25rem, 2.6vw, 2.125rem)", { lineHeight: "1.12", letterSpacing: "-0.015em" }],
+        "fluid-body": ["clamp(0.875rem, 1.4vw, 1rem)", { lineHeight: "1.6" }]
+      },
       boxShadow: {
         premium: "0 10px 25px -10px rgba(15, 23, 42, 0.35)",
         glow: "0 0 60px -20px rgba(233, 199, 154, 0.35)",
         elevate: "0 30px 80px -40px rgba(0, 0, 0, 0.8)",
         soft: "0 1px 2px 0 rgba(17, 24, 39, 0.04), 0 1px 3px 0 rgba(17, 24, 39, 0.06)",
-        card: "0 10px 30px -12px rgba(29, 78, 216, 0.12), 0 4px 10px -4px rgba(17, 24, 39, 0.06)",
-        glass: "0 20px 60px -20px rgba(29, 78, 216, 0.18)",
+        card: "0 10px 30px -12px rgba(0, 56, 120, 0.16), 0 4px 10px -4px rgba(17, 24, 39, 0.06)",
+        glass: "0 20px 60px -20px rgba(0, 56, 120, 0.2)",
         "landing-soft":
-          "0 1px 2px 0 rgba(0,18,51,0.04), 0 4px 16px -4px rgba(0,102,255,0.08)",
+          "0 1px 2px 0 rgba(0,27,54,0.05), 0 4px 16px -4px rgba(0,56,120,0.1)",
         "landing-card":
-          "0 12px 32px -12px rgba(0,102,255,0.18), 0 2px 8px -2px rgba(0,18,51,0.06)",
-        "landing-glow": "0 0 60px -10px rgba(0,102,255,0.35)",
-        "landing-deep": "0 30px 80px -30px rgba(0,18,51,0.35)"
+          "0 12px 32px -12px rgba(0,56,120,0.22), 0 2px 8px -2px rgba(0,27,54,0.08)",
+        "landing-glow": "0 0 60px -10px rgba(0,56,120,0.38)",
+        "landing-deep": "0 30px 80px -30px rgba(0,27,54,0.38)"
       },
       backgroundImage: {
         "grid-lines":
           "linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)",
         "radial-fade":
-          "radial-gradient(ellipse at top, rgba(29,78,216,0.10), transparent 60%)",
+          "radial-gradient(ellipse at top, rgba(0,56,120,0.12), transparent 60%)",
         "brand-fade":
-          "radial-gradient(ellipse at top, rgba(59,124,246,0.12), transparent 60%)",
+          "radial-gradient(ellipse at top, rgba(61,119,176,0.14), transparent 60%)",
         "brand-soft":
-          "linear-gradient(180deg, #F8FAFF 0%, #FFFFFF 60%)",
+          "linear-gradient(180deg, #F2F7FC 0%, #FFFFFF 60%)",
         "landing-mesh":
-          "radial-gradient(at 20% 10%, rgba(0,102,255,0.10) 0px, transparent 45%), radial-gradient(at 80% 0%, rgba(0,102,255,0.06) 0px, transparent 50%), radial-gradient(at 60% 90%, rgba(0,18,51,0.04) 0px, transparent 50%)",
+          "radial-gradient(at 20% 10%, rgba(0,56,120,0.12) 0px, transparent 45%), radial-gradient(at 80% 0%, rgba(104,136,80,0.08) 0px, transparent 50%), radial-gradient(at 60% 90%, rgba(0,27,54,0.05) 0px, transparent 50%)",
         "landing-grid":
-          "linear-gradient(to right, rgba(0,18,51,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,18,51,0.06) 1px, transparent 1px)"
+          "linear-gradient(to right, rgba(0,27,54,0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,27,54,0.07) 1px, transparent 1px)"
       },
       keyframes: {
         "landing-float": {

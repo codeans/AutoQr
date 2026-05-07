@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { carImageUpload } from "../../middleware/upload.js";
 import {
+  adminBulkPrintPdf,
   adminCreateBatch,
   adminDisableTag,
   adminExportBatch,
@@ -22,6 +23,7 @@ tagAdminRouter.post("/batches", adminCreateBatch);
 tagAdminRouter.get("/batches", adminListBatches);
 tagAdminRouter.patch("/batches/:id/status", adminUpdateBatchStatus);
 tagAdminRouter.get("/batches/:id/export", adminExportBatch);
+tagAdminRouter.post("/print-pdf", adminBulkPrintPdf);
 tagAdminRouter.get("/activations", adminListActivationRecords);
 tagAdminRouter.get("/", adminListTags);
 tagAdminRouter.patch("/:id/disable", adminDisableTag);

@@ -5,18 +5,21 @@ import { useTranslation } from "react-i18next";
 import { LinkButton } from "../shared/Button";
 import { Container } from "../shared/Container";
 import { useMarketingContent } from "../content/useMarketingContent";
+import { useMotionTier } from "../../../hooks/useMotionTier";
 
 export const Hero = () => {
   const { t } = useTranslation();
   const reduce = useReducedMotion() ?? false;
   const { hero } = useMarketingContent();
+  const motionTier = useMotionTier();
+  const isLimitedMotion = motionTier !== "full";
 
   return (
-    <section className="relative overflow-hidden pb-20 pt-14 sm:pb-28 sm:pt-20 lg:pb-32 lg:pt-24">
+    <section className="relative flex min-h-[calc(100svh-4rem)] items-center overflow-hidden py-4 sm:min-h-[calc(100svh-72px)] sm:py-6 lg:py-7 [@media(max-height:860px)]:py-4">
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#f7fbff_0%,#edf4ff_35%,#f9fbff_100%)]" />
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 h-[640px] w-[1200px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(59,124,246,0.24),transparent_62%)] blur-2xl"
+        className="pointer-events-none absolute -top-40 left-1/2 h-[640px] w-[1200px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(0,56,120,0.26),transparent_62%)] blur-2xl"
       />
       <div
         aria-hidden
@@ -24,7 +27,7 @@ export const Hero = () => {
       />
 
       <Container>
-        <div className="grid gap-14 lg:grid-cols-12 lg:items-center lg:gap-10">
+        <div className="grid gap-6 lg:grid-cols-12 lg:items-center lg:gap-8 [@media(max-height:860px)]:gap-5">
           <div className="lg:col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full border border-brand-100/80 bg-white/90 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-700 shadow-soft backdrop-blur">
               <span className="relative flex h-1.5 w-1.5">
@@ -34,20 +37,20 @@ export const Hero = () => {
               {hero.eyebrow}
             </div>
             <h1
-              className="mt-6 font-display text-[42px] font-semibold leading-[1.02] tracking-[-0.038em] text-content sm:text-[62px] lg:text-[80px]"
+              className="mt-3 font-display text-[clamp(1.9rem,6.4vw,4.25rem)] font-semibold leading-[1.01] tracking-[-0.038em] text-content [@media(max-height:860px)]:text-[clamp(1.8rem,5.8vw,3.75rem)]"
               style={{ textWrap: "balance" }}
             >
               {hero.headline}{" "}
-              <span className="bg-[linear-gradient(90deg,#2f69f8_0%,#6f4dff_100%)] bg-clip-text text-transparent">
+              <span className="bg-[linear-gradient(90deg,#003878_0%,#688850_100%)] bg-clip-text text-transparent">
                 {hero.highlight}
               </span>
             </h1>
 
-            <p className="mt-7 max-w-2xl text-base leading-relaxed text-content-muted sm:text-lg">
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-content-muted sm:text-base lg:text-[1.02rem]">
               {hero.description}
             </p>
 
-            <div className="mt-9 flex flex-wrap items-center gap-3">
+            <div className="mt-4 flex flex-wrap items-center gap-2.5 sm:gap-3">
               <LinkButton to={hero.primaryCta.to} size="lg" showArrow>
                 {hero.primaryCta.label}
               </LinkButton>
@@ -56,7 +59,7 @@ export const Hero = () => {
               </LinkButton>
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3 text-sm text-content-subtle">
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-content-subtle sm:text-sm [@media(max-height:860px)]:hidden">
               <span className="inline-flex items-center gap-2 rounded-full border border-surface-border bg-white/80 px-3 py-1.5">
                 <ShieldCheck className="h-4 w-4 text-brand-700" />
                 <span>{hero.trustLine || t("home.heroVisual.fallbackTrustLine")}</span>
@@ -72,10 +75,10 @@ export const Hero = () => {
             <motion.div
               initial={reduce ? undefined : { opacity: 0, y: 16 }}
               animate={reduce ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-              className="relative mx-auto w-full max-w-[470px] lg:ml-auto"
+              transition={{ duration: isLimitedMotion ? 0.35 : 0.7, delay: isLimitedMotion ? 0 : 0.12, ease: [0.16, 1, 0.3, 1] }}
+              className="relative mx-auto w-full max-w-[270px] sm:max-w-[340px] md:max-w-[410px] lg:ml-auto lg:max-w-[450px]"
             >
-              <HeroVisual t={t} reduced={reduce} />
+              <HeroVisual t={t} reduced={reduce || isLimitedMotion} />
             </motion.div>
           </div>
         </div>
@@ -125,7 +128,7 @@ const HeroVisual = ({ t, reduced }: HeroVisualProps) => {
       />
 
       <motion.div
-        className="pointer-events-none absolute -inset-2 rounded-[34px] bg-[linear-gradient(135deg,rgba(47,105,248,0.22),rgba(111,77,255,0.12),rgba(255,255,255,0.5))] blur-lg"
+        className="pointer-events-none absolute -inset-2 rounded-[34px] bg-[linear-gradient(135deg,rgba(0,56,120,0.24),rgba(104,136,80,0.14),rgba(255,255,255,0.5))] blur-lg"
         style={reduced ? undefined : { rotateX, rotateY, transformStyle: "preserve-3d" }}
       />
       <motion.div
@@ -139,7 +142,7 @@ const HeroVisual = ({ t, reduced }: HeroVisualProps) => {
             {t("home.heroVisual.active")}
           </span>
         </div>
-        <div className="mt-5 grid aspect-square w-full place-items-center rounded-2xl border border-surface-border/70 bg-[linear-gradient(180deg,rgba(0,18,51,0.06)_0%,rgba(255,255,255,0.92)_100%)] p-6 [transform:translateZ(26px)]">
+        <div className="mt-5 grid aspect-square w-full place-items-center rounded-2xl border border-surface-border/70 bg-[linear-gradient(180deg,rgba(0,27,54,0.06)_0%,rgba(255,255,255,0.92)_100%)] p-6 [transform:translateZ(26px)]">
           <QrArt reduced={reduced} />
         </div>
         <div className="mt-5 space-y-1.5 [transform:translateZ(14px)]">
@@ -167,8 +170,8 @@ const HeroVisual = ({ t, reduced }: HeroVisualProps) => {
         </div>
       </motion.div>
       <div className="pointer-events-none absolute left-4 top-4 h-2 w-2 rounded-full bg-white/85 shadow-[0_0_24px_rgba(255,255,255,0.95)]" />
-      <div className="pointer-events-none absolute right-16 top-20 h-1.5 w-1.5 rounded-full bg-brand-300/70 shadow-[0_0_18px_rgba(59,124,246,0.55)]" />
-      <div className="pointer-events-none absolute bottom-8 left-10 h-1.5 w-1.5 rounded-full bg-indigo-300/70 shadow-[0_0_18px_rgba(111,77,255,0.55)]" />
+      <div className="pointer-events-none absolute right-16 top-20 h-1.5 w-1.5 rounded-full bg-brand-300/70 shadow-[0_0_18px_rgba(0,56,120,0.55)]" />
+      <div className="pointer-events-none absolute bottom-8 left-10 h-1.5 w-1.5 rounded-full bg-[#688850]/80 shadow-[0_0_18px_rgba(104,136,80,0.52)]" />
     </div>
   );
 };
@@ -181,7 +184,7 @@ const QrArt = ({ reduced }: { reduced: boolean }) => (
       className="absolute inset-0"
       style={{
         background:
-          "radial-gradient(ellipse at 20% 25%, rgba(0,102,255,0.28) 0%, rgba(0,102,255,0) 55%), radial-gradient(ellipse at 75% 30%, rgba(111,77,255,0.22) 0%, rgba(111,77,255,0) 52%), radial-gradient(ellipse at 50% 85%, rgba(0,18,51,0.12) 0%, rgba(0,18,51,0) 60%)"
+          "radial-gradient(ellipse at 20% 25%, rgba(0,56,120,0.28) 0%, rgba(0,56,120,0) 55%), radial-gradient(ellipse at 75% 30%, rgba(104,136,80,0.22) 0%, rgba(104,136,80,0) 52%), radial-gradient(ellipse at 50% 85%, rgba(0,27,54,0.12) 0%, rgba(0,27,54,0) 60%)"
       }}
     />
 
@@ -192,7 +195,7 @@ const QrArt = ({ reduced }: { reduced: boolean }) => (
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, rgba(0,102,255,0) 0%, rgba(0,102,255,0.10) 45%, rgba(0,102,255,0) 100%)"
+            "linear-gradient(180deg, rgba(0,56,120,0) 0%, rgba(0,56,120,0.10) 45%, rgba(0,56,120,0) 100%)"
         }}
         animate={{ y: ["-30%", "30%"] }}
         transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut" }}
@@ -206,7 +209,7 @@ const QrArt = ({ reduced }: { reduced: boolean }) => (
         className="absolute h-[140%] w-[140%] rounded-full"
         style={{
           background:
-            "conic-gradient(from 210deg, rgba(0,102,255,0.0) 0deg, rgba(0,102,255,0.35) 70deg, rgba(111,77,255,0.35) 145deg, rgba(0,102,255,0.0) 220deg)"
+            "conic-gradient(from 210deg, rgba(0,56,120,0.0) 0deg, rgba(0,56,120,0.35) 70deg, rgba(104,136,80,0.35) 145deg, rgba(0,56,120,0.0) 220deg)"
         }}
       />
 
@@ -223,9 +226,9 @@ const QrArt = ({ reduced }: { reduced: boolean }) => (
       >
         <defs>
           <linearGradient id="aqrRing" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#2f69f8" stopOpacity="0.95" />
-            <stop offset="60%" stopColor="#6f4dff" stopOpacity="0.85" />
-            <stop offset="100%" stopColor="#2f69f8" stopOpacity="0.65" />
+            <stop offset="0%" stopColor="#003878" stopOpacity="0.95" />
+            <stop offset="60%" stopColor="#688850" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#003878" stopOpacity="0.65" />
           </linearGradient>
         </defs>
         {/* Outer ring */}
@@ -260,7 +263,7 @@ const QrArt = ({ reduced }: { reduced: boolean }) => (
         <motion.path
           d="M 45 118 C 72 74, 128 74, 155 118"
           fill="none"
-          stroke="#0066FF"
+          stroke="#003878"
           strokeWidth="2.2"
           strokeLinecap="round"
           opacity="0.9"
@@ -284,7 +287,7 @@ const QrArt = ({ reduced }: { reduced: boolean }) => (
           // eslint-disable-next-line react/no-array-index-key
           key={idx}
           aria-hidden
-          className="absolute h-2.5 w-2.5 rounded-full bg-[#0066FF] shadow-[0_0_18px_rgba(0,102,255,0.55)]"
+          className="absolute h-2.5 w-2.5 rounded-full bg-[#003878] shadow-[0_0_18px_rgba(0,56,120,0.55)]"
           style={{ left: n.left, top: n.top }}
           animate={
             reduced

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ReceiptText } from "lucide-react";
 import { Button, Card } from "../../../components/ui";
 import { UserOrder } from "../types/user.types";
@@ -10,7 +11,9 @@ type OrderCardProps = {
   isProcessing?: boolean;
 };
 
-export const OrderCard = ({ order, onPayNow, isProcessing }: OrderCardProps) => (
+export const OrderCard = ({ order, onPayNow, isProcessing }: OrderCardProps) => {
+  const { i18n } = useTranslation();
+  return (
   <Card className="space-y-3">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="inline-flex items-center gap-2">
@@ -29,7 +32,7 @@ export const OrderCard = ({ order, onPayNow, isProcessing }: OrderCardProps) => 
       <p>
         <span className="text-xs text-slate-500">Amount</span>
         <br />
-        {formatCurrency(order.amount, order.currency)}
+        {formatCurrency(order.amount, order.currency, i18n.language)}
       </p>
       <p>
         <span className="text-xs text-slate-500">Invoice</span>
@@ -48,4 +51,5 @@ export const OrderCard = ({ order, onPayNow, isProcessing }: OrderCardProps) => 
       </Button>
     ) : null}
   </Card>
-);
+  );
+};

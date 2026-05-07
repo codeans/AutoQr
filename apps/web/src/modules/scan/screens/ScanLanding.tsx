@@ -13,6 +13,17 @@ import { ReasonOption } from "../components/ReasonOption";
 import { GermanPhoneInput } from "../../../features/calls/components/GermanPhoneInput";
 import { MultiImageUploader } from "../../../features/calls/components/MultiImageUploader";
 import { submitIncident } from "../../../features/calls/services/incidentApi";
+import {
+  useIncidentReporterLocation,
+  toSubmitPayload,
+  isGpsCaptureStale,
+  type LocationAcquireOutcome
+} from "../hooks/useIncidentReporterLocation";
+import { IncidentLocationPreview } from "../components/IncidentLocationPreview";
+import {
+  enqueueOfflineIncidentDraft,
+  flushIncidentSubmitQueue
+} from "../utils/incidentOfflineQueue";
 
 type Mode = "preview" | "live";
 
@@ -54,6 +65,9 @@ export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
   const [consent, setConsent] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [pending, setPending] = useState<null | "alert" | "call">(null);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
+  const { state: locState, refresh: refreshLocation, reset: resetLocation } = useIncidentReporterLocation();
+  const googleMapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
   const phoneE164 = useMemo(() => toGermanE164(reporterPhone), [reporterPhone]);
 
@@ -74,6 +88,22 @@ export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
       .then(setLanding)
       .catch(() => setError(t("scan.tagNotFoundMessage")));
   }, [t, token]);
+
+  useEffect(() => {
+    if (locState.status === "ready") {
+      setLocationConfirmed(locState.outcome.kind === "gps");
+    }
+  }, [locState]);
+
+  useEffect(() => {
+    if (!isLive || !token) return;
+    const onOnline = () => {
+      void flushIncidentSubmitQueue().catch(() => undefined);
+    };
+    void flushIncidentSubmitQueue().catch(() => undefined);
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [isLive, token]);
 
   if (error) {
     return (
@@ -153,18 +183,73 @@ export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
     return true;
   };
 
+  const resolveLocationOutcome = async (): Promise<LocationAcquireOutcome> => {
+    if (locState.status === "ready") {
+      const current = locState.outcome;
+      if (current.kind === "gps" && isGpsCaptureStale(current.capturedAt)) {
+        return refreshLocation();
+      }
+      return current;
+    }
+    return refreshLocation();
+  };
+
   const doSubmit = async (action: "alert" | "call") => {
     if (!isLive) return;
     if (!validate()) return;
+
+    let outcome: LocationAcquireOutcome;
+    try {
+      outcome = await resolveLocationOutcome();
+    } catch {
+      setSubmitError(t("incident.errorSubmitGeneric"));
+      return;
+    }
+
+    if (outcome.kind === "denied") {
+      setSubmitError(t("incident.locationDeniedLong"));
+      return;
+    }
+
+    /* Approximate path: user must acknowledge before submit */
+    if ((outcome.kind === "fallback" || outcome.kind === "unsupported") && !locationConfirmed) {
+      setSubmitError(t("incident.locationConfirmRequired"));
+      return;
+    }
+
+    const locationPayload = toSubmitPayload(outcome);
+    if (!locationPayload) {
+      setSubmitError(t("incident.locationDeniedLong"));
+      return;
+    }
+
     setPending(action);
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueueOfflineIncidentDraft({
+          token,
+          reporterName,
+          reporterPhoneE164: phoneE164!,
+          message: composedMessage() || (activeReason ?? "other"),
+          files,
+          location: locationPayload
+        });
+        alert(t("incident.offlineQueued"));
+        resetLocation();
+        setLocationConfirmed(false);
+        return;
+      }
+
       const incident = await submitIncident({
         token,
         reporterName,
         reporterPhoneE164: phoneE164!,
         message: composedMessage() || (activeReason ?? "other"),
-        files
+        files,
+        location: locationPayload
       });
+      resetLocation();
+      setLocationConfirmed(false);
       if (action === "call") {
         const params = new URLSearchParams({
           incidentId: incident.id,
@@ -191,7 +276,7 @@ export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
     }
   };
 
-  const buttonsDisabled = !isLive || pending !== null;
+  const buttonsDisabled = !isLive || pending !== null || locState.status === "loading";
 
   return (
     <div className="min-h-screen bg-surface-soft py-12">
@@ -340,6 +425,51 @@ export const ScanLandingScreen = ({ mode = "preview" }: Props) => {
                   <span>{t("incident.consentLong")}</span>
                 </span>
               </label>
+
+              {isLive && (
+                <div className="space-y-3 rounded-2xl border border-surface-border bg-white p-4">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-content-subtle">
+                    {t("incident.locationSectionTitle")}
+                  </h3>
+                  {locState.status === "idle" && (
+                    <p className="text-[13px] text-content-muted">{t("incident.locationRequiredHint")}</p>
+                  )}
+                  {locState.status === "loading" && (
+                    <p className="text-[13px] font-medium text-content">{t("incident.fetchingLocation")}</p>
+                  )}
+                  {locState.status === "denied" && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">
+                      {t("incident.locationDeniedLong")}
+                    </div>
+                  )}
+                  {locState.status === "ready" && (
+                    <>
+                      <IncidentLocationPreview outcome={locState.outcome} googleMapsApiKey={googleMapsKey} />
+                      {(locState.outcome.kind === "fallback" || locState.outcome.kind === "unsupported") && (
+                        <label className="flex cursor-pointer items-start gap-3 text-[13px] text-content-muted">
+                          <input
+                            type="checkbox"
+                            checked={locationConfirmed}
+                            onChange={(e) => setLocationConfirmed(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 rounded border-surface-border text-brand-700 focus:ring-brand-500/30"
+                          />
+                          <span>{t("incident.locationConfirmationLabel")}</span>
+                        </label>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="w-full sm:w-auto"
+                        disabled={pending !== null}
+                        onClick={() => void refreshLocation()}
+                      >
+                        {t("incident.refreshLocation")}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
 
               {submitError && (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">

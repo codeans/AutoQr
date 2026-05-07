@@ -5,6 +5,7 @@ import { OrderModel } from "../../models/Order.js";
 import { PaymentModel } from "../../models/Payment.js";
 import { TagModel } from "../../models/Tag.js";
 import { ApiError } from "../../utils/apiError.js";
+import { isCatalogPlanSlug, mergePublicPlanFromCatalog } from "../plans/plan.service.js";
 
 export const createCheckoutSession = async (orderId: string, userId: string) => {
   const order = await OrderModel.findOne({ _id: orderId, userId });
@@ -55,27 +56,31 @@ export const createPublicCheckoutSession = async (args: {
   };
   note?: string;
 }) => {
-  const plan = await PlanModel.findById(args.planId);
-  if (!plan || plan.status !== "active") throw new ApiError(404, "Plan not available");
+  const plan = await PlanModel.findById(args.planId).lean();
+  if (!plan || plan.status !== "active" || !isCatalogPlanSlug(String(plan.slug))) {
+    throw new ApiError(404, "Plan not available");
+  }
+
+  const effective = mergePublicPlanFromCatalog(plan);
 
   const snapshot = {
-    planId: plan.id,
-    code: plan.code,
-    slug: plan.slug,
-    name: plan.name,
-    priceCents: plan.priceCents,
-    currency: plan.currency,
-    tagsIncluded: plan.tagsIncluded,
-    tier: plan.tier
+    planId: String(plan._id),
+    code: effective.code,
+    slug: effective.slug,
+    name: effective.name,
+    priceCents: effective.priceCents,
+    currency: effective.currency,
+    tagsIncluded: effective.tagsIncluded,
+    tier: effective.tier
   };
 
   const order = await OrderModel.create({
-    planId: plan.id,
+    planId: plan._id,
     planSnapshot: snapshot,
-    selectedPlan: plan.slug,
-    amount: plan.priceCents / 100,
-    currency: plan.currency,
-    tagQuantity: plan.tagsIncluded,
+    selectedPlan: effective.slug,
+    amount: effective.priceCents / 100,
+    currency: effective.currency,
+    tagQuantity: effective.tagsIncluded,
     paymentStatus: "pending",
     orderStatus: "pending_payment",
     customerName: args.fullName,
@@ -103,8 +108,8 @@ export const createPublicCheckoutSession = async (args: {
       {
         price_data: {
           currency: (order.currency ?? "eur").toLowerCase(),
-          product_data: { name: `AutoQR — ${plan.name}` },
-          unit_amount: plan.priceCents
+          product_data: { name: `AutoQR — ${effective.name}` },
+          unit_amount: effective.priceCents
         },
         quantity: 1
       }

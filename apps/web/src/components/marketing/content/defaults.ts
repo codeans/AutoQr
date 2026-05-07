@@ -24,11 +24,26 @@ export type SolutionContent = {
   steps: SolutionStep[];
 };
 
+export type UseCaseFeature = {
+  title: string;
+  description: string;
+};
+
+export type UseCaseSide = {
+  title: string;
+  /** Short label next to the icon, e.g. KFZ-Sicherheit */
+  tagline?: string;
+  description: string;
+  features?: UseCaseFeature[];
+  /** Legacy CMS payloads */
+  bullets?: string[];
+};
+
 export type UseCaseContent = {
   headline: string;
   description: string;
-  car: { title: string; description: string; bullets: string[] };
-  key: { title: string; description: string; bullets: string[] };
+  car: UseCaseSide;
+  key: UseCaseSide;
 };
 
 export type WorkflowStep = { title: string; description: string };
@@ -116,8 +131,8 @@ const englishMarketingContent: MarketingContent = {
         icon: "key"
       },
       {
-        title: "Your number becomes public",
-        description: "A dashboard note leaks your number to anyone walking past.",
+        title: "Your phone number is exposed",
+        description: "A note on your dashboard makes your number visible to anyone passing by.",
         icon: "eye"
       },
       {
@@ -147,24 +162,72 @@ const englishMarketingContent: MarketingContent = {
     ]
   },
   useCases: {
-    headline: "One QR. Two simple uses.",
+    headline: "One QR for parking damage and lost keys.",
     description: "AutoQr works for your car and for your keys, with the same privacy-first experience.",
     car: {
-      title: "For your car",
-      description: "Stick the QR on your windshield. If anyone damages it, they can alert you instantly.",
-      bullets: [
-        "Scan the QR on the windshield",
-        "Upload damage photos securely",
-        "Connect with the owner privately"
+      title: "Your car",
+      tagline: "Vehicle protection",
+      description:
+        "Put the QR on your windshield — stay reachable for parking scrapes, blocked access, and everyday situations without exposing your phone number.",
+      features: [
+        {
+          title: "Minor damage & parking scrapes",
+          description:
+            "Clear, low-friction contact after small bumps or parking damage, so things get sorted without needless stress."
+        },
+        {
+          title: "Avoid unnecessary towing",
+          description:
+            "Get notified promptly if your vehicle is in the way — before someone calls a tow truck and you face a heavy bill."
+        },
+        {
+          title: "Window open or lights on",
+          description:
+            "Passers-by can send a friendly heads-up when a window is still down or lights are draining the battery."
+        },
+        {
+          title: "Blocked driveways & private contact",
+          description:
+            "People can reach you anonymously and safely when a driveway or access is blocked — without trading private numbers."
+        },
+        {
+          title: "Private parking areas",
+          description:
+            "Sort parking disputes on residential or company lots politely and quickly with a short message instead of a confrontation."
+        }
       ]
     },
     key: {
-      title: "For your keys",
-      description: "Clip the QR keychain on your keys. If you lose them, anyone can safely return them.",
-      bullets: [
-        "Scan the keychain QR",
-        "Contact the owner anonymously",
-        "Return keys safely, no address shared"
+      title: "Your keys",
+      tagline: "Key protection",
+      description:
+        "Use the QR keychain so finders can reach you privately — keys come back faster and your locks and master-key systems stay safer.",
+      features: [
+        {
+          title: "Spare your building’s lock system",
+          description:
+            "Avoid the huge cost of replacing an entire access or lock system across a building after losing one key."
+        },
+        {
+          title: "Anonymous return, real privacy",
+          description:
+            "Get your keys back without the finder learning your home address or identity — stronger security where you live."
+        },
+        {
+          title: "Fewer locksmith emergencies",
+          description:
+            "Reduce expensive emergency call-outs when an honest finder gets your keys back to you quickly via the QR."
+        },
+        {
+          title: "Protection for workplace master keys",
+          description:
+            "Especially for businesses: limit the damage if a valuable central or master key goes missing."
+        },
+        {
+          title: "Instant find alerts & peace of mind",
+          description:
+            "Hear as soon as your keys are reported found — less time worrying while they are gone."
+        }
       ]
     }
   },
@@ -229,33 +292,34 @@ const englishMarketingContent: MarketingContent = {
     ]
   },
   faq: {
-    eyebrow: "FAQ",
-    headline: "Frequently asked questions.",
-    description: "Everything you need to know before ordering.",
+    eyebrow: "",
+    headline: "Frequently asked questions (FAQ)",
+    description: "Short answers before you order.",
     items: [
       {
         question: "How does AutoQr work?",
-        answer: "You order a QR sticker or keychain. Anyone who scans it can reach you securely through the browser — without ever seeing your phone number."
+        answer:
+          "It's that simple! You order a QR sticker or keychain. When someone scans it, they can reach you securely through the browser – without ever seeing your number."
       },
       {
         question: "Is my number really private?",
-        answer: "Yes. Your phone number is never visible to the person scanning. AutoQr creates a secure bridge for the call."
+        answer:
+          "Yes. Your phone number is never visible to third parties at any time. The connection runs exclusively through our encrypted bridge to protect your privacy."
       },
       {
-        question: "Can I use it for keys?",
-        answer: "Yes. We offer both a windshield sticker for cars and a durable keychain for keys. Both work the same way."
+        question: "Can I use it for my keys too?",
+        answer:
+          "Absolutely! The keychain works just like the sticker – discreet, secure, and with no app to install."
       },
       {
         question: "Is there a subscription?",
-        answer: "No. AutoQr is a one-time purchase. No monthly or annual fees."
+        answer:
+          "No. You pay a one-time €29 and use AutoQr with no further costs, for as long as you like. There are no hidden monthly fees."
       },
       {
-        question: "How do I activate my QR?",
-        answer: "Scan the code, create your account, and add your vehicle or key details. Activation takes less than a minute."
-      },
-      {
-        question: "What happens if someone scans my QR?",
-        answer: "They see a clean page where they can upload photos, enter their number, and connect to you through a secure call in the browser."
+        question: "What happens when someone scans my QR code?",
+        answer:
+          'A mobile page opens right away. They can upload photos, enter their message or number, and tap "Connect" – your device then rings immediately.'
       }
     ]
   },
@@ -326,27 +390,73 @@ const germanMarketingContent: MarketingContent = {
     ]
   },
   useCases: {
-    headline: "Ein QR-Code. Zwei einfache Einsatzzwecke.",
+    headline: "Ein QR-Code für Parkschäden und verlorene Schlüssel.",
     description:
       "AutoQr funktioniert für Ihr Auto und Ihre Schlüssel – mit derselben datenschutzfreundlichen Erfahrung.",
     car: {
-      title: "Für Ihr Auto",
+      title: "Auto",
+      tagline: "KFZ-Sicherheit",
       description:
-        "Platzieren Sie den QR-Code an der Windschutzscheibe. Bei einem Schaden kann man Sie sofort informieren.",
-      bullets: [
-        "QR-Code an der Windschutzscheibe scannen",
-        "Schadensfotos sicher hochladen",
-        "Privat mit dem Fahrzeughalter verbinden"
+        "QR-Code an der Windschutzscheibe – bleiben Sie für Parkrempler, Zuparker und Alltagsrisiken erreichbar, ohne Ihre Nummer preiszugeben.",
+      features: [
+        {
+          title: "Bagatellschäden & Parkrempler",
+          description:
+            "Schnelle und unkomplizierte Kommunikation bei kleinen Unfällen oder Parkschäden, um unnötigen Stress zu vermeiden."
+        },
+        {
+          title: "Abschleppkosten vermeiden",
+          description:
+            "Verhindern Sie teure Abschleppgebühren, indem Sie sofort benachrichtigt werden, falls Ihr Fahrzeug jemanden behindert."
+        },
+        {
+          title: "Offenes Fenster oder Licht an",
+          description:
+            "Erhalten Sie einen freundlichen Hinweis von Passanten, wenn Ihr Fenster noch offen ist oder das Licht brennt."
+        },
+        {
+          title: "Zugeparkte Einfahrten & Anonymer Anruf",
+          description:
+            "Kontaktieren Sie den Fahrzeughalter anonym und sicher, falls eine Einfahrt blockiert ist, ohne private Nummern preiszugeben."
+        },
+        {
+          title: "Privatparkplatz-Management",
+          description:
+            "Lösen Sie Parkplatzkonflikte auf privaten Flächen direkt und höflich durch eine schnelle Nachricht."
+        }
       ]
     },
     key: {
-      title: "Für Ihre Schlüssel",
+      title: "Schlüssel",
+      tagline: "Schlüssel-Schutz",
       description:
-        "Befestigen Sie den QR-Schlüsselanhänger an Ihrem Schlüsselbund. Finder können Sie sicher kontaktieren.",
-      bullets: [
-        "QR-Code am Schlüsselanhänger scannen",
-        "Fahrzeughalter anonym kontaktieren",
-        "Schlüssel sicher zurückgeben, ohne Adresse"
+        "QR-Schlüsselanhänger – Finder erreichen Sie privat, Schlüssel kommen schneller zurück und Ihre Schließanlage bleibt geschützt.",
+      features: [
+        {
+          title: "Schutz vor Austausch der Schließanlage",
+          description:
+            "Vermeiden Sie die enormen Kosten für den Austausch der gesamten Schließanlage eines Gebäudes bei Schlüsselverlust."
+        },
+        {
+          title: "Anonyme Rückgabe & Privatsphäre",
+          description:
+            "Finden Sie Ihren Schlüssel zurück, ohne dass der Finder Ihre Adresse oder Identität erfährt – maximale Sicherheit für Ihr Zuhause."
+        },
+        {
+          title: "Hohe Schlüsseldienst-Kosten vermeiden",
+          description:
+            "Sparen Sie sich teure Notdienste, wenn Ihr verlorener Schlüssel dank des QR-Codes schnell wieder bei Ihnen landet."
+        },
+        {
+          title: "Schutz für gewerbliche Zentralschlüssel",
+          description:
+            "Besonders wichtig für Firmen: Schützen Sie wertvolle Zentralschlüssel vor einem kostspieligen Totalverlust."
+        },
+        {
+          title: "Sofortige Benachrichtigung & Seelenfrieden",
+          description:
+            "Erhalten Sie in Echtzeit eine Nachricht, sobald Ihr Schlüssel gefunden wurde, und genießen Sie absolute Sorgenfreiheit."
+        }
       ]
     }
   },
@@ -414,38 +524,34 @@ const germanMarketingContent: MarketingContent = {
     ]
   },
   faq: {
-    eyebrow: "FAQ",
-    headline: "Häufig gestellte Fragen.",
+    eyebrow: "",
+    headline: "Häufig gestellte Fragen (FAQ)",
     description: "Alles Wichtige vor Ihrer Bestellung.",
     items: [
       {
-        question: "Wie funktioniert AutoQr?",
+        question: "Wie funktioniert autoqr?",
         answer:
-          "Sie bestellen einen QR-Aufkleber oder Schlüsselanhänger. Wer ihn scannt, kann Sie sicher im Browser erreichen, ohne Ihre Telefonnummer zu sehen."
+          "Es ist ganz einfach! Sie bestellen einen QR-Aufkleber oder Schlüsselanhänger. Wenn jemand diesen scannt, kann er Sie sicher über den Browser erreichen – ganz ohne Ihre Nummer zu sehen."
       },
       {
-        question: "Bleibt meine Nummer wirklich privat?",
+        question: "Ist meine Nummer wirklich privat?",
         answer:
-          "Ja. Ihre Telefonnummer ist für die meldende Person nicht sichtbar. AutoQr stellt eine sichere Verbindung her."
+          "Ja. Ihre Telefonnummer ist zu keinem Zeitpunkt für Dritte sichtbar. Die Verbindung läuft ausschließlich über unsere verschlüsselte Brücke, um Ihre Privatsphäre zu schützen."
       },
       {
-        question: "Kann ich AutoQr auch für Schlüssel nutzen?",
+        question: "Kann ich es auch für Schlüssel nutzen?",
         answer:
-          "Ja. Es gibt einen Aufkleber für Autos und einen robusten Schlüsselanhänger für Schlüssel. Beide funktionieren gleich."
+          "Selbstverständlich! Der Schlüsselanhänger funktioniert genauso wie der Aufkleber – diskret, sicher und ohne dass eine App installiert werden muss."
       },
       {
         question: "Gibt es ein Abonnement?",
-        answer: "Nein. AutoQr ist ein einmaliger Kauf. Es gibt keine monatlichen oder jährlichen Gebühren."
-      },
-      {
-        question: "Wie aktiviere ich meinen QR-Code?",
         answer:
-          "Scannen Sie den Code, erstellen Sie Ihr Konto und ergänzen Sie Fahrzeug- oder Schlüsseldaten. Die Aktivierung dauert weniger als eine Minute."
+          "Nein. Sie zahlen einmalig 29 € und nutzen autoqr ohne weitere Kosten, so lange Sie möchten. Es gibt keine versteckten monatlichen Gebühren."
       },
       {
         question: "Was passiert, wenn jemand meinen QR-Code scannt?",
         answer:
-          "Die Person sieht eine klare Seite zum Hochladen von Fotos, Eingeben der Nummer und zum sicheren Verbindungsaufbau im Browser."
+          "Eine mobile Seite öffnet sich sofort. Die Person kann Fotos hochladen, ihre Nachricht oder Nummer eingeben und auf „Verbinden“ klicken – Ihr Gerät klingelt dann direkt."
       }
     ]
   },

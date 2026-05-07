@@ -25,7 +25,7 @@ const parseHighlights = (input: string): ReactNode[] => {
       nodes.push(input.slice(lastIndex, match.index));
     }
     nodes.push(
-      <span key={`hl-${key++}`} className="text-[#0066FF]">
+      <span key={`hl-${key++}`} className="text-[#003878]">
         {match[1]}
       </span>
     );
@@ -69,15 +69,15 @@ export const NarrativePanel = ({ beat, scrollYProgress }: NarrativePanelProps) =
             className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,rgba(255,255,255,0.8),rgba(239,246,255,0.5),rgba(255,255,255,0.7))]"
           />
           <div className="relative">
-            <p className="mb-4 inline-flex items-center rounded-full border border-[#0066FF]/20 bg-[#0066FF]/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0052cc]">
+            <p className="mb-4 inline-flex items-center rounded-full border border-[#003878]/20 bg-[#003878]/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#003878]">
               {chapterLabel} {beat.chapter}
             </p>
 
-            <h1 className="text-4xl font-bold leading-[0.95] tracking-[-0.03em] text-[#001233] sm:text-6xl lg:text-7xl">
+            <h1 className="text-4xl font-bold leading-[0.95] tracking-[-0.03em] text-[#001B36] sm:text-6xl lg:text-7xl">
               {parseHighlights(headline)}
             </h1>
 
-            <p className="mt-5 max-w-prose text-base leading-relaxed text-[#4A5260] sm:text-lg md:text-xl">
+            <p className="mt-5 max-w-prose text-base leading-relaxed text-[#37526F] sm:text-lg md:text-xl">
               {subline}
             </p>
 
@@ -100,7 +100,7 @@ const CtaPair = () => {
       >
         <Link
           to="/shop/car-qr"
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-[#001233] px-8 py-4 font-medium text-white shadow-[0_12px_32px_-12px_rgba(0,18,51,0.4)] transition-all duration-300 hover:scale-[1.03] hover:bg-[#0066FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066FF] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-[#001B36] px-8 py-4 font-medium text-white shadow-[0_12px_32px_-12px_rgba(0,27,54,0.4)] transition-all duration-300 hover:scale-[1.03] hover:bg-[#003878] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#003878] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
         >
           {t("landingHero.ctaPrimary")}
           <ArrowRight className="h-4 w-4" />
@@ -113,7 +113,7 @@ const CtaPair = () => {
       >
         <Link
           to="/shop/key-qr"
-          className="inline-flex items-center justify-center rounded-full border-2 border-[#001233] bg-white px-8 py-4 font-medium text-[#001233] transition-colors duration-300 hover:bg-[#001233] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0066FF] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          className="inline-flex items-center justify-center rounded-full border-2 border-[#001B36] bg-white px-8 py-4 font-medium text-[#001B36] transition-colors duration-300 hover:bg-[#001B36] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#003878] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
         >
           {t("landingHero.ctaSecondary")}
         </Link>

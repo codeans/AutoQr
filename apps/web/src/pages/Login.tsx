@@ -10,7 +10,7 @@ type Mode = "otp" | "password";
 
 export const LoginPage = () => {
   const { t } = useTranslation();
-  const { login, requestWhatsAppOtp, verifyWhatsAppOtp } = useAuth();
+  const { login, requestOtp, verifyOtp } = useAuth();
   const [params] = useSearchParams();
   const redirect = params.get("redirect");
   const navigate = useNavigate();
@@ -24,6 +24,21 @@ export const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [resendPending, setResendPending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  const startResendCooldown = () => {
+    setResendCooldown(30);
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const afterLogin = (role: string) => {
     if (redirect) {
@@ -40,7 +55,7 @@ export const LoginPage = () => {
     setError("");
     setPending(true);
     try {
-      const res = await requestWhatsAppOtp(phone, "login");
+      const res = await requestOtp(phone, "login");
       setCodeRequested(true);
       setDevCode(res.devCode);
     } catch (err: any) {
@@ -55,12 +70,27 @@ export const LoginPage = () => {
     setError("");
     setPending(true);
     try {
-      const user = await verifyWhatsAppOtp({ phone, code, purpose: "login" });
+      const user = await verifyOtp({ phone, code, purpose: "login" });
       afterLogin(user?.role ?? "owner");
     } catch (err: any) {
       setError(err?.response?.data?.message ?? t("auth.errorInvalidCode"));
     } finally {
       setPending(false);
+    }
+  };
+
+  const resendCode = async () => {
+    if (!phone || resendCooldown > 0) return;
+    setError("");
+    setResendPending(true);
+    try {
+      const res = await requestOtp(phone, "login");
+      setDevCode(res.devCode);
+      startResendCooldown();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? t("auth.errorCouldNotSendCode"));
+    } finally {
+      setResendPending(false);
     }
   };
 
@@ -144,6 +174,18 @@ export const LoginPage = () => {
                 <Button type="submit" size="lg" className="w-full" disabled={pending}>
                   {pending ? t("auth.verifying") : t("auth.verifyAndSignIn")}
                 </Button>
+                <button
+                  type="button"
+                  onClick={resendCode}
+                  disabled={resendPending || resendCooldown > 0}
+                  className="w-full text-[13px] text-content-subtle hover:text-content disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {resendPending
+                    ? t("auth.sendingCode")
+                    : resendCooldown > 0
+                      ? t("auth.resendIn", { seconds: resendCooldown })
+                      : t("auth.resendCode")}
+                </button>
                 <button
                   type="button"
                   onClick={() => setCodeRequested(false)}

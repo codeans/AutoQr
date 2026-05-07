@@ -25,9 +25,11 @@ const SKIP_THRESHOLD = FRAME_DURATION * 0.5;
 
 export function useScrollVideo(
   videoRef: RefObject<HTMLVideoElement>,
-  containerRef: RefObject<HTMLElement>
+  containerRef: RefObject<HTMLElement>,
+  enabled = true
 ): void {
   useEffect(() => {
+    if (!enabled) return;
     const video = videoRef.current;
     const container = containerRef.current;
     if (!video || !container) return;
@@ -144,5 +146,5 @@ export function useScrollVideo(
       cancelAnimationFrame(rafId);
       cancelAnimationFrame(targetRafId);
     };
-  }, [videoRef, containerRef]);
+  }, [videoRef, containerRef, enabled]);
 }

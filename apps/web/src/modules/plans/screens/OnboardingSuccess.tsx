@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Container } from "../../../components/marketing/shared/Container";
 import { Reveal } from "../../../components/marketing/shared/Reveal";
 import { SectionWrapper } from "../../../components/marketing/shared/SectionWrapper";
@@ -8,6 +9,7 @@ import { formatCurrency } from "../types";
 import type { OnboardingOrder } from "../types";
 
 export const OnboardingSuccessScreen = () => {
+  const { i18n } = useTranslation();
   const [params] = useSearchParams();
   const orderId = params.get("orderId");
   const manualReview = params.get("manualReview") === "1";
@@ -64,7 +66,7 @@ export const OnboardingSuccessScreen = () => {
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-content-subtle">Total</dt>
-                      <dd>{formatCurrency(Math.round(order.amount * 100), order.currency)}</dd>
+                      <dd>{formatCurrency(Math.round(order.amount * 100), order.currency, i18n.language)}</dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-content-subtle">Payment</dt>

@@ -4,12 +4,21 @@ const planSchema = new Schema(
   {
     slug: { type: String, required: true, unique: true, index: true },
     code: { type: String, required: true, unique: true, index: true },
-    tier: { type: String, enum: ["solo", "family", "business"], default: "solo", index: true },
+    tier: {
+      type: String,
+      enum: ["car_basic", "smart_key", "premium_combo", "fleet_pro"],
+      default: "car_basic",
+      index: true
+    },
     name: { type: String, required: true },
     tagline: { type: String, default: "" },
     description: { type: String, default: "" },
     highlights: [{ type: String }],
     includes: [{ type: String }],
+    nameDe: { type: String, default: "" },
+    taglineDe: { type: String, default: "" },
+    descriptionDe: { type: String, default: "" },
+    highlightsDe: [{ type: String }],
     priceCents: { type: Number, required: true },
     compareAtCents: { type: Number, default: 0 },
     currency: { type: String, default: "EUR" },

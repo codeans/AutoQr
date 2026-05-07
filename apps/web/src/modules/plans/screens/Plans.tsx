@@ -1,4 +1,6 @@
+import { CATALOG_PLAN_SLUGS } from "@autoqr/shared";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Container } from "../../../components/marketing/shared/Container";
 import { HeadingBlock } from "../../../components/marketing/shared/HeadingBlock";
 import { PageHero } from "../../../components/marketing/shared/PageHero";
@@ -8,36 +10,42 @@ import { fetchPlans } from "../services/plans.service";
 import type { Plan } from "../types";
 import { PlanCard } from "../components/PlanCard";
 
+const slugOrder = new Map(CATALOG_PLAN_SLUGS.map((s, i) => [s, i]));
+
 export const PlansScreen = () => {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     fetchPlans()
-      .then(setPlans)
-      .catch(() => setError("We couldn't load plans just now. Please refresh in a moment."))
+      .then((list) => {
+        const sorted = [...list].sort((a, b) => {
+          const ia = slugOrder.get(a.slug as (typeof CATALOG_PLAN_SLUGS)[number]) ?? 99;
+          const ib = slugOrder.get(b.slug as (typeof CATALOG_PLAN_SLUGS)[number]) ?? 99;
+          return ia - ib;
+        });
+        setPlans(sorted);
+      })
+      .catch(() => setError(t("plans.loadError")))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   return (
     <>
-      <PageHero
-        eyebrow="Plans"
-        title="Pick a plan — start in under 3 minutes."
-        subtitle="One-time payment. No subscriptions. No hidden fees. Each plan includes tags, emergency routing, and lifetime reassignment."
-      />
+      <PageHero eyebrow={t("plans.eyebrow")} title={t("plans.pageTitle")} subtitle={t("plans.pageSubtitle")} />
       <SectionWrapper spacing="default">
         <Container>
           <HeadingBlock
-            eyebrow="Transparent pricing"
-            title="Built for one vehicle, a family, or a fleet."
-            subtitle="Plans differ in how many tags and contacts you get, plus support level. Privacy features are identical across tiers."
+            eyebrow={t("plans.sectionEyebrow")}
+            title={t("plans.sectionTitle")}
+            subtitle={t("plans.sectionSubtitle")}
             align="center"
           />
           <Reveal>
-            <div className="mt-14 grid gap-6 lg:grid-cols-3">
-              {loading && <p className="text-content-muted">Loading…</p>}
+            <div className="mt-14 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+              {loading && <p className="text-content-muted">{t("plans.loadingPlans")}</p>}
               {error && <p className="text-red-600">{error}</p>}
               {plans.map((p) => (
                 <PlanCard key={p._id} plan={p} />
@@ -46,7 +54,11 @@ export const PlansScreen = () => {
           </Reveal>
           <Reveal>
             <p className="mt-10 text-center text-[12.5px] text-content-subtle">
-              Need more than Business? <a href="/partner" className="text-brand-700 underline-offset-4 hover:underline">Talk to sales</a> for volume pricing.
+              {t("plans.needMoreThanBusiness")}{" "}
+              <a href="/partner" className="text-brand-700 underline-offset-4 hover:underline">
+                {t("plans.talkToSales")}
+              </a>{" "}
+              {t("plans.talkToSalesSuffix")}
             </p>
           </Reveal>
         </Container>

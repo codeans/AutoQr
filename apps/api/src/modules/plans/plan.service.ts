@@ -1,14 +1,55 @@
 import { PlanModel } from "../../models/Plan.js";
 import { ApiError } from "../../utils/apiError.js";
+import { CATALOG_PLANS, CATALOG_PLAN_SLUGS, type CatalogPlanSlug } from "./catalogPlanDefs.js";
+import type { PlanPricingPatch } from "./planPricing.schema.js";
+
+const catalogSlugSet = new Set<string>(CATALOG_PLAN_SLUGS);
+const catalogBySlug = new Map(CATALOG_PLANS.map((p) => [p.slug, p]));
+const catalogSlugOrder = new Map(CATALOG_PLAN_SLUGS.map((s, i) => [s, i]));
+
+/** Public marketing + checkout: only the four catalog slugs are exposed. */
+export const isCatalogPlanSlug = (slug: string): slug is CatalogPlanSlug =>
+  catalogSlugSet.has(slug);
+
+/**
+ * Overlays canonical catalog copy and default EUR pricing onto the Mongo row
+ * so legacy DB fields (e.g. old tier names/prices) never leak to `/plans`.
+ */
+export const mergePublicPlanFromCatalog = <T extends { slug?: string; _id?: unknown }>(doc: T): T => {
+  const slug = doc.slug as CatalogPlanSlug | undefined;
+  if (!slug || !isCatalogPlanSlug(slug)) return doc;
+  const seed = catalogBySlug.get(slug);
+  if (!seed) return doc;
+  return { ...doc, ...seed, _id: doc._id } as T;
+};
 
 export const listActivePlans = async () => {
-  return PlanModel.find({ status: "active" }).sort({ displayOrder: 1, priceCents: 1 }).lean();
+  const query = () =>
+    PlanModel.find({
+      status: "active",
+      slug: { $in: [...CATALOG_PLAN_SLUGS] }
+    })
+      .sort({ displayOrder: 1, priceCents: 1 })
+      .lean();
+
+  let plans = await query();
+  if (plans.length < CATALOG_PLAN_SLUGS.length) {
+    await syncCatalogPlans();
+    plans = await query();
+  }
+
+  const sorted = [...plans].sort(
+    (a, b) =>
+      (catalogSlugOrder.get(a.slug as CatalogPlanSlug) ?? 99) - (catalogSlugOrder.get(b.slug as CatalogPlanSlug) ?? 99)
+  );
+  return sorted.map((p) => mergePublicPlanFromCatalog(p));
 };
 
 export const getPlanBySlug = async (slug: string) => {
+  if (!isCatalogPlanSlug(slug)) throw new ApiError(404, "Plan not found");
   const plan = await PlanModel.findOne({ slug, status: "active" }).lean();
   if (!plan) throw new ApiError(404, "Plan not found");
-  return plan;
+  return mergePublicPlanFromCatalog(plan);
 };
 
 export const getPlanById = async (id: string) => {
@@ -37,88 +78,52 @@ export const adminArchivePlan = async (id: string) => {
   return updated;
 };
 
-export const ensureSeedPlans = async () => {
-  const count = await PlanModel.countDocuments();
-  if (count > 0) return;
-  await PlanModel.insertMany([
-    {
-      slug: "solo",
-      code: "AQR-SOLO",
-      tier: "solo",
-      name: "Solo",
-      tagline: "One tag for one car — all the privacy basics",
-      description:
-        "Perfect for a single car. One premium QR tag linked to your private AutoQR account — anyone who scans it can reach you, without ever seeing your number.",
-      highlights: [
-        "1 premium weather-proof QR tag",
-        "Masked calling relay",
-        "Reason-based car alerts",
-        "Up to 3 emergency contacts",
-        "Lifetime reassignment between cars"
-      ],
-      includes: ["1 QR tag", "Activation guide", "Standard email support"],
-      priceCents: 1499,
-      compareAtCents: 1999,
-      tagsIncluded: 1,
-      carLimit: 1,
-      emergencyContactLimit: 3,
-      supportTier: "standard",
-      displayOrder: 1,
-      status: "active",
-      isFeatured: false
-    },
-    {
-      slug: "family",
-      code: "AQR-FAMILY",
-      tier: "family",
-      name: "Family",
-      tagline: "Three tags, one household — the most popular plan",
-      description:
-        "Built for households with multiple cars. Link each tag to a different car, share one set of emergency contacts, and manage everything from one account.",
-      highlights: [
-        "3 premium weather-proof QR tags",
-        "Up to 3 cars under one account",
-        "Up to 6 emergency contacts",
-        "Priority notification routing",
-        "Emergency auto-escalation"
-      ],
-      includes: ["3 QR tags", "Activation guide", "Priority email support"],
-      priceCents: 3499,
-      compareAtCents: 4499,
-      tagsIncluded: 3,
-      carLimit: 3,
-      emergencyContactLimit: 6,
-      supportTier: "priority",
-      displayOrder: 2,
-      status: "active",
-      isFeatured: true,
-      isBestValue: true
-    },
-    {
-      slug: "business",
-      code: "AQR-BUSINESS",
-      tier: "business",
-      name: "Business",
-      tagline: "Ten tags + fleet dashboard for small car fleets",
-      description:
-        "For small car fleets, rental operators and mobility companies that only operate cars. Centralised activation, dedicated onboarding, and a fleet-level car dashboard.",
-      highlights: [
-        "10 premium weather-proof QR tags",
-        "Fleet dashboard & bulk activation",
-        "Unlimited emergency contacts",
-        "Dedicated account manager",
-        "24/7 priority support"
-      ],
-      includes: ["10 QR tags", "Fleet onboarding kit", "Dedicated support channel"],
-      priceCents: 9900,
-      compareAtCents: 12000,
-      tagsIncluded: 10,
-      carLimit: 10,
-      emergencyContactLimit: 20,
-      supportTier: "dedicated",
-      displayOrder: 3,
-      status: "active",
-      isFeatured: false
+/** Archives any plan whose slug is not in the catalog, then upserts the four catalog plans. Preserves priceCents/compareAtCents on existing rows. */
+export const syncCatalogPlans = async () => {
+  const slugList = [...CATALOG_PLAN_SLUGS];
+  await PlanModel.updateMany({ slug: { $nin: slugList } }, { $set: { status: "archived" } });
+
+  for (const seed of CATALOG_PLANS) {
+    const existing = await PlanModel.findOne({ slug: seed.slug }).lean();
+    const { priceCents: defaultPrice, compareAtCents: defaultCompare, ...rest } = seed;
+    if (!existing) {
+      await PlanModel.create(seed);
+      continue;
     }
-  ]);
+    await PlanModel.updateOne(
+      { _id: existing._id },
+      {
+        $set: {
+          ...rest,
+          priceCents: typeof existing.priceCents === "number" ? existing.priceCents : defaultPrice,
+          compareAtCents: typeof existing.compareAtCents === "number" ? existing.compareAtCents : defaultCompare
+        }
+      }
+    );
+  }
+};
+
+/**
+ * Runs on API boot: always syncs the four catalog plans into Mongo and archives any
+ * non-catalog slug. Without this, a DB that only had legacy plans (Solo/Family/…)
+ * would match zero rows for `GET /plans` after the catalog filter — empty pricing UI.
+ */
+export const ensureSeedPlans = async () => {
+  await syncCatalogPlans();
+};
+
+export const adminSetPlanPricing = async (id: string, body: PlanPricingPatch) => {
+  const plan = await PlanModel.findByIdAndUpdate(
+    id,
+    {
+      $set: {
+        priceCents: body.priceCents,
+        compareAtCents: body.compareAtCents,
+        currency: body.currency
+      }
+    },
+    { new: true, runValidators: true }
+  );
+  if (!plan) throw new ApiError(404, "Plan not found");
+  return plan;
 };

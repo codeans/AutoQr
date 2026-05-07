@@ -7,6 +7,7 @@ import { ScrollNarrative } from "./ScrollNarrative";
 import { ScrollProgressIndicator } from "./ScrollProgressIndicator";
 import { heroNarrativeBeats } from "../../data/heroNarrative";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
+import { useMotionTier } from "../../hooks/useMotionTier";
 import type { NarrativeBeat } from "../../types/narrative";
 
 const HIGHLIGHT_RE = /<highlight>(.+?)<\/highlight>/g;
@@ -20,7 +21,7 @@ const renderHighlight = (input: string) => {
   while ((m = HIGHLIGHT_RE.exec(input)) !== null) {
     if (m.index > last) parts.push(input.slice(last, m.index));
     parts.push(
-      <span key={k++} className="text-[#0066FF]">
+      <span key={k++} className="text-[#003878]">
         {m[1]}
       </span>
     );
@@ -33,6 +34,7 @@ const renderHighlight = (input: string) => {
 export const ScrollVideoHero = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
+  const motionTier = useMotionTier();
   const [videoFailed, setVideoFailed] = useState(false);
 
   const { scrollYProgress } = useScroll({
@@ -46,7 +48,9 @@ export const ScrollVideoHero = () => {
     restDelta: 0.0005
   });
 
-  if (reduced || videoFailed) {
+  const useStaticFallback = reduced || motionTier !== "full" || videoFailed;
+
+  if (useStaticFallback) {
     return <StaticHeroFallback />;
   }
 
@@ -121,30 +125,30 @@ const StaticBeatContent = ({
 
   return (
     <div className="relative w-full max-w-[640px]">
-      <p className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-[#0066FF]">
+      <p className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-[#003878]">
         {t("landingHero.chapterLabel")} {beat.chapter}
       </p>
       <h1
-        className={`font-bold leading-[0.95] tracking-[-0.02em] text-[#001233] ${
+        className={`font-bold leading-[0.95] tracking-[-0.02em] text-[#001B36] ${
           isFirst ? "text-5xl md:text-7xl" : "text-4xl md:text-6xl"
         }`}
       >
         {renderHighlight(headline)}
       </h1>
-      <p className="mt-6 max-w-prose text-lg leading-relaxed text-[#4A5260] md:text-xl">
+      <p className="mt-6 max-w-prose text-lg leading-relaxed text-[#37526F] md:text-xl">
         {subline}
       </p>
       {beat.showCTA && (
         <div className="mt-10 flex flex-col gap-4 sm:flex-row">
           <Link
             to="/shop/car-qr"
-            className="inline-flex items-center justify-center rounded-full bg-[#001233] px-8 py-4 font-medium text-white transition-colors hover:bg-[#0066FF]"
+            className="inline-flex items-center justify-center rounded-full bg-[#001B36] px-8 py-4 font-medium text-white transition-colors hover:bg-[#003878]"
           >
             {t("landingHero.ctaPrimary")}
           </Link>
           <Link
             to="/shop/key-qr"
-            className="inline-flex items-center justify-center rounded-full border-2 border-[#001233] bg-white px-8 py-4 font-medium text-[#001233] transition-colors hover:bg-[#001233] hover:text-white"
+            className="inline-flex items-center justify-center rounded-full border-2 border-[#001B36] bg-white px-8 py-4 font-medium text-[#001B36] transition-colors hover:bg-[#001B36] hover:text-white"
           >
             {t("landingHero.ctaSecondary")}
           </Link>

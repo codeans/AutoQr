@@ -13,6 +13,8 @@ export { UsersPage } from "./UsersPage";
 export { PlansPage } from "./PlansPage";
 export { TagBatchesPage } from "./TagBatchesPage";
 export { TagsInventoryPage } from "./TagsInventoryPage";
+export { QrBulkPrintPdfPage } from "./QrBulkPrintPdfPage";
+export { QrHtmlTemplatesPage } from "./QrHtmlTemplatesPage";
 export { ConsentPage } from "./ConsentPage";
 export { AnalyticsPage } from "./AnalyticsPage";
 export { ScanAlertsPage } from "./ScanAlertsPage";

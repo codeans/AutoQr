@@ -31,11 +31,28 @@ body {
   background-color: #FFFFFF;
   color: #111827;
   font-feature-settings: "ss01", "cv11", "salt";
+  font-size: clamp(0.875rem, 1.4vw, 1rem);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
 }
 
 ::selection {
-  background: rgba(29, 78, 216, 0.18);
-  color: #1D4ED8;
+  background: rgba(10, 75, 159, 0.18);
+  color: #003878;
 }
 
 ::-webkit-scrollbar {
@@ -76,7 +93,22 @@ body {
 }
 
 :where(button, a, input, textarea, select):focus-visible {
-  outline: 2px solid rgba(29, 78, 216, 0.55);
+  outline: 2px solid rgba(10, 75, 159, 0.55);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

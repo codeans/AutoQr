@@ -18,7 +18,7 @@ export const CTASection = () => {
           />
           <div className="relative">
             <h2
-              className="mx-auto max-w-3xl font-display text-3xl font-semibold tracking-tight sm:text-5xl"
+              className="mx-auto max-w-3xl font-display text-3xl font-semibold tracking-tight text-white sm:text-5xl"
               style={{ textWrap: "balance" }}
             >
               {cta.headline}

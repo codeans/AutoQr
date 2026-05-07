@@ -1,5 +1,21 @@
 import mongoose, { Schema } from "mongoose";
 
+const incidentLocationSchema = new Schema(
+  {
+    latitude: { type: Number, required: true },
+    longitude: { type: Number, required: true },
+    accuracyMeters: { type: Number, required: true },
+    locationType: { type: String, enum: ["gps", "ip_based"], required: true },
+    capturedAt: { type: Date, required: true },
+    permissionStatus: { type: String, enum: ["granted", "fallback_used"], required: true },
+    lowAccuracy: { type: Boolean, default: false },
+    approxCity: { type: String, default: "" },
+    approxCountry: { type: String, default: "" },
+    gpsFailureReason: { type: String, default: "" }
+  },
+  { _id: false }
+);
+
 const incidentSchema = new Schema(
   {
     qrCodeId: { type: Schema.Types.ObjectId, ref: "QRCode", index: true },
@@ -24,7 +40,9 @@ const incidentSchema = new Schema(
       enum: ["web", "android", "ios"],
       default: "web"
     },
-    consentAt: { type: Date, default: Date.now }
+    consentAt: { type: Date, default: Date.now },
+    /** Required on public reporter submissions (`POST /public/incident/:token`); omitted on legacy/other flows. */
+    location: { type: incidentLocationSchema, required: false }
   },
   { timestamps: true }
 );

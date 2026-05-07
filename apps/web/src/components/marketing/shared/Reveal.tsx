@@ -1,5 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
+import { useMotionTier } from "../../../hooks/useMotionTier";
 
 type RevealProps = {
   children: ReactNode;
@@ -11,14 +12,16 @@ type RevealProps = {
 
 export const Reveal = ({ children, delay = 0, y = 20, className, once = true }: RevealProps) => {
   const reduce = useReducedMotion();
+  const motionTier = useMotionTier();
   if (reduce) return <div className={className}>{children}</div>;
+  const duration = motionTier === "full" ? 0.7 : 0.3;
   return (
     <motion.div
       className={className}
       initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once, amount: 0.25 }}
-      transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration, delay: motionTier === "full" ? delay : 0, ease: [0.16, 1, 0.3, 1] }}
     >
       {children}
     </motion.div>
@@ -34,6 +37,7 @@ type StaggerProps = {
 
 export const Stagger = ({ children, className, delay = 0, stagger = 0.08 }: StaggerProps) => {
   const reduce = useReducedMotion();
+  const motionTier = useMotionTier();
   if (reduce) return <div className={className}>{children}</div>;
   return (
     <motion.div
@@ -44,7 +48,10 @@ export const Stagger = ({ children, className, delay = 0, stagger = 0.08 }: Stag
       variants={{
         hidden: {},
         show: {
-          transition: { staggerChildren: stagger, delayChildren: delay }
+          transition: {
+            staggerChildren: motionTier === "full" ? stagger : 0.04,
+            delayChildren: motionTier === "full" ? delay : 0
+          }
         }
       }}
     >

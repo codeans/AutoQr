@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { isLocale } from "@autoqr/shared";
 import { useAuth } from "../context/AuthContext";
@@ -14,13 +14,6 @@ import { PricingPage } from "../pages/Pricing";
 import { RegisterPage } from "../pages/Register";
 import { SetupQrPage } from "../pages/SetupQr";
 import { UseCasesPage } from "../pages/UseCases";
-import { PartnerPage } from "../pages/Partner";
-import { HelpCenterPage } from "../pages/HelpCenter";
-import { PrivacyPage } from "../pages/Privacy";
-import { TermsPage } from "../pages/Terms";
-import { RefundPolicyPage } from "../pages/RefundPolicy";
-import { ShippingPolicyPage } from "../pages/ShippingPolicy";
-import { AboutPage } from "../pages/About";
 import {
   ActivationRecordsPage,
   AnalyticsPage,
@@ -39,6 +32,8 @@ import {
   ShipmentsPage,
   TagBatchesPage,
   TagsInventoryPage,
+  QrBulkPrintPdfPage,
+  QrHtmlTemplatesPage,
   UsersPage
 } from "../modules/admin/pages";
 import { AdminLayout } from "../modules/admin/layout/AdminLayout";
@@ -61,8 +56,18 @@ import { OnboardingScreen } from "../modules/plans/screens/Onboarding";
 import { OnboardingSuccessScreen } from "../modules/plans/screens/OnboardingSuccess";
 import { PublicCheckoutScreen } from "../modules/plans/screens/PublicCheckout";
 import { ScanLandingScreen } from "../modules/scan/screens/ScanLanding";
-import { ReporterCallScreen } from "../features/calls/ReporterCallScreen";
 import { currentLocale, setLocale } from "../i18n";
+
+const PartnerPage = lazy(() => import("../pages/Partner").then((m) => ({ default: m.PartnerPage })));
+const HelpCenterPage = lazy(() => import("../pages/HelpCenter").then((m) => ({ default: m.HelpCenterPage })));
+const PrivacyPage = lazy(() => import("../pages/Privacy").then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import("../pages/Terms").then((m) => ({ default: m.TermsPage })));
+const RefundPolicyPage = lazy(() => import("../pages/RefundPolicy").then((m) => ({ default: m.RefundPolicyPage })));
+const ShippingPolicyPage = lazy(() => import("../pages/ShippingPolicy").then((m) => ({ default: m.ShippingPolicyPage })));
+const AboutPage = lazy(() => import("../pages/About").then((m) => ({ default: m.AboutPage })));
+const ReporterCallScreen = lazy(() =>
+  import("../features/calls/ReporterCallScreen").then((m) => ({ default: m.ReporterCallScreen }))
+);
 
 const Protected = ({ role, children }: { role: "admin" | "owner"; children: React.ReactNode }) => {
   const { user, isBootstrapping } = useAuth();
@@ -130,7 +135,8 @@ const publicRoutes = (
 );
 
 export const AppRouter = () => (
-  <Routes>
+  <Suspense fallback={<div className="p-4 text-sm text-slate-500">Loading...</div>}>
+    <Routes>
     <Route path="/" element={<Navigate to={`/${currentLocale()}`} replace />} />
     <Route path="scan/:token" element={<ScanLandingScreen mode="preview" />} />
     <Route path="incident/:qrId" element={<ScanLandingScreen mode="live" />} />
@@ -205,6 +211,8 @@ export const AppRouter = () => (
       <Route path="plans" element={<PlansPage />} />
       <Route path="tag-batches" element={<TagBatchesPage />} />
       <Route path="tags" element={<TagsInventoryPage />} />
+      <Route path="bulk-print-pdf" element={<QrBulkPrintPdfPage />} />
+      <Route path="html-templates" element={<QrHtmlTemplatesPage />} />
       <Route path="activations" element={<ActivationRecordsPage />} />
       <Route path="qrs" element={<Navigate to="/admin/tags" replace />} />
       <Route path="qr" element={<Navigate to="/admin/tags" replace />} />
@@ -218,5 +226,6 @@ export const AppRouter = () => (
       <Route path="settings" element={<SettingsPage />} />
       <Route path="audit-logs" element={<AuditLogsPage />} />
     </Route>
-  </Routes>
+    </Routes>
+  </Suspense>
 );

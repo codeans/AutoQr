@@ -49,7 +49,7 @@ export const notifyAllEmergencyContacts = async (args: {
       type: "emergency_alert",
       title: args.title,
       message: args.message,
-      channels: ["sms", "whatsapp", "email"]
+      channels: ["sms", "email"]
     });
     results.push({ contact: (c as any)._id, r });
   }

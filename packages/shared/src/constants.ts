@@ -76,7 +76,6 @@ export const NotificationChannel = {
   IN_APP: "in_app",
   EMAIL: "email",
   SMS: "sms",
-  WHATSAPP: "whatsapp",
   PUSH: "push"
 } as const;
 
@@ -134,10 +133,14 @@ export const PlanStatus = {
 } as const;
 
 export const PlanTier = {
-  SOLO: "solo",
-  FAMILY: "family",
-  BUSINESS: "business"
+  CAR_BASIC: "car_basic",
+  SMART_KEY: "smart_key",
+  PREMIUM_COMBO: "premium_combo",
+  FLEET_PRO: "fleet_pro"
 } as const;
+
+/** Stable public plan slugs (Mongo `slug` field, checkout URLs). */
+export const CATALOG_PLAN_SLUGS = ["car-basic", "smart-key", "premium-combo", "fleet-pro"] as const;
 
 export const OnboardingStep = {
   PLAN: "plan",

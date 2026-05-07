@@ -14,6 +14,7 @@ import {
   ActivationRecordModel
 } from "../models/ActivationRecord.js";
 import { hashPassword } from "../utils/crypto.js";
+import { syncCatalogPlans } from "../modules/plans/plan.service.js";
 
 const closeDuplicateLiveCalls = async () => {
   const liveStatuses = ["ringing", "accepted", "connected"];
@@ -119,6 +120,7 @@ const run = async () => {
   await connectDatabase();
   await closeDuplicateLiveCalls();
   await syncAllIndexes();
+  await syncCatalogPlans();
   await seedAdminIfRequested();
   console.log("Database migration complete.");
   process.exit(0);

@@ -150,7 +150,7 @@ export const submitScanAlert = async (args: {
   });
 
   const channels =
-    severity === "emergency" ? ["in_app", "push", "sms", "whatsapp", "email"] : ["in_app", "push", "sms", "whatsapp"];
+    severity === "emergency" ? ["in_app", "push", "sms", "email"] : ["in_app", "push", "sms"];
   const title = reasonTitle[args.reason] ?? "Your car was scanned";
   const body = args.message
     ? `${title}. Reporter note: ${args.message}`

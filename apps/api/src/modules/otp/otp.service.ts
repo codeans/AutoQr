@@ -34,7 +34,7 @@ export const requestOtp = async (args: {
   purpose?: OtpPurpose;
   ipAddress?: string;
   userAgent?: string;
-  channels?: Array<"sms" | "whatsapp">;
+  channels?: Array<"sms">;
 }) => {
   const phone = normalizePhone(args.phone);
   const purpose: OtpPurpose = args.purpose ?? "login";
@@ -73,7 +73,7 @@ export const requestOtp = async (args: {
     type: "otp",
     title: "Your verification code",
     message: `Your code is ${code}. It expires in ${OTP_TTL_SECONDS / 60} minutes.`,
-    channels: args.channels ?? ["sms", "whatsapp"]
+    channels: args.channels ?? ["sms"]
   }).catch((err) => logger.warn("otp.dispatch.failed", { error: err?.message }));
 
   return {
@@ -119,12 +119,15 @@ export const verifyOtp = async (args: {
     if (!args.signup) {
       throw new ApiError(404, "Account not found. Please sign up first.");
     }
+    const passwordHash = args.signup.password
+      ? await hashPassword(args.signup.password)
+      : await hashPassword(crypto.randomBytes(24).toString("hex"));
     user = await UserModel.create({
       name: args.signup.name,
       email: args.signup.email.toLowerCase(),
       phone,
       address: args.signup.address,
-      passwordHash: args.signup.password ? hashPassword(args.signup.password) : hashPassword(crypto.randomBytes(24).toString("hex")),
+      passwordHash,
       phoneVerifiedAt: new Date(),
       role: "owner"
     });

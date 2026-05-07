@@ -13,10 +13,16 @@ export const FAQSection = () => {
       <Container>
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700">
-              {faq.eyebrow}
-            </p>
-            <h2 className="mt-4 font-display text-3xl font-semibold tracking-tight text-content sm:text-5xl">
+            {faq.eyebrow ? (
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700">
+                {faq.eyebrow}
+              </p>
+            ) : null}
+            <h2
+              className={`font-display text-3xl font-semibold tracking-tight text-content sm:text-5xl ${
+                faq.eyebrow ? "mt-4" : "mt-0"
+              }`}
+            >
               {faq.headline}
             </h2>
             <p className="mt-5 max-w-md text-base leading-relaxed text-content-muted sm:text-lg">

@@ -1,19 +1,25 @@
+import { formatMoney } from "../../utils/intlCurrency";
+
 export type Plan = {
   _id: string;
   slug: string;
   code: string;
-  tier: "solo" | "family" | "business";
+  tier: "car_basic" | "smart_key" | "premium_combo" | "fleet_pro";
   name: string;
   tagline: string;
   description: string;
   highlights: string[];
   includes: string[];
+  nameDe?: string;
+  taglineDe?: string;
+  descriptionDe?: string;
+  highlightsDe?: string[];
   priceCents: number;
   compareAtCents: number;
   currency: string;
   billingCycle: "one_time" | "yearly";
   tagsIncluded: number;
-  vehicleLimit: number;
+  carLimit: number;
   emergencyContactLimit: number;
   supportTier: "standard" | "priority" | "dedicated";
   status: "draft" | "active" | "archived";
@@ -52,5 +58,5 @@ export type OnboardingOrder = {
   createdAt: string;
 };
 
-export const formatCurrency = (cents: number, currency = "EUR") =>
-  new Intl.NumberFormat("en-DE", { style: "currency", currency }).format(cents / 100);
+export const formatCurrency = (cents: number, currency = "EUR", i18nLanguage?: string) =>
+  formatMoney(cents / 100, currency, i18nLanguage);

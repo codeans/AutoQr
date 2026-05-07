@@ -69,7 +69,7 @@ export const EmergencyContactsScreen = () => {
     <div className="space-y-6">
       <SectionTitle
         title="Emergency contacts"
-        subtitle="In an accident or emergency scan, we'll alert these contacts by SMS, WhatsApp, and email. Add family or trusted backups."
+        subtitle="In an accident or emergency scan, we'll alert these contacts by SMS and email. Add family or trusted backups."
       />
 
       <Card>

@@ -11,6 +11,7 @@ import {
 } from "../../models/ActivationRecord.js";
 import { ApiError } from "../../utils/apiError.js";
 import { generateQrAsset } from "../../infrastructure/qr/qr.service.js";
+import type { PrintableTag } from "./print/qrPrintPdf.js";
 
 const makeSerial = (prefix: string, index: number) =>
   `${prefix}-${String(index).padStart(6, "0")}`;
@@ -93,15 +94,79 @@ export const listBatches = async () => {
   });
 };
 
+export type BulkPrintQuery = {
+  batchId?: string;
+  status?: string;
+  serialFrom?: string;
+  serialTo?: string;
+  tagIds?: string[];
+  maxTags: number;
+};
+
+/**
+ * Streams tag rows for bulk PDF printing (minimal fields, sorted by serial).
+ * Caller must scope the query — at least one of batchId, tagIds, or serialFrom+serialTo is required upstream.
+ */
+export async function* iterateTagsForBulkPrint(filters: BulkPrintQuery): AsyncGenerator<PrintableTag> {
+  const query: Record<string, unknown> = {};
+  if (filters.batchId) {
+    if (!mongoose.Types.ObjectId.isValid(filters.batchId)) throw new ApiError(400, "Invalid batch id");
+    query.batchId = new mongoose.Types.ObjectId(filters.batchId);
+  }
+  if (filters.status) query.status = filters.status;
+  if (filters.serialFrom || filters.serialTo) {
+    const range: Record<string, string> = {};
+    if (filters.serialFrom) range.$gte = filters.serialFrom;
+    if (filters.serialTo) range.$lte = filters.serialTo;
+    query.serial = range;
+  }
+  if (filters.tagIds?.length) {
+    const ids = filters.tagIds
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+    if (ids.length === 0) throw new ApiError(400, "No valid tag ids");
+    query._id = { $in: ids };
+  }
+
+  const cursor = TagModel.find(query)
+    .select("serial publicToken activationCode batchId")
+    .populate("batchId", "batchCode")
+    .sort({ serial: 1 })
+    .limit(filters.maxTags)
+    .lean()
+    .cursor();
+
+  for await (const doc of cursor) {
+    const batch =
+      doc.batchId && typeof doc.batchId === "object" && "batchCode" in doc.batchId
+        ? String((doc.batchId as { batchCode?: string }).batchCode ?? "")
+        : "";
+    yield {
+      serial: doc.serial,
+      publicToken: doc.publicToken,
+      activationCode: doc.activationCode,
+      batchCode: batch || "—"
+    };
+  }
+}
+
 export const listTags = async (filters: {
   batchId?: string;
   status?: string;
   search?: string;
+  serialFrom?: string;
+  serialTo?: string;
   limit?: number;
 }) => {
   const query: any = {};
   if (filters.batchId) query.batchId = filters.batchId;
   if (filters.status) query.status = filters.status;
+  if (filters.serialFrom || filters.serialTo) {
+    const range: Record<string, string> = {};
+    if (filters.serialFrom) range.$gte = filters.serialFrom;
+    if (filters.serialTo) range.$lte = filters.serialTo;
+    query.serial = range;
+  }
   if (filters.search) {
     const rx = new RegExp(filters.search, "i");
     query.$or = [
@@ -110,13 +175,15 @@ export const listTags = async (filters: {
       { activationCode: filters.search.toUpperCase() }
     ];
   }
+  const cap = Math.min(5000, Math.max(1, filters.limit ?? 500));
+  const sortBySerial = Boolean(filters.batchId || filters.serialFrom || filters.serialTo);
   return TagModel.find(query)
     .populate("ownerUserId", "name email phone")
     .populate("carId", "registrationNumber make model nickname")
     .populate("batchId", "batchCode label")
     .populate("orderId", "orderStatus paymentStatus")
-    .sort({ createdAt: -1 })
-    .limit(filters.limit ?? 500)
+    .sort(sortBySerial ? { serial: 1 } : { createdAt: -1 })
+    .limit(cap)
     .lean();
 };
 
@@ -192,7 +259,7 @@ export const activateTag = async (args: {
 
   const user = await UserModel.findById(args.userId);
   if (!user) throw new ApiError(404, "User not found");
-  if (!user.phoneVerifiedAt) throw new ApiError(403, "Phone not verified. Verify your WhatsApp OTP before activation.");
+  if (!user.phoneVerifiedAt) throw new ApiError(403, "Phone not verified. Verify your SMS OTP before activation.");
 
   const windowStart = new Date(Date.now() - ATTEMPT_WINDOW_MS);
   const recent = await ActivationAttemptModel.countDocuments({

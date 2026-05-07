@@ -8,7 +8,6 @@ dist
 coverage
 **/coverage
 uploads
-mobile-app
 .env
 .env.*
 apps/api/.env

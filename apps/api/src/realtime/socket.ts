@@ -694,7 +694,20 @@ export const createSocketServer = (server: HttpServer) => {
   return ioInstance;
 };
 
-export const emitIncidentCreated = async (userId: string, data: { incidentId: string; title: string; message: string }) => {
+export type IncidentCreatedSocketPayload = {
+  incidentId: string;
+  title: string;
+  message: string;
+  locationType?: "gps" | "ip_based";
+  latitude?: number;
+  longitude?: number;
+  accuracyMeters?: number;
+  lowAccuracy?: boolean;
+  mapsUrl?: string;
+  approximateText?: string;
+};
+
+export const emitIncidentCreated = async (userId: string, data: IncidentCreatedSocketPayload) => {
   // Persist + push via the realtime notifications helper so mobile devices receive a push when offline.
   try {
     const { publishNotification } = await import("../infrastructure/notifications/realtime.notifications.js");
@@ -704,7 +717,17 @@ export const emitIncidentCreated = async (userId: string, data: { incidentId: st
       title: data.title,
       body: data.message,
       relatedEntityId: data.incidentId,
-      data: { incidentId: data.incidentId, type: "INCIDENT_CREATED" }
+      data: {
+        incidentId: data.incidentId,
+        type: "INCIDENT_CREATED",
+        locationType: data.locationType,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        accuracyMeters: data.accuracyMeters,
+        lowAccuracy: data.lowAccuracy,
+        mapsUrl: data.mapsUrl,
+        approximateText: data.approximateText
+      }
     });
   } catch (err) {
     logger.warn("incident.notification_failed", { err: (err as Error)?.message });

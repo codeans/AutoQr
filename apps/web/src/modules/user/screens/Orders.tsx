@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { DataTable } from "../components/DataTable";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingState } from "../components/LoadingState";
@@ -9,6 +10,7 @@ import { useUserOrders } from "../hooks/useUserOrders";
 import { formatCurrency, formatDateTime } from "../utils/user.helpers";
 
 export const OrdersScreen = () => {
+  const { i18n } = useTranslation();
   const { data, isLoading, checkoutMutation } = useUserOrders();
 
   const onPayNow = async (orderId: string) => {
@@ -35,7 +37,7 @@ export const OrdersScreen = () => {
           columns={["Order date", "Amount", "Payment", "Order", "Invoice", "QR generation"]}
           rows={(data?.orders ?? []).map((order) => [
             formatDateTime(order.createdAt),
-            formatCurrency(order.amount, order.currency),
+            formatCurrency(order.amount, order.currency, i18n.language),
             <StatusBadge status={order.payment?.status ?? order.paymentStatus} />,
             <StatusBadge status={order.orderStatus} />,
             order.invoiceNumber || "Pending",

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import crypto from "node:crypto";
+import { ZodError } from "zod";
 import { z } from "zod";
 import { TagModel } from "../../models/Tag.js";
 import { CarModel } from "../../models/Car.js";
@@ -14,8 +15,19 @@ import { toPublicUploadPath } from "../../utils/uploads.js";
 import { toGermanE164 } from "@autoqr/shared";
 import { t } from "../../i18n/messages.js";
 import { getRequestLocale } from "../../middleware/locale.js";
+import { env } from "../../config/env.js";
+import { logger } from "../../utils/logger.js";
+import { resolveApproxLocationFromHttpRequest } from "../../services/location/locationFallback.service.js";
+import { dispatchNotification } from "../../infrastructure/notifications/notification.service.js";
+import { getClientIp } from "../../utils/clientIp.js";
+import {
+  incidentLocationClientSchema,
+  parseLocationField,
+  resolvePersistedIncidentLocation,
+  appendLocationAlertLines
+} from "./incidentLocation.schema.js";
 
-const incidentSchema = z.object({
+const incidentBodySchema = z.object({
   reporterName: z.string().max(120).optional().default(""),
   reporterPhone: z.string().min(4).max(40),
   message: z.string().min(5).max(2000),
@@ -54,7 +66,27 @@ export const qrInfo = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createIncident = asyncHandler(async (req: Request, res: Response) => {
-  const payload = incidentSchema.parse({
+  let parsedLocationRaw: unknown;
+  try {
+    parsedLocationRaw = parseLocationField(req.body.location);
+  } catch {
+    throw new ApiError(400, "Invalid location payload");
+  }
+  if (parsedLocationRaw === undefined) {
+    throw new ApiError(400, "Location is required to report an incident");
+  }
+
+  let clientLoc: z.infer<typeof incidentLocationClientSchema>;
+  try {
+    clientLoc = incidentLocationClientSchema.parse(parsedLocationRaw);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      throw new ApiError(400, err.issues.map((e) => e.message).join("; ") || "Invalid location payload");
+    }
+    throw err;
+  }
+
+  const payload = incidentBodySchema.parse({
     reporterName: req.body.reporterName,
     reporterPhone: req.body.reporterPhone,
     message: req.body.message,
@@ -87,6 +119,36 @@ export const createIncident = asyncHandler(async (req: Request, res: Response) =
 
   const reporterSessionToken = crypto.randomBytes(24).toString("hex");
 
+  const resolvedLoc = await resolvePersistedIncidentLocation({
+    client: clientLoc,
+    serverFallbackResolver: () =>
+      resolveApproxLocationFromHttpRequest({
+        clientIp: getClientIp(req),
+        googleMapsApiKey: env.GOOGLE_MAPS_API_KEY
+      })
+  });
+
+  if ("error" in resolvedLoc) {
+    throw new ApiError(
+      resolvedLoc.error === "FALLBACK_FAILED" ? 503 : 400,
+      resolvedLoc.message
+    );
+  }
+
+  const locationDoc = resolvedLoc.location;
+
+  logger.info("incident.location_audit", {
+    incidentChannel: "public_web",
+    permissionStatus: locationDoc.permissionStatus,
+    locationType: locationDoc.locationType,
+    lowAccuracy: locationDoc.lowAccuracy,
+    gpsFailureReason: locationDoc.gpsFailureReason || undefined,
+    approximateRegion:
+      locationDoc.locationType === "ip_based"
+        ? [locationDoc.approxCity, locationDoc.approxCountry].filter(Boolean).join(", ")
+        : undefined
+  });
+
   const incident = await IncidentModel.create({
     tagId: tag.id,
     carId,
@@ -100,14 +162,57 @@ export const createIncident = asyncHandler(async (req: Request, res: Response) =
     message: payload.message,
     images: files.map((file) => toPublicUploadPath(file.path)),
     callPlatform: "web",
-    consentAt: new Date()
+    consentAt: new Date(),
+    location: {
+      latitude: locationDoc.latitude,
+      longitude: locationDoc.longitude,
+      accuracyMeters: locationDoc.accuracyMeters,
+      locationType: locationDoc.locationType,
+      capturedAt: locationDoc.capturedAt,
+      permissionStatus: locationDoc.permissionStatus,
+      lowAccuracy: locationDoc.lowAccuracy,
+      approxCity: locationDoc.approxCity ?? "",
+      approxCountry: locationDoc.approxCountry ?? "",
+      gpsFailureReason: locationDoc.gpsFailureReason ?? ""
+    }
   });
+
+  const baseAlert =
+    assetType === "keys"
+      ? "A reporter submitted a new incident regarding your linked keys."
+      : "A reporter submitted a new incident for your car.";
+  const messageWithLoc = appendLocationAlertLines(baseAlert, locationDoc);
+  const mapsUrl =
+    typeof locationDoc.latitude === "number" && typeof locationDoc.longitude === "number"
+      ? `https://maps.google.com/?q=${locationDoc.latitude},${locationDoc.longitude}`
+      : undefined;
+  const approximateText =
+    locationDoc.locationType === "ip_based"
+      ? [locationDoc.approxCity, locationDoc.approxCountry].filter(Boolean).join(", ")
+      : undefined;
 
   await emitIncidentCreated(String(tag.ownerUserId), {
     incidentId: incident.id,
-    title: "New car incident reported",
-    message: "A reporter submitted a new incident for your car."
+    title:
+      assetType === "keys" ? "Keys incident reported" : "New car incident reported",
+    message: messageWithLoc,
+    locationType: locationDoc.locationType,
+    latitude: locationDoc.latitude,
+    longitude: locationDoc.longitude,
+    accuracyMeters: locationDoc.accuracyMeters,
+    lowAccuracy: locationDoc.lowAccuracy,
+    mapsUrl,
+    approximateText
   });
+
+  await dispatchNotification({
+    userId: String(tag.ownerUserId),
+    type: "INCIDENT_CREATED",
+    title: assetType === "keys" ? "Keys incident reported" : "Vehicle incident reported",
+    message: messageWithLoc,
+    channels: ["sms"],
+    relatedEntityId: incident.id
+  }).catch(() => undefined);
 
   res.status(201).json({
     incident: {

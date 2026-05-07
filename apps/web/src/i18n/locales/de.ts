@@ -130,6 +130,7 @@ export const de = {
     legal: "Rechtliches",
     support: "Support",
     rights: "Alle Rechte vorbehalten.",
+    designedByPrefix: "Entworfen und entwickelt von",
     madeIn: "Entwickelt in Deutschland",
     privacy: "Datenschutzerklärung",
     terms: "Allgemeine Geschäftsbedingungen",
@@ -216,7 +217,7 @@ export const de = {
       ]
     },
     faq: {
-      title: "Häufig gestellte Fragen",
+      title: "Häufig gestellte Fragen (FAQ)",
       subtitle: "Antworten auf die wichtigsten Fragen zu AutoQr.",
       viewAll: "Alle FAQ anzeigen"
     },
@@ -229,7 +230,31 @@ export const de = {
       fallbackTrustLine: "DSGVO-konform. Ihre Telefonnummer wird niemals sichtbar."
     },
     privacyBadge: "DSGVO · Gehostet in Deutschland",
-    pricingBadge: "Einmaliger Kauf"
+    pricingBadge: "Einmaliger Kauf",
+    planGrid: {
+      eyebrow: "Pläne & Preise",
+      title: "Der passende Schutz für Ihr Szenario.",
+      subtitle:
+        "Einmalige Preise in EUR. Derselbe Datenschutz-Kern — unterschiedliche QR-Sets, Kontaktlimits und Support-Stufen.",
+      loading: "Pläne werden geladen…",
+      empty:
+        "Noch keine Pläne verfügbar. API neu starten (Katalog-Sync beim Start) oder ausführen: npm run seed:plans -w @autoqr/api",
+      error: "Pläne konnten nicht geladen werden. Bitte versuchen Sie es gleich erneut.",
+      compareDetails: "Details vergleichen",
+      choose: "{{name}} wählen",
+      oneTime: "Einmalzahlung",
+      billedYearly: "Jährliche Abrechnung",
+      tagsIncluded: "{{count}} Tags enthalten",
+      mostPopular: "Bestseller",
+      fleetSales: "Mehr als Fleet Pro?",
+      fleetSalesLink: "Vertrieb kontaktieren"
+    },
+    planTier: {
+      car_basic: "Car-Basic",
+      smart_key: "Smart-Key",
+      premium_combo: "Premium-Combo",
+      fleet_pro: "Fleet-Pro"
+    }
   },
   howItWorksPageExtra: {
     eyebrow: "So funktioniert es",
@@ -242,8 +267,8 @@ export const de = {
   },
   useCasesPageExtra: {
     eyebrow: "Autos & Schlüssel",
-    heroTitle1: "Ein QR-Code.",
-    heroTitleBrand: "Zwei einfache Anwendungen.",
+    heroTitle1: "Ein QR-Code für",
+    heroTitleBrand: "Parkschäden und verlorene Schlüssel.",
     heroSubtitle:
       "AutoQr ist für die alltäglichen Momente gemacht, die zählen – eine Delle, ein Kratzer, ein verlorener Schlüsselbund. So funktioniert es für beide."
   },
@@ -352,7 +377,7 @@ export const de = {
     heroTitle1: "Ein echtes Team,",
     heroTitleBrand: "am anderen Ende.",
     heroSubtitle:
-      "Ob Sie Ihren ersten QR-Code bestellen, einen Vorfall bearbeiten oder einfach eine Frage haben – wir antworten innerhalb eines Werktags von einem echten Menschen.",
+      "Support ist aktuell nur per Live-Chat und E-Mail verfügbar. Telefonischer Support ist derzeit nicht verfügbar.",
     channels: [
       {
         label: "Allgemein",
@@ -365,14 +390,9 @@ export const de = {
         hint: "Missbrauchsmeldungen, Löschanträge, Richtlinien"
       },
       {
-        label: "Geschäftszeiten",
+        label: "Live-Chat-Support",
         value: "Mo.–Fr. · 09:00–18:00 Uhr MEZ",
-        hint: "Die meisten Anfragen werden innerhalb von 4 Stunden beantwortet"
-      },
-      {
-        label: "Büro",
-        value: "Berlin, Deutschland",
-        hint: "EU-Datenresidenz · gehostet in Deutschland"
+        hint: "Die meisten Chat-Anfragen werden innerhalb von 4 Stunden beantwortet"
       }
     ],
     activeIncident: "Aktiver Vorfall?",
@@ -414,7 +434,7 @@ export const de = {
     hoursValue: "Mo. – Fr. 09:00 – 18:00 Uhr"
   },
   faqPage: {
-    title: "Häufig gestellte Fragen",
+    title: "Häufig gestellte Fragen (FAQ)",
     subtitle: "Alles Wichtige zu AutoQr auf einen Blick.",
     categories: {
       general: "Allgemein",
@@ -512,6 +532,8 @@ export const de = {
     mobileNumberPlaceholder: "+49 176 ...",
     sendingCode: "Code wird gesendet...",
     sendMeCode: "Code senden",
+    resendCode: "Code erneut senden",
+    resendIn: "Erneut senden in {{seconds}}s",
     emailPlaceholder: "sie@firma.de",
     passwordPlaceholder: "••••••••",
     newToAutoqr: "Neu bei AutoQr?",
@@ -614,7 +636,23 @@ export const de = {
     errorInvalidPhone: "Bitte geben Sie eine gültige deutsche Telefonnummer ein.",
     errorMessageTooShort: "Bitte beschreiben Sie kurz, was passiert ist (mindestens 5 Zeichen).",
     errorConsentRequired: "Bitte akzeptieren Sie die Datenschutz-Einwilligung, um fortzufahren.",
-    errorSubmitGeneric: "Vorfall konnte nicht gesendet werden. Bitte prüfen Sie Ihre Angaben und versuchen Sie es erneut."
+    errorSubmitGeneric: "Vorfall konnte nicht gesendet werden. Bitte prüfen Sie Ihre Angaben und versuchen Sie es erneut.",
+    fetchingLocation: "Standort wird abgerufen...",
+    locationDeniedLong:
+      "Standortzugriff ist erforderlich, um einen Vorfall zu melden. Bitte aktivieren Sie GPS, um fortzufahren.",
+    refreshLocation: "Standort aktualisieren",
+    locationMapTitle: "Vorschau des gemeldeten Standorts",
+    locationApproximateTitle: "Ungefährer Standort (IP-basiert)",
+    locationApproximateBody:
+      "Wir konnten kein GPS von diesem Gerät lesen. Beim Senden wird ein ungefährer Standort aus der Netzwerkverbindung verwendet.",
+    locationLowAccuracy: "Geringe Genauigkeit",
+    locationConfirmationLabel: "Dieser Standort ist korrekt — für meine Meldung verwenden.",
+    locationConfirmRequired: "Bitte bestätigen Sie den Standort vor dem Absenden.",
+    offlineQueued:
+      "Sie sind offline — wir haben Ihre Meldung gespeichert und senden sie, sobald Sie wieder online sind.",
+    locationRequiredHint:
+      "Ein Standort ist zum Senden erforderlich. Beim Absenden fragt Ihr Browser nach GPS-Zugriff.",
+    locationSectionTitle: "Standort"
   },
   orderPage: {
     eyebrow: "AutoQr bestellen",
@@ -808,12 +846,12 @@ export const de = {
     pageSubtitle:
       "Einmalzahlung. Kein Abonnement. Keine versteckten Kosten. Jeder Plan enthält QR-Codes, Notfall-Weiterleitung und lebenslange Neuzuweisung.",
     sectionEyebrow: "Transparente Preise",
-    sectionTitle: "Für ein Fahrzeug, eine Familie oder eine Flotte.",
+    sectionTitle: "Vom Einzelauto bis zur ganzen Flotte.",
     sectionSubtitle:
-      "Die Pläne unterscheiden sich in der Anzahl der QR-Codes, Kontakte und im Support-Level. Die Datenschutzfunktionen sind in allen Stufen identisch.",
+      "Einmalige Pläne in EUR. Derselbe Datenschutz-Kern — unterschiedliche QR-Bundles, Kontaktlimits und Support-Stufen.",
     loadingPlans: "Wird geladen...",
     loadError: "Pläne konnten derzeit nicht geladen werden. Bitte aktualisieren Sie in einem Moment.",
-    needMoreThanBusiness: "Benötigen Sie mehr als Business?",
+    needMoreThanBusiness: "Benötigen Sie mehr als Fleet Pro?",
     talkToSales: "Sprechen Sie mit dem Vertrieb",
     talkToSalesSuffix: "für Mengenrabatte.",
     backToPlans: "← Zurück zu den Plänen",
@@ -822,10 +860,12 @@ export const de = {
     qrCodesLabel: "QR-Codes",
     vehiclesLabel: "Fahrzeuge",
     emergencyContactsLabel: "Notfallkontakte",
+    emergencyUnlimited: "Unbegrenzt",
     supportLabel: "Support",
     youPay: "Sie zahlen",
     oneTime: "Einmalzahlung · kein Abonnement",
     billedYearly: "Jährliche Abrechnung",
+    checkoutCta: "Zur Kasse",
     startOnboardingCta: "Onboarding starten",
     priceFooter: "14 Tage Rückgabe · gesichert durch Stripe · datenschutzfreundliches Relay",
     planNotFound: "Plan nicht gefunden",
@@ -835,7 +875,37 @@ export const de = {
     tagIncluded: "QR enthalten",
     tagsIncluded: "QR-Codes enthalten",
     supportSuffix: "Support",
-    loading: "Wird geladen..."
+    loading: "Wird geladen...",
+    checkoutYouPay: "Sie zahlen",
+    checkoutIncludes: "Enthalten",
+    checkoutTagsLine: "{{count}} QR-Tag",
+    checkoutTagsLine_plural: "{{count}} QR-Tags",
+    checkoutActivationNote: "Aktivierung nach Lieferung",
+    checkoutFootnote:
+      "Ihr QR wird erst aktiv, nachdem Sie ein Konto erstellt und ihn mit dem Aktivierungscode aus der Lieferung freigeschaltet haben.",
+    checkoutTitle: "Kasse",
+    checkoutIntro:
+      "Ihre Bestell- und Lieferdaten werden für den Versand verwendet. Der QR wird erst nach der Aktivierung mit Ihrem Konto verknüpft.",
+    checkoutSectionContact: "Kontakt",
+    checkoutLabelFullName: "Vollständiger Name",
+    checkoutLabelPhone: "Telefon",
+    checkoutLabelEmail: "E-Mail",
+    checkoutPhonePlaceholder: "+49 …",
+    checkoutSectionShipping: "Lieferadresse",
+    checkoutLabelAddressLine1: "Adresszeile",
+    checkoutLabelAddressLine2: "Adresszeile 2 (optional)",
+    checkoutLabelCity: "Ort",
+    checkoutLabelPostalCode: "Postleitzahl",
+    checkoutLabelCountry: "Land",
+    checkoutDefaultCountry: "Deutschland",
+    checkoutSectionNoteOptional: "Optionaler Hinweis",
+    checkoutLabelDeliveryNote: "Lieferhinweis",
+    checkoutPayButton: "{{amount}} bezahlen",
+    checkoutRedirecting: "Weiterleitung zur Zahlung…",
+    checkoutLegalConsent:
+      "Mit der Zahlung erklären Sie sich damit einverstanden, dass Ihr QR erst nach Kontoerstellung und Aktivierung aktiv wird.",
+    checkoutStripeFailed: "Stripe-Kasse fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    checkoutGenericFailed: "Kasse fehlgeschlagen."
   },
   onboarding: {
     title: "Willkommen bei AutoQr",
@@ -1097,7 +1167,7 @@ export const de = {
   emergency: {
     title: "Notfallkontakte",
     subtitle:
-      "Bei einem Unfall oder Notfall-Scan benachrichtigen wir diese Kontakte per SMS, WhatsApp und E-Mail. Fügen Sie Familie oder vertrauenswürdige Personen hinzu.",
+      "Bei einem Unfall oder Notfall-Scan benachrichtigen wir diese Kontakte per SMS und E-Mail. Fügen Sie Familie oder vertrauenswürdige Personen hinzu.",
     nameLabel: "Name",
     relationshipLabel: "Beziehung",
     relationshipPlaceholder: "Ehepartner, Eltern, Freund...",

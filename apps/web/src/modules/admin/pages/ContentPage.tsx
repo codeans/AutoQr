@@ -345,6 +345,8 @@ const SectionEditor = ({
     }
     case "useCases": {
       const d = data as MarketingContent["useCases"];
+      const carFeatures = d.car.features ?? [];
+      const keyFeatures = d.key.features ?? [];
       return (
         <FieldStack>
           <LabelledInput label="Headline" value={d.headline} onChange={(v) => onChange({ headline: v })} />
@@ -353,15 +355,43 @@ const SectionEditor = ({
           <Row>
             <LabelledInput label="Title" value={d.car.title} onChange={(v) => onChange({ car: { ...d.car, title: v } })} />
           </Row>
+          <LabelledInput
+            label="Tagline"
+            value={d.car.tagline ?? ""}
+            onChange={(v) => onChange({ car: { ...d.car, tagline: v } })}
+          />
           <LabelledTextarea label="Description" value={d.car.description} onChange={(v) => onChange({ car: { ...d.car, description: v } })} />
-          <StringListEditor label="Bullets" items={d.car.bullets} onChange={(bullets) => onChange({ car: { ...d.car, bullets } })} />
+          <ListEditor
+            label="Features"
+            items={carFeatures}
+            onChange={(features) => onChange({ car: { ...d.car, features } })}
+            fields={[
+              { key: "title", label: "Title" },
+              { key: "description", label: "Description", multiline: true }
+            ]}
+            template={{ title: "", description: "" }}
+          />
 
           <h4 className="mt-6 text-sm font-semibold text-slate-700">Key use case</h4>
           <Row>
             <LabelledInput label="Title" value={d.key.title} onChange={(v) => onChange({ key: { ...d.key, title: v } })} />
           </Row>
+          <LabelledInput
+            label="Tagline"
+            value={d.key.tagline ?? ""}
+            onChange={(v) => onChange({ key: { ...d.key, tagline: v } })}
+          />
           <LabelledTextarea label="Description" value={d.key.description} onChange={(v) => onChange({ key: { ...d.key, description: v } })} />
-          <StringListEditor label="Bullets" items={d.key.bullets} onChange={(bullets) => onChange({ key: { ...d.key, bullets } })} />
+          <ListEditor
+            label="Features"
+            items={keyFeatures}
+            onChange={(features) => onChange({ key: { ...d.key, features } })}
+            fields={[
+              { key: "title", label: "Title" },
+              { key: "description", label: "Description", multiline: true }
+            ]}
+            template={{ title: "", description: "" }}
+          />
         </FieldStack>
       );
     }

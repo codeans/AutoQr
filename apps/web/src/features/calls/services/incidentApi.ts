@@ -1,11 +1,27 @@
 import { api } from "../../../lib/api";
 
+export type IncidentLocationSubmit =
+  | {
+      mode: "gps";
+      latitude: number;
+      longitude: number;
+      accuracyMeters: number;
+      capturedAt: string;
+      permissionStatus: "granted";
+    }
+  | {
+      mode: "server_fallback";
+      permissionStatus: "fallback_used";
+      gpsFailureReason?: "timeout" | "position_unavailable" | "unknown";
+    };
+
 export type SubmitIncidentPayload = {
   token: string;
   reporterName: string;
   reporterPhoneE164: string;
   message: string;
   files: File[];
+  location: IncidentLocationSubmit;
 };
 
 export type SubmittedIncident = {
@@ -25,6 +41,7 @@ export const submitIncident = async (payload: SubmitIncidentPayload): Promise<Su
   body.set("reporterPhone", payload.reporterPhoneE164);
   body.set("message", payload.message);
   body.set("consent", "true");
+  body.set("location", JSON.stringify(payload.location));
   payload.files.forEach((file) => body.append("images", file));
   const { data } = await api.post(`/public/incident/${payload.token}`, body, {
     headers: { "Content-Type": "multipart/form-data" }

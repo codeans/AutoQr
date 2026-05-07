@@ -7,6 +7,7 @@ import {
   createTagBatch,
   disableTag,
   exportBatchRows,
+  iterateTagsForBulkPrint,
   listActivationRecords,
   listBatches,
   listTags,
@@ -14,6 +15,8 @@ import {
   listUserTags,
   markBatchStatus
 } from "./tag.service.js";
+import { getStickerGridLayout } from "./print/qrPrintTemplate.js";
+import { streamStickerPdf } from "./print/qrPrintPdf.js";
 import { AdminAuditLogModel } from "../../models/AdminAuditLog.js";
 import { dispatchNotification } from "../../infrastructure/notifications/notification.service.js";
 import { toPublicUploadPath } from "../../utils/uploads.js";
@@ -24,6 +27,25 @@ const batchSchema = z.object({
   productId: z.string().optional(),
   notes: z.string().optional()
 });
+
+const bulkPrintPdfSchema = z
+  .object({
+    batchId: z.string().optional(),
+    status: z.string().optional(),
+    serialFrom: z.string().optional(),
+    serialTo: z.string().optional(),
+    tagIds: z.array(z.string()).max(5000).optional(),
+    maxTags: z.number().int().min(1).max(5000).default(2500),
+    layoutPreset: z.enum(["a4_20", "a4_28", "a4_40"]).default("a4_20"),
+    drawCutGuides: z.boolean().default(true)
+  })
+  .refine(
+    (b) =>
+      Boolean(b.batchId) ||
+      Boolean(b.tagIds && b.tagIds.length > 0) ||
+      (Boolean(b.serialFrom) && Boolean(b.serialTo)),
+    { message: "Provide batchId, tagIds, or serialFrom+serialTo" }
+  );
 
 const activationSchema = z.object({
   assetType: z.enum(["car", "keys"]).default("car"),
@@ -91,10 +113,16 @@ export const adminUpdateBatchStatus = asyncHandler(async (req: Request, res: Res
 });
 
 export const adminListTags = asyncHandler(async (req: Request, res: Response) => {
+  const rawLimit = req.query.limit != null ? Number(req.query.limit) : undefined;
+  const limit =
+    rawLimit != null && Number.isFinite(rawLimit) ? Math.min(5000, Math.max(1, Math.floor(rawLimit))) : undefined;
   const tags = await listTags({
     batchId: req.query.batchId as string | undefined,
     status: req.query.status as string | undefined,
-    search: req.query.search as string | undefined
+    search: req.query.search as string | undefined,
+    serialFrom: typeof req.query.serialFrom === "string" ? req.query.serialFrom : undefined,
+    serialTo: typeof req.query.serialTo === "string" ? req.query.serialTo : undefined,
+    limit
   });
   res.json({ tags });
 });
@@ -109,6 +137,47 @@ export const adminDisableTag = asyncHandler(async (req: Request, res: Response) 
     metadata: {}
   });
   res.json({ tag });
+});
+
+export const adminBulkPrintPdf = asyncHandler(async (req: Request, res: Response) => {
+  const body = bulkPrintPdfSchema.parse(req.body);
+  const layout = getStickerGridLayout(body.layoutPreset);
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="autoqr-stickers-${body.layoutPreset}.pdf"`);
+
+  const filters = {
+    batchId: body.batchId,
+    status: body.status,
+    serialFrom: body.serialFrom,
+    serialTo: body.serialTo,
+    tagIds: body.tagIds,
+    maxTags: body.maxTags
+  };
+
+  const { count } = await streamStickerPdf(iterateTagsForBulkPrint(filters), res, {
+    layout,
+    drawCutGuides: body.drawCutGuides
+  });
+
+  await AdminAuditLogModel.create({
+    adminId: req.auth!.userId,
+    action: "qr_bulk_print_pdf",
+    targetType: "tag_batch",
+    targetId: body.batchId ?? "mixed",
+    metadata: {
+      count,
+      layoutPreset: body.layoutPreset,
+      filters: {
+        batchId: body.batchId,
+        status: body.status,
+        serialFrom: body.serialFrom,
+        serialTo: body.serialTo,
+        tagIdCount: body.tagIds?.length ?? 0,
+        maxTags: body.maxTags
+      }
+    }
+  });
 });
 
 export const adminExportBatch = asyncHandler(async (req: Request, res: Response) => {

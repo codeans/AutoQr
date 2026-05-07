@@ -51,6 +51,10 @@ const baseSocketOptions = {
   transports: ["websocket", "polling"] as ("websocket" | "polling")[]
 };
 
+const assertWebPlatform = (platform: CallPlatform) => {
+  if (platform !== "web") throw new Error(`Web client cannot target '${platform}' call platform`);
+};
+
 export const createOwnerCallSocket = (token: string): Socket =>
   io(socketBaseUrl, { ...baseSocketOptions, auth: { token } });
 
@@ -67,12 +71,14 @@ export const createReporterCallSocket = (incidentToken: string, reporterSessionT
  */
 export const signaling = {
   requestCall(socket: Socket, payload: { ownerUserId: string; incidentId: string; platform: CallPlatform }) {
+    assertWebPlatform(payload.platform);
     socket.emit("call_requested", payload);
   },
   cancelCall(socket: Socket, callId: string) {
     socket.emit("call_cancel", { callId });
   },
   accept(socket: Socket, callId: string, platform: CallPlatform = "web") {
+    assertWebPlatform(platform);
     socket.emit("call_accept", { callId, platform });
   },
   reject(socket: Socket, callId: string, reason?: string) {

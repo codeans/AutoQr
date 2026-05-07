@@ -3,8 +3,10 @@ import {
   CheckCircle2,
   CreditCard,
   FileClock,
+  FileDown,
   FileText,
   LayoutDashboard,
+  LayoutTemplate,
   Layers,
   LayoutList,
   LifeBuoy,
@@ -65,6 +67,8 @@ export const adminNavGroups: AdminNavGroup[] = [
     items: [
       { path: "/admin/tag-batches", label: "QR batches", icon: Layers },
       { path: "/admin/tags", label: "QR inventory", icon: QrCode },
+      { path: "/admin/bulk-print-pdf", label: "Bulk print (vendor PDF)", icon: FileDown },
+      { path: "/admin/html-templates", label: "HTML templates", icon: LayoutTemplate },
       { path: "/admin/activations", label: "Activation records", icon: CheckCircle2 },
       { path: "/admin/shipments", label: "Dispatch & shipments", icon: Package }
     ]

@@ -5,6 +5,7 @@ import { env } from "./config/env.js";
 import { closeSocketServer, createSocketServer } from "./realtime/socket.js";
 import { ensureSeedPlans } from "./modules/plans/plan.service.js";
 import { logger } from "./utils/logger.js";
+import { registerSmsProvider } from "./infrastructure/notifications/sms.twilio.provider.js";
 
 let shuttingDown = false;
 
@@ -28,6 +29,7 @@ const initializeDatabase = async () => {
 };
 
 const bootstrap = async () => {
+  registerSmsProvider();
   const server = http.createServer(app);
   createSocketServer(server);
   server.listen(env.PORT, () => {

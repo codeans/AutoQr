@@ -31,7 +31,6 @@ const userSchema = new Schema(
       orders: { type: Boolean, default: true },
       email: { type: Boolean, default: true },
       sms: { type: Boolean, default: true },
-      whatsapp: { type: Boolean, default: true },
       push: { type: Boolean, default: true },
       inApp: { type: Boolean, default: true }
     },

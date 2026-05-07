@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext";
 
 export const RegisterPage = () => {
   const { t } = useTranslation();
-  const { requestWhatsAppOtp, verifyWhatsAppOtp } = useAuth();
+  const { requestOtp, verifyOtp } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const redirect = params.get("redirect") ?? "/setup-qr";
@@ -18,13 +18,28 @@ export const RegisterPage = () => {
   const [devCode, setDevCode] = useState<string | undefined>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [resendPending, setResendPending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  const startResendCooldown = () => {
+    setResendCooldown(30);
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const sendCode = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     setPending(true);
     try {
-      const res = await requestWhatsAppOtp(form.phone, "signup");
+      const res = await requestOtp(form.phone, "signup");
       setDevCode(res.devCode);
       setStep("verify");
     } catch (err: any) {
@@ -41,7 +56,7 @@ export const RegisterPage = () => {
     try {
       if (form.password.length < 8) throw new Error("Password must be at least 8 characters.");
       if (form.password !== form.confirmPassword) throw new Error("Passwords do not match.");
-      await verifyWhatsAppOtp({
+      await verifyOtp({
         phone: form.phone,
         code,
         purpose: "signup",
@@ -52,6 +67,21 @@ export const RegisterPage = () => {
       setError(err?.response?.data?.message ?? t("auth.errorVerificationFailed"));
     } finally {
       setPending(false);
+    }
+  };
+
+  const resendCode = async () => {
+    if (!form.phone || resendCooldown > 0) return;
+    setError("");
+    setResendPending(true);
+    try {
+      const res = await requestOtp(form.phone, "signup");
+      setDevCode(res.devCode);
+      startResendCooldown();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? t("auth.errorCouldNotSendCodeGeneric"));
+    } finally {
+      setResendPending(false);
     }
   };
 
@@ -179,6 +209,18 @@ export const RegisterPage = () => {
               <Button type="submit" size="lg" className="w-full" disabled={pending}>
                 {pending ? t("auth.verifying") : t("auth.verifyAndCreateAccount")}
               </Button>
+              <button
+                type="button"
+                onClick={resendCode}
+                disabled={resendPending || resendCooldown > 0}
+                className="w-full text-[13px] text-content-subtle hover:text-content disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {resendPending
+                  ? t("auth.sendingCode")
+                  : resendCooldown > 0
+                    ? t("auth.resendIn", { seconds: resendCooldown })
+                    : t("auth.resendCode")}
+              </button>
               <button
                 type="button"
                 onClick={() => setStep("details")}

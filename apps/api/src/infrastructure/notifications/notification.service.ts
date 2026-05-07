@@ -22,7 +22,7 @@ export type DispatchInput = {
 
 export const dispatchNotification = async (input: DispatchInput) => {
   const results: NotificationResult[] = [];
-  const channels = input.channels ?? ["in_app", "email", "sms", "whatsapp", "push"];
+  const channels = input.channels ?? ["in_app", "email", "sms", "push"];
   let user: any = null;
   if (input.userId) {
     user = await UserModel.findById(input.userId).lean();
@@ -63,10 +63,6 @@ export const dispatchNotification = async (input: DispatchInput) => {
 
   if (channels.includes("sms") && phone && prefs.sms !== false) {
     await sendThrough("sms", { to: phone, body: `${input.title}: ${input.message}`, data: input.data });
-  }
-
-  if (channels.includes("whatsapp") && phone && prefs.whatsapp !== false) {
-    await sendThrough("whatsapp", { to: phone, body: `${input.title}: ${input.message}`, data: input.data });
   }
 
   if (channels.includes("push") && input.userId && prefs.push !== false) {

@@ -7,5 +7,6 @@ coverage
 pnpm-lock.yaml
 .env
 apps/api/.env
+apps/api/.env.local
 apps/web/.env
-mobile-app/.env
+apps/web/.env.local

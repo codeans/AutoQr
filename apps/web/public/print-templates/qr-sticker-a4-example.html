@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<!--
+  AutoQR — print-only sticker sheet example (10 placeholders).
+  Backend integration: replace each .sticker block with server-rendered HTML,
+  or replace {{qr_image}} / {{qr_id}} in a loop. Not for mobile/responsive use.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>QR stickers A4 example (10)</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    html, body { margin: 0; padding: 0; }
+    * { box-sizing: border-box; }
+
+    :root {
+      --sticker-w: 50.8mm;
+      --sticker-h: 50.8mm;
+      --page-margin: 8mm;
+      --gap: 1.5mm;
+      --cols: 3;
+    }
+
+    .print-root {
+      width: 210mm;
+      min-height: 297mm;
+      padding: var(--page-margin);
+      display: grid;
+      grid-template-columns: repeat(var(--cols), var(--sticker-w));
+      grid-auto-rows: var(--sticker-h);
+      gap: var(--gap);
+      justify-content: start;
+      align-content: start;
+      background: #fff;
+    }
+
+    .sticker {
+      width: var(--sticker-w);
+      height: var(--sticker-h);
+      page-break-inside: avoid;
+      break-inside: avoid;
+      border: 0.35pt solid #111;
+      overflow: hidden;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .t-inner {
+      height: 100%;
+      padding: 1.5mm;
+      display: grid;
+      grid-template-rows: 1fr auto auto auto;
+      align-items: center;
+      justify-items: center;
+      gap: 0.6mm;
+      min-height: 0;
+    }
+
+    .t-inner .qr {
+      width: 28mm;
+      height: 28mm;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .cap { font-size: 8pt; font-weight: 700; text-align: center; line-height: 1.1; }
+    .id { font-size: 6.5pt; font-family: ui-monospace, monospace; text-align: center; }
+    .sub { font-size: 5pt; text-align: center; line-height: 1.2; color: #222; }
+
+    @media print {
+      html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-root">
+    <!-- Example: {{qr_image}} = <img class="qr" src="..." alt="" />  {{qr_id}} = #A1023 -->
+    <article class="sticker"><div class="t-inner">
+      <img class="qr" src="https://placehold.co/400x400/111/fff/png?text=QR+1" alt="" />
+      <div class="cap">SCAN TO CALL OWNER</div>
+      <div class="id">#A1001</div>
+      <div class="sub">DEMO12AB · BATCH-EXAMPLE</div>
+    </div></article>
+    <article class="sticker"><div class="t-inner">
+      <img class="qr" src="https://placehold.co/400x400/111/fff/png?text=QR+2" alt="" />
+      <div class="cap">SCAN TO CALL OWNER</div>
+      <div class="id">#A1002</div>
+      <div class="sub">DEMO12AB · BATCH-EXAMPLE</div>
+    </div></article>
+    <article class="sticker"><div class="t-inner">
+      <img class="qr" src="https://placehold.co/400x400/111/fff/png?text=QR+3" alt="" />
+      <div class="cap">SCAN TO CALL OWNER</div>
+      <div class="id">#A1003</div>
+      <div class="sub">DEMO12AB · BATCH-EXAMPLE</div>
+    </div></article>
+    <article class="sticker"><div class="t-inner">
+      <img class="qr" src="https://placehold.co/400x400/111/fff/png?text=QR+4" alt="" />
+      <div class="cap">SCAN TO CALL OWNER</div>
+      <div class="id">#A1004</div>
+      <div class="sub">DEMO12AB · BATCH-EXAMPLE</div>
+    </div></article>
+    <article class="sticker"><div class="t-inner">
+      <img class="qr" src="https://placehold.co/400x400/111/fff/png?text=QR+5" alt="" />
+      <div class="cap">SCAN TO CALL OWNER</div>
+      <div class="id">#A1005</div>
+      <div class="sub">DEMO12AB · BATCH-EXAMPLE</div>
+    </div></article>
+    <article class="sticker"><div class="t-inner">
+      <img class="qr" src="https://placehold.co/400x400/111/fff/png?text=QR+6" alt="" />
+      <div class="cap">SCAN TO CALL OWNER</div>
+      <div class="id">#A1006</div>
+      <div class="sub">DEMO12AB · BATCH-EXAMPLE</div>
+    </div></article>
+    <article class="sticker"><div class="t-inner">
+      <img class="qr" src="https://placehold.co/400x400/111/fff/png?text=QR+7" alt="" />
+      <div class="cap">SCAN TO CALL OWNER</div>
+      <div class="id">#A1007</div>
+      <div class="sub">DEMO12AB · BATCH-EXAMPLE</div>
+    </div></article>
+    <article class="sticker"><div class="t-inner">
+      <img class="qr" src="https://placehold.co/400x400/111/fff/png?text=QR+8" alt="" />
+      <div class="cap">SCAN TO CALL OWNER</div>
+      <div class="id">#A1008</div>
+      <div class="sub">DEMO12AB · BATCH-EXAMPLE</div>
+    </div></article>
+    <article class="sticker"><div class="t-inner">
+      <img class="qr" src="https://placehold.co/400x400/111/fff/png?text=QR+9" alt="" />
+      <div class="cap">SCAN TO CALL OWNER</div>
+      <div class="id">#A1009</div>
+      <div class="sub">DEMO12AB · BATCH-EXAMPLE</div>
+    </div></article>
+    <article class="sticker"><div class="t-inner">
+      <img class="qr" src="https://placehold.co/400x400/111/fff/png?text=QR+10" alt="" />
+      <div class="cap">SCAN TO CALL OWNER</div>
+      <div class="id">#A1010</div>
+      <div class="sub">DEMO12AB · BATCH-EXAMPLE</div>
+    </div></article>
+  </div>
+</body>
+</html>

@@ -15,9 +15,9 @@ export const ScrollProgressIndicator = ({
       aria-hidden
       className="pointer-events-none fixed right-12 top-1/2 z-30 hidden -translate-y-1/2 md:block"
     >
-      <div className="relative h-[60vh] w-px bg-[#001233]/10">
+      <div className="relative h-[60vh] w-px bg-[#001B36]/10">
         <motion.div
-          className="absolute inset-x-0 top-0 h-full w-[2px] -translate-x-px bg-[#0066FF]"
+          className="absolute inset-x-0 top-0 h-full w-[2px] -translate-x-px bg-[#003878]"
           style={{ scaleY, transformOrigin: "top" }}
         />
 
@@ -57,8 +57,8 @@ const ChapterMarker = ({
   const scale = useTransform(isActive, [0, 1], [1, 1.2]);
   const dotOpacity = useTransform(isActive, [0, 1], [0.3, 1]);
   const labelColor = useTransform(isActive, [0, 1], [
-    "rgba(0,18,51,0.3)",
-    "rgba(0,102,255,1)"
+    "rgba(0,27,54,0.3)",
+    "rgba(0,56,120,1)"
   ]);
 
   return (
@@ -70,7 +70,7 @@ const ChapterMarker = ({
       }}
     >
       <motion.span
-        className="block h-2 w-2 rounded-full bg-[#0066FF]"
+        className="block h-2 w-2 rounded-full bg-[#003878]"
         style={{ opacity: dotOpacity }}
       />
       <motion.span

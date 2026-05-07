@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Container } from "../shared/Container";
@@ -14,6 +14,8 @@ export const Navbar = () => {
   const { t } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const lastScrolled = useRef(false);
+  const rafRef = useRef<number | null>(null);
   const { pathname } = useLocation();
 
   const navLinks = [
@@ -25,10 +27,25 @@ export const Navbar = () => {
   ];
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => {
+      if (rafRef.current !== null) return;
+      rafRef.current = window.requestAnimationFrame(() => {
+        const next = window.scrollY > 8;
+        if (next !== lastScrolled.current) {
+          lastScrolled.current = next;
+          setScrolled(next);
+        }
+        rafRef.current = null;
+      });
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (rafRef.current !== null) {
+        window.cancelAnimationFrame(rafRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -49,24 +66,30 @@ export const Navbar = () => {
   return (
     <header
       className={clsx(
-        "fixed inset-x-0 top-0 z-50 transition-all duration-300",
+        "fixed inset-x-0 top-0 z-50 isolate overflow-visible transition-all duration-300",
         scrolled
-          ? "border-b border-surface-border/80 bg-white/85 backdrop-blur-xl"
-          : "border-b border-transparent bg-white/0"
+          ? "border-b border-surface-border/80 bg-transparent backdrop-blur-xl"
+          : "border-b border-transparent bg-transparent"
       )}
     >
-      <Container>
+      <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,#f7fbff_0%,#edf4ff_35%,#f9fbff_100%)]" />
+        <div className="absolute -top-40 left-1/2 h-[640px] w-[1200px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(0,56,120,0.26),transparent_62%)] blur-2xl" />
+        <div className="absolute right-[-8rem] top-20 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.18),transparent_68%)] blur-2xl" />
+      </div>
+
+      <Container className="relative z-10">
         <div className="flex h-16 items-center justify-between sm:h-[72px]">
           <div className="flex items-center gap-10">
             <Logo />
-            <nav className="hidden items-center gap-1 lg:flex">
+            <nav className="hidden items-center gap-0.5 xl:flex 2xl:gap-1">
               {navLinks.map((link) => (
                 <NavLink
                   key={link.to}
                   to={localizePath(link.to)}
                   className={({ isActive }) =>
                     clsx(
-                      "relative rounded-full px-3.5 py-2 text-[13.5px] font-medium transition-colors",
+                      "relative whitespace-nowrap rounded-full px-3 py-2 text-[13px] font-medium transition-colors 2xl:px-3.5 2xl:text-[13.5px]",
                       isActive
                         ? "text-brand-700"
                         : "text-content-muted hover:text-content"
@@ -79,11 +102,11 @@ export const Navbar = () => {
             </nav>
           </div>
 
-          <div className="hidden items-center gap-2 lg:flex">
+          <div className="hidden items-center gap-1.5 xl:flex 2xl:gap-2">
             <LanguageSwitcher variant="navbar" />
             <Link
               to={localizePath("/login")}
-              className="rounded-full px-4 py-2 text-[13.5px] font-medium text-content-muted transition-colors hover:text-content"
+              className="whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium text-content-muted transition-colors hover:text-content 2xl:px-4 2xl:text-[13.5px]"
             >
               {t("nav.signIn")}
             </Link>
@@ -92,14 +115,14 @@ export const Navbar = () => {
             </LinkButton>
           </div>
 
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex items-center gap-2 xl:hidden">
             <LanguageSwitcher variant="compact" />
             <button
               type="button"
               aria-label={open ? (t("common.close") as string) : "Menu"}
               aria-expanded={open}
               onClick={() => setOpen((v) => !v)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-surface-border bg-white text-content transition hover:bg-surface-sunken"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-surface-border bg-white text-content transition hover:bg-surface-sunken"
             >
               {open ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
             </button>
@@ -114,7 +137,7 @@ export const Navbar = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 top-16 z-40 bg-white/98 backdrop-blur-xl lg:hidden sm:top-[72px]"
+            className="fixed inset-0 top-16 z-40 bg-white/98 backdrop-blur-xl xl:hidden sm:top-[72px]"
           >
             <motion.nav
               initial={{ y: -8, opacity: 0 }}

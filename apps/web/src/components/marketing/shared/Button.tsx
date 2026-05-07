@@ -9,11 +9,11 @@ type Variant = "primary" | "secondary" | "ghost";
 type Size = "sm" | "md" | "lg";
 
 const base =
-  "group relative inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-tight transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap";
+  "group relative inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-center font-medium tracking-tight transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-brand-700 text-white hover:bg-brand-800 hover:-translate-y-[1px] shadow-[0_8px_24px_-8px_rgba(29,78,216,0.5)]",
+    "bg-brand-700 text-white hover:bg-brand-800 md:hover:-translate-y-[1px] shadow-[0_8px_24px_-8px_rgba(29,78,216,0.5)]",
   secondary:
     "border border-surface-border bg-white text-content hover:border-brand-200 hover:bg-brand-50",
   ghost:
@@ -21,7 +21,7 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  sm: "h-9 px-4 text-[13px]",
+  sm: "min-h-10 px-4 text-[13px]",
   md: "h-11 px-5 text-sm",
   lg: "h-12 px-6 text-[15px]"
 };

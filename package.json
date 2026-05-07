@@ -11,6 +11,7 @@
     "build": "npm run build -w @autoqr/shared && npm run build -w @autoqr/api && npm run build -w @autoqr/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "seed:plans": "npm run seed:plans -w @autoqr/api"
   }
 }

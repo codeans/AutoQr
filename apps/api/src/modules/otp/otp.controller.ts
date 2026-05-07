@@ -17,7 +17,8 @@ const verifySchema = z.object({
     .object({
       name: z.string().min(2).max(120),
       email: z.string().email(),
-      address: z.string().min(3).max(500)
+      address: z.string().min(3).max(500),
+      password: z.string().min(8).optional()
     })
     .optional()
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
@@ -16,7 +16,6 @@ import {
 } from "../../../components/ui";
 import { adminPlatformService } from "../services/platform.service";
 import { assetBaseUrl } from "../../../lib/runtimeConfig";
-
 const tone: Record<string, "neutral" | "success" | "warning" | "danger" | "info"> = {
   generated: "neutral",
   printed: "info",
@@ -67,11 +66,11 @@ export const TagsInventoryPage = () => {
   const [search, setSearch] = useState("");
   const [previewTag, setPreviewTag] = useState<TagRow | null>(null);
 
-  const resolveQrSrc = (qrImage?: string) => {
+  const resolveQrSrc = useCallback((qrImage?: string) => {
     if (!qrImage) return "";
     if (/^https?:\/\//i.test(qrImage)) return qrImage;
     return `${assetBaseUrl}${qrImage.startsWith("/") ? "" : "/"}${qrImage}`;
-  };
+  }, []);
 
   const downloadQr = async (tag: TagRow) => {
     const src = resolveQrSrc(tag.qrImage);
@@ -99,19 +98,22 @@ export const TagsInventoryPage = () => {
     if (!win) return;
     const safeSerial = (tag.serial ?? "").replace(/[<>&"']/g, "");
     const safeCode = (tag.activationCode ?? "").replace(/[<>&"']/g, "");
+    const safeBatch = batchLabel(tag.batchId).replace(/[<>&"']/g, "");
     win.document.write(`<!doctype html><html><head><title>QR ${safeSerial}</title>
 <style>
   body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; }
   .sheet { text-align:center; padding:24px; }
   .sheet img { width:320px; height:320px; }
   .meta { margin-top:16px; font-size:14px; color:#111; }
-  .code { font-family: ui-monospace, monospace; letter-spacing: 1px; font-size: 13px; color:#333; }
+  .batch { font-size: 13px; color:#111; margin-top: 8px; }
+  .code { font-family: ui-monospace, monospace; letter-spacing: 1px; font-size: 13px; color:#111; margin-top: 6px; }
   @media print { @page { margin: 12mm; } }
 </style></head><body>
   <div class="sheet">
     <img src="${src}" alt="QR" />
     <div class="meta"><strong>${safeSerial}</strong></div>
-    <div class="code">Activation: ${safeCode}</div>
+    <div class="batch"><strong>Batch:</strong> ${safeBatch}</div>
+    <div class="code"><strong>Activation:</strong> ${safeCode}</div>
   </div>
   <script>
     const img = document.querySelector('img');
@@ -146,7 +148,7 @@ export const TagsInventoryPage = () => {
     <div className="space-y-6">
       <PageHeader
         title="QR inventory"
-        subtitle="Every pre-generated car QR appears here. Each QR has a unique activation code that becomes unusable once an owner activates it."
+        subtitle="Every pre-generated car QR appears here. Each QR has a unique activation code that becomes unusable once an owner activates it. Bulk vendor PDF and browser HTML sheets live under their own admin pages in this section."
       />
 
       <div className="grid gap-4 md:grid-cols-5">

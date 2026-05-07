@@ -8,6 +8,6 @@ const getEnv = (name: "VITE_API_URL" | "VITE_SOCKET_URL" | "VITE_AGORA_APP_ID", 
 };
 
 export const apiBaseUrl = getEnv("VITE_API_URL", "https://api.autoqr.de/api").replace(/\/$/, "");
-export const socketBaseUrl = getEnv("VITE_SOCKET_URL", "https://api.autoqr.de").replace(/\/$/, "");
 export const assetBaseUrl = apiBaseUrl.replace(/\/api$/, "");
+export const socketBaseUrl = getEnv("VITE_SOCKET_URL", "https://api.autoqr.de").replace(/\/$/, "");
 export const agoraAppId = getEnv("VITE_AGORA_APP_ID", "").trim();

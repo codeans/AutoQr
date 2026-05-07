@@ -1,14 +1,13 @@
-import { Clock, Mail, MapPin, ShieldAlert, LucideIcon } from "lucide-react";
+import { Clock, Mail, ShieldAlert, LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LinkButton } from "../components/marketing/shared/Button";
 import { Container } from "../components/marketing/shared/Container";
 import { PageHero } from "../components/marketing/shared/PageHero";
 
-const CHANNEL_ICONS: LucideIcon[] = [Mail, ShieldAlert, Clock, MapPin];
+const CHANNEL_ICONS: LucideIcon[] = [Mail, ShieldAlert, Clock];
 const CHANNEL_HREFS: (string | undefined)[] = [
   "mailto:support@autoqr.de",
   "mailto:safety@autoqr.de",
-  undefined,
   undefined
 ];
 
@@ -33,7 +32,7 @@ export const ContactPage = () => {
 
       <section className="pb-24 pt-4 sm:pb-32">
         <Container>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {channels.map((c, idx) => {
               const Icon = CHANNEL_ICONS[idx] ?? Mail;
               const href = CHANNEL_HREFS[idx];
